@@ -9,7 +9,15 @@ python3 -m http.server 8000
 # open http://localhost:8000
 ```
 
-Any static host works: GitHub Pages, Netlify, Vercel, Cloudflare Pages or cPanel `public_html` (the company's `broad-link.net` domain currently shows a hosting placeholder).
+## Deploy to Vercel
+
+The site is ready for Vercel as-is. There is no build step, and `vercel.json` sets clean URLs, asset caching and security headers.
+
+- **From GitHub:** in Vercel choose *Add New → Project*, import this repo, set Framework Preset to **Other**, leave the Build Command and Output Directory empty, then Deploy. Private repos work.
+- **CLI:** run `npx vercel --prod` in the repo folder.
+- **Without Git:** run `zip -r broad-link-logistics-site.zip index.html vercel.json assets`, unzip it into a folder, and run `npx vercel --prod` inside that folder.
+
+To use the company domain (`broad-link.net`), add it under *Project → Settings → Domains* and follow the DNS instructions there.
 
 ## Structure
 
@@ -18,7 +26,8 @@ index.html            page markup and content
 assets/css/style.css  design system (light-blue tokens, type scale, layout)
 assets/js/hero.js     hero canvas animation ("Corridor Drive" highway and route network)
 assets/js/main.js     scroll interactions, corridor map, fleet carousel, quote form
-assets/img/favicon.svg
+assets/img/logo.png    official company logo (used unmodified)
+vercel.json           Vercel static hosting config
 ```
 
 ## Motion

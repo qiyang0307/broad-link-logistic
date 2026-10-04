@@ -115,7 +115,9 @@ ol, ul { padding: 0; list-style: none; }
 }
 .nav.is-scrolled .nav__bar { background: rgba(243, 248, 252, .86); border-color: var(--line); }
 .brand { display: inline-flex; align-items: center; gap: 10px; }
-.brand__mark { width: 34px; height: 34px; }
+.brand__logo { width: 40px; height: 40px; flex: none; border-radius: 10px; background: #fff; overflow: hidden; border: 1px solid var(--line); }
+.brand__logo img { width: 100%; height: 100%; object-fit: contain; transform: scale(1.55); }
+.brand--light .brand__logo { border-color: transparent; }
 .brand__text { font-family: var(--display); font-size: 18px; letter-spacing: -0.02em; white-space: nowrap; }
 .brand__text strong { font-weight: 600; }
 .nav__links { display: flex; gap: 4px; }
