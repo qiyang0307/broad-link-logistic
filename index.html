@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Broad-link Logistics — Road Transport Between Singapore &amp; Malaysia</title>
+  <meta name="description" content="Broad-Link Logistics Sdn Bhd (est. 2003, Johor Bahru) — your one-stop road transportation provider for import &amp; export between Singapore and Malaysia: general cargo &amp; bulk, chemical transport, cross-border trucking, customs forwarding and warehousing." />
+  <meta name="theme-color" content="#3a9be6" />
+  <meta property="og:title" content="Broad-link Logistics" />
+  <meta property="og:description" content="One-stop road transportation for import &amp; export between Singapore and Malaysia, from Johor Bahru since 2003." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <div class="progress" aria-hidden="true"><span></span></div>
+
+  <!-- Shared vehicle line-art (technical diagram style) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="cab" viewBox="0 0 180 130">
+        <path d="M10 22 Q14 4 40 3 H98 Q108 3 110 22" />
+        <path d="M10 22 H112 Q128 22 134 38 L150 74 L168 80 Q175 82 175 90 V110 H10 Z" class="fill" />
+        <path d="M100 32 H118 Q124 33 127 42 L138 66 H100 Z" class="glass" />
+        <path d="M96 30 V108 M100 110 H128 M165 88 H175 M165 95 H175 M165 102 H175" />
+        <path d="M0 112 H40" />
+        <circle cx="40" cy="112" r="17" class="tyre" /><circle cx="40" cy="112" r="7" />
+        <circle cx="148" cy="112" r="17" class="tyre" /><circle cx="148" cy="112" r="7" />
+      </symbol>
+      <symbol id="wheel" viewBox="-20 -20 40 40">
+        <circle r="17" class="tyre" /><circle r="7" /><circle r="1.6" class="dot" />
+      </symbol>
+
+      <symbol id="v-curtain" viewBox="0 0 640 200">
+        <rect x="20" y="40" width="410" height="118" rx="4" class="fill" />
+        <path class="thin" d="M44 48V150M68 48V150M92 48V150M116 48V150M140 48V150M164 48V150M188 48V150M212 48V150M236 48V150M260 48V150M284 48V150M308 48V150M332 48V150M356 48V150M380 48V150M404 48V150" />
+        <rect x="120" y="82" width="200" height="30" rx="2" class="badge" />
+        <text x="220" y="102" text-anchor="middle" class="label">BROAD-LINK</text>
+        <path d="M20 160 H450 M200 160 V180 M190 180 H210" />
+        <use href="#wheel" x="282" y="152" width="40" height="40" />
+        <use href="#wheel" x="318" y="152" width="40" height="40" />
+        <use href="#wheel" x="354" y="152" width="40" height="40" />
+        <use href="#cab" x="440" y="60" width="180" height="130" />
+      </symbol>
+
+      <symbol id="v-lowbed" viewBox="0 0 640 200">
+        <path d="M20 146 H96 L114 166 H328 L346 140 H440" />
+        <path d="M346 140 L380 118 H440 V140" class="fill" />
+        <rect x="132" y="84" width="182" height="80" rx="3" class="fill" />
+        <path class="thin" d="M150 84V164M168 84V164M186 84V164M204 84V164M222 84V164M240 84V164M258 84V164M276 84V164M294 84V164" />
+        <path d="M150 84 V60 H200 V84 M250 84 V68 H296 V84 M175 60 V48 M270 68 V56" />
+        <path class="thin" d="M132 164 L110 186 M314 164 L336 186" />
+        <use href="#wheel" x="22" y="152" width="34" height="34" />
+        <use href="#wheel" x="56" y="152" width="34" height="34" />
+        <use href="#wheel" x="90" y="152" width="34" height="34" />
+        <use href="#cab" x="440" y="60" width="180" height="130" />
+      </symbol>
+
+      <symbol id="v-reefer" viewBox="0 0 640 200">
+        <rect x="20" y="40" width="400" height="118" rx="6" class="fill" />
+        <path class="thin" d="M70 40V158M120 40V158M170 40V158M220 40V158M270 40V158M320 40V158M370 40V158" />
+        <rect x="420" y="52" width="16" height="54" rx="2" class="badge" />
+        <path class="thin" d="M424 62H432M424 70H432M424 78H432M424 86H432" />
+        <text x="220" y="104" text-anchor="middle" class="label">BROAD-LINK</text>
+        <path d="M20 160 H450 M200 160 V180 M190 180 H210" />
+        <use href="#wheel" x="282" y="152" width="40" height="40" />
+        <use href="#wheel" x="318" y="152" width="40" height="40" />
+        <use href="#wheel" x="354" y="152" width="40" height="40" />
+        <use href="#cab" x="440" y="60" width="180" height="130" />
+      </symbol>
+
+      <symbol id="v-tanker" viewBox="0 0 640 200">
+        <rect x="26" y="52" width="398" height="108" rx="2" class="thin" />
+        <path class="thin" d="M26 52 L80 106 L26 160 M424 52 L370 106 L424 160" />
+        <rect x="40" y="60" width="370" height="92" rx="46" class="fill" />
+        <path class="thin" d="M120 62V150M200 60V152M280 60V152M340 62V150" />
+        <path d="M190 60 V48 H230 V60 M300 60 V52" />
+        <rect x="150" y="94" width="150" height="20" rx="2" class="badge" />
+        <text x="225" y="108" text-anchor="middle" class="label small">ISO · ADR</text>
+        <path d="M20 162 H450 M200 162 V180 M190 180 H210" />
+        <use href="#wheel" x="282" y="152" width="40" height="40" />
+        <use href="#wheel" x="318" y="152" width="40" height="40" />
+        <use href="#wheel" x="354" y="152" width="40" height="40" />
+        <use href="#cab" x="440" y="60" width="180" height="130" />
+      </symbol>
+
+      <symbol id="v-container" viewBox="0 0 640 200">
+        <rect x="20" y="58" width="410" height="98" rx="1" class="fill" />
+        <path class="thin" d="M34 62V152M44 62V152M54 62V152M64 62V152M74 62V152M84 62V152M94 62V152M104 62V152M114 62V152M124 62V152M134 62V152M144 62V152M154 62V152M164 62V152M174 62V152M184 62V152M194 62V152M204 62V152M214 62V152M224 62V152M234 62V152M244 62V152M254 62V152M264 62V152M274 62V152M284 62V152M294 62V152M304 62V152M314 62V152M324 62V152M334 62V152M344 62V152M354 62V152M364 62V152M374 62V152M384 62V152M394 62V152M404 62V152M414 62V152" />
+        <rect x="140" y="92" width="170" height="26" rx="2" class="badge" />
+        <text x="225" y="110" text-anchor="middle" class="label small">40' HIGH-CUBE</text>
+        <path d="M20 160 H450 M200 160 V180 M190 180 H210" />
+        <use href="#wheel" x="300" y="152" width="40" height="40" />
+        <use href="#wheel" x="340" y="152" width="40" height="40" />
+        <use href="#cab" x="440" y="60" width="180" height="130" />
+      </symbol>
+    </defs>
+  </svg>
+
+  <!-- ============ NAVIGATION ============ -->
+  <header class="nav" data-nav>
+    <div class="nav__bar">
+      <a href="#top" class="brand" aria-label="Broad-link Logistics home">
+        <svg class="brand__mark" viewBox="0 0 40 40" aria-hidden="true">
+          <rect width="40" height="40" rx="10" fill="url(#bm)" />
+          <defs><linearGradient id="bm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6cc0ff"/><stop offset="1" stop-color="#1a73c2"/></linearGradient></defs>
+          <path d="M11 12 L19 20 L11 28" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20 12 L28 20 L20 28" fill="none" stroke="#d9efff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" opacity=".75"/>
+        </svg>
+        <span class="brand__text"><strong>Broad-link</strong> Logistics</span>
+      </a>
+      <nav class="nav__links" aria-label="Primary">
+        <a href="#about">Company</a>
+        <a href="#services">Services</a>
+        <a href="#network">Network</a>
+        <a href="#fleet">Fleet</a>
+        <a href="#projects">Projects</a>
+      </nav>
+      <div class="nav__cta">
+        <a class="nav__hotline" href="tel:+6073329889"><span class="dot-live"></span><span class="mono">07-332&nbsp;9889</span></a>
+        <a class="btn btn--primary btn--sm" href="#contact">Request a quote</a>
+        <button class="nav__toggle" aria-label="Open menu" aria-expanded="false" data-menu-toggle><span></span><span></span></button>
+      </div>
+    </div>
+    <div class="nav__sheet" data-menu>
+      <a href="#about">Company</a><a href="#services">Services</a><a href="#network">Network</a><a href="#fleet">Fleet</a><a href="#projects">Projects</a><a href="#contact">Contact</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ============ HERO ============ -->
+    <section class="hero" id="top" data-hero>
+      <canvas class="hero__canvas" data-hero-canvas aria-hidden="true"></canvas>
+      <div class="hero__veil" aria-hidden="true"></div>
+
+      <div class="container hero__inner" data-hero-content>
+        <p class="eyebrow hero__eyebrow"><span class="tick"></span>Broad-Link Logistics Sdn Bhd · Since 2003</p>
+        <h1 class="hero__title">
+          <span class="line"><span>Heavy freight,</span></span>
+          <span class="line"><span>moved <em>border</em></span></span>
+          <span class="line"><span><em>to border.</em></span></span>
+        </h1>
+        <p class="hero__lede">Your one-stop road transportation partner for import &amp; export between Singapore and Malaysia — general cargo, bulk and chemical freight, cleared and delivered from our Johor Bahru base.</p>
+        <div class="hero__actions">
+          <a class="btn btn--primary" href="#contact">Get a rate quotation <span aria-hidden="true">→</span></a>
+          <a class="btn btn--ghost" href="#network">Explore the corridor</a>
+        </div>
+      </div>
+
+      <aside class="hero__panel" aria-label="Corridors served">
+        <div class="hero__panel-head"><span class="mono">Corridors served</span><span class="pill pill--live"><span class="dot-live"></span>Active</span></div>
+        <ol class="route-mini">
+          <li><b>SIN</b><i></i><b>JHB</b><span>Import &amp; export · Causeway / Second Link</span></li>
+          <li><b>JHB</b><i></i><b>KUL</b><span>Port Klang · Klang Valley</span></li>
+          <li><b>KUL</b><i></i><b>PEN</b><span>Northern region</span></li>
+          <li><b>PEN</b><i></i><b>BKH</b><span>Border link · on request</span></li>
+        </ol>
+      </aside>
+
+      <div class="hero__foot container">
+        <span class="mono coords">01°30′N 103°43′E — Tampoi, Johor Bahru</span>
+        <a href="#stats" class="scroll-cue" aria-label="Scroll to content"><span class="mono">Scroll</span><span class="scroll-cue__bar"><i></i></span></a>
+        <button class="hero__pause mono" data-hero-pause aria-pressed="false"><span class="pause-ico" aria-hidden="true"></span><span data-pause-label>Pause motion</span></button>
+      </div>
+    </section>
+
+    <!-- ============ STATS ============ -->
+    <section class="stats" id="stats">
+      <div class="container stats__grid">
+        <div class="stat reveal"><span class="stat__num"><span data-count="2003">2003</span></span><span class="stat__label mono">Incorporated in Malaysia</span></div>
+        <div class="stat reveal" data-delay="1"><span class="stat__num"><span data-count="20" data-suffix="+">0</span></span><span class="stat__label mono">Years on the SG – MY lane</span></div>
+        <div class="stat reveal" data-delay="2"><span class="stat__num"><span data-count="51" data-suffix="–200">0</span></span><span class="stat__label mono">People on the team</span></div>
+        <div class="stat reveal" data-delay="3"><span class="stat__num">1-stop</span><span class="stat__label mono">Transport · customs · storage</span></div>
+      </div>
+    </section>
+
+    <!-- ============ INTRO ============ -->
+    <section class="intro" id="about">
+      <div class="container intro__grid">
+        <div class="intro__side">
+          <p class="eyebrow">01 — Company</p>
+          <p class="intro__meta mono">Broad-Link Logistics Sdn Bhd<br/>Co. No. 636115-X<br/>Johor Bahru, Johor</p>
+        </div>
+        <div>
+          <p class="intro__statement" data-words>Broad-Link Logistics is a total logistics service provider headquartered in Johor Bahru. Since 2003 we have moved general cargo, bulk and chemical freight between Singapore and Malaysia — with transport, customs forwarding, warehousing and our own workshop under one roof, and service and customer satisfaction at the centre of everything we do.</p>
+          <div class="intro__facts">
+            <div class="reveal"><span class="mono">Base</span><p>Strategically located in Johor Bahru — off Jalan Tampoi and in Sri Plentong — minutes from the Causeway and Second Link.</p></div>
+            <div class="reveal" data-delay="1"><span class="mono">Fleet &amp; workshop</span><p>Prime movers and trailers for general, bulk and chemical cargo, maintained by our in-house workshop.</p></div>
+            <div class="reveal" data-delay="2"><span class="mono">Customs</span><p>Custom forwarding and cross-border documentation handled in-house for import &amp; export.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="container">
+        <figure class="intro__banner reveal" data-parallax-wrap>
+          <div class="intro__banner-art" data-parallax="0.12">
+            <svg class="vehicle vehicle--light" viewBox="0 0 640 200" role="img" aria-label="Line drawing of a Broad-link curtain-sider prime mover"><use href="#v-curtain" /></svg>
+          </div>
+          <div class="road-dashes" aria-hidden="true"></div>
+          <figcaption>
+            <span class="mono">On the road since 2003</span>
+            <strong>Road transport, Singapore ⇄ Malaysia</strong>
+            <dl class="spec-row">
+              <div><dt class="mono">Cargo</dt><dd>General · bulk</dd></div>
+              <div><dt class="mono">Lane</dt><dd>SG ⇄ MY</dd></div>
+              <div><dt class="mono">Base</dt><dd>Johor Bahru</dd></div>
+            </dl>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ============ SERVICES ============ -->
+    <section class="services" id="services">
+      <div class="container">
+        <header class="section-head">
+          <p class="eyebrow">02 — Capabilities</p>
+          <h2 class="section-title reveal">A total logistics<br/>service provider.</h2>
+          <p class="section-lede reveal" data-delay="1">Transportation, forwarding and storage designed around your logistics arrangements — one partner, one point of contact, from pickup in Singapore to delivery in Malaysia and back.</p>
+        </header>
+        <div class="cards">
+          <article class="card reveal">
+            <div class="card__top"><span class="mono card__idx">2.1</span><span class="card__tag mono">SG ⇄ MY</span></div>
+            <h3>Cross-border road transport</h3>
+            <p>One-stop road transportation for import &amp; export between Singapore and Malaysia, door to door.</p>
+            <svg class="diagram" viewBox="0 0 260 90" aria-hidden="true"><rect x="4" y="30" width="64" height="40" rx="3"/><rect x="192" y="30" width="64" height="40" rx="3"/><path d="M68 50 H192" class="dash"/><path d="M130 14 V86" class="thin"/><circle cx="130" cy="50" r="6" class="node"/><text x="36" y="22" class="t" text-anchor="middle">SG</text><text x="224" y="22" class="t" text-anchor="middle">MY</text></svg>
+            <dl class="card__specs"><div><dt>Mode</dt><dd>FTL · LTL</dd></div><div><dt>Lane</dt><dd>Causeway · 2nd Link</dd></div></dl>
+          </article>
+          <article class="card reveal" data-delay="1">
+            <div class="card__top"><span class="mono card__idx">2.2</span><span class="card__tag mono">Cargo</span></div>
+            <h3>General cargo &amp; bulk</h3>
+            <p>Palletised, loose and bulk consignments for manufacturers, traders and distributors across the peninsula.</p>
+            <svg class="diagram" viewBox="0 0 260 90" aria-hidden="true"><rect x="6" y="16" width="156" height="58" rx="2"/><path class="thin" d="M26 16V74M46 16V74M66 16V74M86 16V74M106 16V74M126 16V74M146 16V74"/><rect x="180" y="16" width="74" height="58" rx="2" class="fill"/><path d="M180 45 H254" class="thin"/></svg>
+            <dl class="card__specs"><div><dt>Loads</dt><dd>Pallet · bulk</dd></div><div><dt>Delivery</dt><dd>Domestic</dd></div></dl>
+          </article>
+          <article class="card reveal" data-delay="2">
+            <div class="card__top"><span class="mono card__idx">2.3</span><span class="card__tag mono">DG</span></div>
+            <h3>Chemical transportation</h3>
+            <p>Specialist handling of chemical and dangerous-goods (DG) cargo, from loading through cross-border delivery.</p>
+            <svg class="diagram" viewBox="0 0 260 90" aria-hidden="true"><rect x="20" y="22" width="190" height="52" rx="26" class="fill"/><path class="thin" d="M70 22V74M115 22V74M160 22V74"/><path d="M226 30 L246 50 L226 70 L206 50 Z"/><text x="226" y="54" class="t" text-anchor="middle">DG</text></svg>
+            <dl class="card__specs"><div><dt>Cargo</dt><dd>Chemical · DG</dd></div><div><dt>Focus</dt><dd>Safety</dd></div></dl>
+          </article>
+          <article class="card reveal">
+            <div class="card__top"><span class="mono card__idx">2.4</span><span class="card__tag mono">Customs</span></div>
+            <h3>Custom forwarding</h3>
+            <p>Customs declarations and cross-border documentation prepared in-house, so cargo clears without surprises.</p>
+            <svg class="diagram" viewBox="0 0 260 90" aria-hidden="true"><rect x="20" y="12" width="70" height="70" rx="2" class="fill"/><path class="thin" d="M32 30H78M32 42H78M32 54H64"/><path d="M100 47 H170" class="dash"/><circle cx="200" cy="47" r="22"/><path d="M190 47 L198 55 L212 39"/></svg>
+            <dl class="card__specs"><div><dt>Docs</dt><dd>Import · export</dd></div><div><dt>Handled</dt><dd>In-house</dd></div></dl>
+          </article>
+          <article class="card reveal" data-delay="1">
+            <div class="card__top"><span class="mono card__idx">2.5</span><span class="card__tag mono">Storage</span></div>
+            <h3>Warehousing services</h3>
+            <p>Storage, consolidation and buffer stock in Johor Bahru to keep your supply chain moving between deliveries.</p>
+            <svg class="diagram" viewBox="0 0 260 90" aria-hidden="true"><path d="M20 40 L130 10 L240 40 V84 H20 Z" class="fill"/><rect x="100" y="52" width="60" height="32"/><path class="thin" d="M100 62H160M100 72H160"/><path d="M36 84 V50 M224 84 V50" class="thin"/></svg>
+            <dl class="card__specs"><div><dt>Site</dt><dd>Johor Bahru</dd></div><div><dt>Use</dt><dd>Store · consolidate</dd></div></dl>
+          </article>
+          <article class="card reveal" data-delay="2">
+            <div class="card__top"><span class="mono card__idx">2.6</span><span class="card__tag mono">Fleet care</span></div>
+            <h3>Workshop services</h3>
+            <p>Our own workshop maintains the fleet in-house — fewer breakdowns, safer trucks and dependable schedules.</p>
+            <svg class="diagram" viewBox="0 0 260 90" aria-hidden="true"><circle cx="70" cy="47" r="30"/><circle cx="70" cy="47" r="12" class="fill"/><path class="thin" d="M70 9V17M70 77V85M32 47H40M100 47H108"/><path d="M150 70 L210 22 M200 18 a10 10 0 1 0 14 14" /><path d="M140 80 L156 64" /></svg>
+            <dl class="card__specs"><div><dt>Service</dt><dd>In-house</dd></div><div><dt>Result</dt><dd>Uptime</dd></div></dl>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CORRIDOR (scroll-driven map) ============ -->
+    <section class="corridor" id="network" data-corridor>
+      <div class="corridor__sticky">
+        <div class="container corridor__grid">
+          <div class="corridor__text">
+            <p class="eyebrow">03 — Linehaul network</p>
+            <h2 class="section-title">From the Causeway<br/>across the peninsula.</h2>
+            <ol class="legs" data-legs>
+              <li class="leg is-active">
+                <div class="leg__head"><span class="mono">Leg 01</span><span class="pill">Express</span></div>
+                <h3>Singapore ⇄ Johor Bahru</h3>
+                <p>Our core lane — import &amp; export trucking across the Causeway and Second Link, with customs forwarding handled in-house.</p>
+                <dl><div><dt class="mono">Service</dt><dd>Core lane</dd></div><div><dt class="mono">Clearance</dt><dd>In-house</dd></div></dl>
+              </li>
+              <li class="leg">
+                <div class="leg__head"><span class="mono">Leg 02</span><span class="pill">Domestic</span></div>
+                <h3>Johor Bahru ⇄ Kuala Lumpur / Port Klang</h3>
+                <p>North–South Expressway deliveries to the Klang Valley and Port Klang.</p>
+                <dl><div><dt class="mono">Service</dt><dd>Scheduled</dd></div><div><dt class="mono">Cargo</dt><dd>General · bulk</dd></div></dl>
+              </li>
+              <li class="leg">
+                <div class="leg__head"><span class="mono">Leg 03</span><span class="pill">Northbound</span></div>
+                <h3>Kuala Lumpur ⇄ Penang / Prai</h3>
+                <p>Onward delivery to the northern industrial and E&amp;E hubs.</p>
+                <dl><div><dt class="mono">Service</dt><dd>On request</dd></div><div><dt class="mono">Cargo</dt><dd>General · DG</dd></div></dl>
+              </li>
+              <li class="leg">
+                <div class="leg__head"><span class="mono">Leg 04</span><span class="pill">Border link</span></div>
+                <h3>Penang ⇄ Bukit Kayu Hitam</h3>
+                <p>Connections to the Malaysia – Thailand border for onward regional freight.</p>
+                <dl><div><dt class="mono">Service</dt><dd>On request</dd></div><div><dt class="mono">Planning</dt><dd>Per shipment</dd></div></dl>
+              </li>
+            </ol>
+          </div>
+
+          <div class="corridor__map">
+            <svg viewBox="0 0 420 680" class="map" data-map role="img" aria-label="Map of the Singapore to Southern Thailand linehaul corridor">
+              <defs>
+                <pattern id="dots" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" /></pattern>
+                <linearGradient id="landGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#eaf4fd"/></linearGradient>
+                <clipPath id="mapClip"><rect width="420" height="680" rx="12" /></clipPath>
+                <radialGradient id="glow"><stop offset="0" stop-color="#3a9be6" stop-opacity=".45"/><stop offset="1" stop-color="#3a9be6" stop-opacity="0"/></radialGradient>
+              </defs>
+              <g clip-path="url(#mapClip)">
+              <rect width="420" height="680" rx="12" class="map__water" />
+              <rect width="420" height="680" fill="url(#dots)" class="map__sea" />
+              <path class="map__land" data-land />
+              <ellipse class="map__land" cx="345" cy="624" rx="26" ry="9" />
+              <path class="map__border" d="M30 62 Q90 92 196 104" />
+              <text class="map__country" x="250" y="40">THAILAND</text>
+              <text class="map__country" x="196" y="300">MALAYSIA</text>
+              <text class="map__country" x="20" y="660">STRAIT OF MALACCA</text>
+              </g>
+                            <path class="map__route-base" data-route-base />
+              <path class="map__route" data-route />
+              <g data-nodes></g>
+              <g class="map__truck" data-truck>
+                <circle r="26" fill="url(#glow)" />
+                <circle r="9" class="map__truck-ring" />
+                <circle r="4.5" class="map__truck-core" />
+              </g>
+            </svg>
+            <div class="map__readout mono"><span data-readout-leg>Leg 01</span><span data-readout-km>0 km</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FLEET (horizontal scroll) ============ -->
+    <section class="fleet" id="fleet" data-fleet>
+      <div class="fleet__sticky">
+        <div class="container fleet__head">
+          <div>
+            <p class="eyebrow">04 — Fleet</p>
+            <h2 class="section-title">The right trailer<br/>for the cargo.</h2>
+          </div>
+          <div class="fleet__progress mono"><span data-fleet-index>01</span> / 05<span class="fleet__bar"><i data-fleet-bar></i></span></div>
+        </div>
+        <div class="fleet__viewport">
+          <div class="fleet__track" data-fleet-track>
+            <article class="unit">
+              <div class="unit__art"><svg class="vehicle" viewBox="0 0 640 200" aria-hidden="true"><use href="#v-curtain"/></svg></div>
+              <div class="unit__body"><span class="mono">Unit A · Curtain-sider</span><h3>Curtain-sider trailer</h3><p>Fast side-loading for palletised general cargo, FMCG and electronics.</p>
+                <dl class="spec-row"><div><dt class="mono">Cargo</dt><dd>General</dd></div><div><dt class="mono">Loading</dt><dd>Side · rear</dd></div><div><dt class="mono">Lane</dt><dd>SG ⇄ MY</dd></div></dl></div>
+            </article>
+            <article class="unit">
+              <div class="unit__art"><svg class="vehicle" viewBox="0 0 640 200" aria-hidden="true"><use href="#v-container"/></svg></div>
+              <div class="unit__body"><span class="mono">Unit B · Container</span><h3>Container chassis</h3><p>Port and depot haulage for full containers between Singapore and Malaysia.</p>
+                <dl class="spec-row"><div><dt class="mono">Boxes</dt><dd>20' · 40'</dd></div><div><dt class="mono">Mode</dt><dd>FCL</dd></div><div><dt class="mono">Lane</dt><dd>Port ⇄ door</dd></div></dl></div>
+            </article>
+            <article class="unit">
+              <div class="unit__art"><svg class="vehicle" viewBox="0 0 640 200" aria-hidden="true"><use href="#v-tanker"/></svg></div>
+              <div class="unit__body"><span class="mono">Unit C · Chemical</span><h3>Chemical &amp; DG transport</h3><p>Tank and drum transport for chemical and dangerous-goods cargo, with trained drivers.</p>
+                <dl class="spec-row"><div><dt class="mono">Cargo</dt><dd>Chemical · DG</dd></div><div><dt class="mono">Focus</dt><dd>Safety</dd></div><div><dt class="mono">Docs</dt><dd>In-house</dd></div></dl></div>
+            </article>
+            <article class="unit">
+              <div class="unit__art"><svg class="vehicle" viewBox="0 0 640 200" aria-hidden="true"><use href="#v-reefer"/></svg></div>
+              <div class="unit__body"><span class="mono">Unit D · Box</span><h3>Box trailer</h3><p>Enclosed, secure box trailers for cargo that needs protection from weather and handling.</p>
+                <dl class="spec-row"><div><dt class="mono">Cargo</dt><dd>Sensitive</dd></div><div><dt class="mono">Body</dt><dd>Enclosed</dd></div><div><dt class="mono">Lane</dt><dd>SG ⇄ MY</dd></div></dl></div>
+            </article>
+            <article class="unit">
+              <div class="unit__art"><svg class="vehicle" viewBox="0 0 640 200" aria-hidden="true"><use href="#v-lowbed"/></svg></div>
+              <div class="unit__body"><span class="mono">Unit E · Low-bed</span><h3>Low-bed &amp; flatbed</h3><p>Machinery, steel and bulky industrial loads that do not fit a standard trailer.</p>
+                <dl class="spec-row"><div><dt class="mono">Cargo</dt><dd>Bulky · heavy</dd></div><div><dt class="mono">Deck</dt><dd>Low-bed</dd></div><div><dt class="mono">Planning</dt><dd>Per job</dd></div></dl></div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PROJECTS ============ -->
+    <section class="projects" id="projects">
+      <div class="container">
+        <header class="section-head section-head--row">
+          <div>
+            <p class="eyebrow">05 — What we move</p>
+            <h2 class="section-title reveal">Showcase.</h2>
+          </div>
+          <div class="filters" role="tablist" aria-label="Filter projects" data-filters>
+            <button class="is-active" data-filter="all" role="tab" aria-selected="true">All</button>
+            <button data-filter="cross" role="tab" aria-selected="false">Cross-border</button>
+            <button data-filter="chem" role="tab" aria-selected="false">Chemical</button>
+            <button data-filter="general" role="tab" aria-selected="false">General</button>
+            <button data-filter="heavy" role="tab" aria-selected="false">Industrial</button>
+          </div>
+        </header>
+
+        <div class="cases" data-cases>
+          <article class="case reveal" data-cat="cross">
+            <div class="case__art case__art--a" data-parallax-wrap>
+              <div class="case__sky" data-parallax="0.08"></div>
+              <svg class="vehicle vehicle--light" viewBox="0 0 640 200" aria-hidden="true"><use href="#v-container"/></svg>
+              <div class="road-dashes" aria-hidden="true"></div>
+              <span class="case__tag mono">Cross-border · Import / export</span>
+              <span class="case__meta mono">Singapore ⇄ Johor Bahru</span>
+            </div>
+            <div class="case__body">
+              <div class="case__ref mono"><span>Service 01</span><span>SG → MY</span></div>
+              <h3>Daily cross-border trucking</h3>
+              <p>Import &amp; export consignments trucked between Singapore and Johor Bahru, with customs forwarding prepared in-house so cargo clears and delivers on schedule.</p>
+              <dl class="spec-row"><div><dt class="mono">Service</dt><dd>Road transport</dd></div><div><dt class="mono">Customs</dt><dd>In-house</dd></div><div><dt class="mono">Lane</dt><dd>SG ⇄ MY</dd></div></dl>
+            </div>
+          </article>
+          <article class="case reveal" data-delay="1" data-cat="chem">
+            <div class="case__art case__art--b" data-parallax-wrap>
+              <div class="case__sky" data-parallax="0.08"></div>
+              <svg class="vehicle vehicle--light" viewBox="0 0 640 200" aria-hidden="true"><use href="#v-tanker"/></svg>
+              <div class="road-dashes" aria-hidden="true"></div>
+              <span class="case__tag mono">Chemical · Dangerous goods</span>
+              <span class="case__meta mono">DG cargo handling</span>
+            </div>
+            <div class="case__body">
+              <div class="case__ref mono"><span>Service 02</span><span>Plant → plant</span></div>
+              <h3>Chemical transportation</h3>
+              <p>Specialist transport of chemical and DG cargo for industrial customers, handled by trained drivers with the documentation required for each crossing.</p>
+              <dl class="spec-row"><div><dt class="mono">Cargo</dt><dd>Chemical · DG</dd></div><div><dt class="mono">Focus</dt><dd>Safety</dd></div><div><dt class="mono">Docs</dt><dd>Prepared</dd></div></dl>
+            </div>
+          </article>
+          <article class="case reveal" data-cat="general">
+            <div class="case__art case__art--c" data-parallax-wrap>
+              <div class="case__sky" data-parallax="0.08"></div>
+              <svg class="vehicle vehicle--light" viewBox="0 0 640 200" aria-hidden="true"><use href="#v-curtain"/></svg>
+              <div class="road-dashes" aria-hidden="true"></div>
+              <span class="case__tag mono">General cargo · Bulk</span>
+              <span class="case__meta mono">Distribution</span>
+            </div>
+            <div class="case__body">
+              <div class="case__ref mono"><span>Service 03</span><span>Johor → peninsula</span></div>
+              <h3>General cargo &amp; bulk distribution</h3>
+              <p>Palletised and bulk freight delivered from Johor Bahru to customers across Peninsular Malaysia, with warehousing to buffer stock between runs.</p>
+              <dl class="spec-row"><div><dt class="mono">Cargo</dt><dd>General · bulk</dd></div><div><dt class="mono">Storage</dt><dd>Warehouse</dd></div><div><dt class="mono">Reach</dt><dd>Peninsular MY</dd></div></dl>
+            </div>
+          </article>
+          <article class="case reveal" data-delay="1" data-cat="heavy">
+            <div class="case__art case__art--d" data-parallax-wrap>
+              <div class="case__sky" data-parallax="0.08"></div>
+              <svg class="vehicle vehicle--light" viewBox="0 0 640 200" aria-hidden="true"><use href="#v-lowbed"/></svg>
+              <div class="road-dashes" aria-hidden="true"></div>
+              <span class="case__tag mono">Industrial · Bulky loads</span>
+              <span class="case__meta mono">Project cargo</span>
+            </div>
+            <div class="case__body">
+              <div class="case__ref mono"><span>Service 04</span><span>Site → site</span></div>
+              <h3>Machinery &amp; industrial moves</h3>
+              <p>Bulky machinery and industrial equipment moved on low-bed and flatbed trailers, planned per job and supported by our own workshop.</p>
+              <dl class="spec-row"><div><dt class="mono">Trailer</dt><dd>Low-bed</dd></div><div><dt class="mono">Planning</dt><dd>Per job</dd></div><div><dt class="mono">Fleet care</dt><dd>Workshop</dd></div></dl>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PROCESS ============ -->
+    <section class="process">
+      <div class="container">
+        <header class="section-head">
+          <p class="eyebrow">06 — How we work</p>
+          <h2 class="section-title reveal">From enquiry to proof<br/>of delivery.</h2>
+        </header>
+        <ol class="steps" data-steps>
+          <li class="step reveal"><span class="step__n mono">01</span><h3>Tell us the job</h3><p>Origin, destination, cargo type and date — call, message us on Facebook or send the quote form.</p></li>
+          <li class="step reveal" data-delay="1"><span class="step__n mono">02</span><h3>Plan &amp; clear</h3><p>We match the right truck and prepare customs and cross-border documents in-house.</p></li>
+          <li class="step reveal" data-delay="2"><span class="step__n mono">03</span><h3>Collect &amp; transport</h3><p>One team accountable from pickup to drop, with warehousing available in between.</p></li>
+          <li class="step reveal" data-delay="3"><span class="step__n mono">04</span><h3>Deliver &amp; follow up</h3><p>Delivery confirmed and documents returned — because service and customer satisfaction come first.</p></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ============ TRUST MARQUEE ============ -->
+    <section class="trust" aria-label="What we do">
+      <div class="marquee" aria-hidden="true">
+        <div class="marquee__track">
+          <span>Since 2003</span><i></i><span>Singapore ⇄ Malaysia</span><i></i><span>General cargo &amp; bulk</span><i></i><span>Chemical transportation</span><i></i><span>Custom forwarding</span><i></i><span>Warehousing</span><i></i><span>Workshop services</span><i></i>
+          <span>Since 2003</span><i></i><span>Singapore ⇄ Malaysia</span><i></i><span>General cargo &amp; bulk</span><i></i><span>Chemical transportation</span><i></i><span>Custom forwarding</span><i></i><span>Warehousing</span><i></i><span>Workshop services</span><i></i>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CONTACT ============ -->
+    <section class="contact" id="contact">
+      <div class="container">
+        <header class="section-head section-head--center">
+          <p class="eyebrow">07 — Fast engagement</p>
+          <h2 class="section-title reveal">Talk to us about<br/>your next shipment.</h2>
+          <p class="section-lede reveal" data-delay="1">Call our Johor Bahru office, or send a short brief and our team will come back to you with a rate and plan.</p>
+        </header>
+
+        <div class="contact__grid">
+          <aside class="desk reveal">
+            <div class="desk__head">
+              <span class="desk__ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h4l2 5-2.5 1.5a11 11 0 0 0 5 5L14 14l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 3 6a1 1 0 0 1 1-1z"/></svg></span>
+              <div><strong>Broad-Link Logistics Sdn Bhd</strong><span class="mono">Co. No. 636115-X · Est. 2003</span></div>
+            </div>
+            <ul class="desk__list">
+              <li><span class="mono">Telephone</span><a href="tel:+6073329889">+60 7-332 9889</a></li>
+              <li><span class="mono">Head office · Tampoi</span><address>Lot 1562, No. 7, Jalan Dewani,<br/>Off Jalan Tampoi, Kawasan Perindustrian Dewani,<br/>81200 Johor Bahru, Johor, Malaysia</address><a class="desk__map mono" href="https://www.google.com/maps/search/?api=1&amp;query=Broad-Link+Logistics+Jalan+Dewani+Tampoi+Johor+Bahru" target="_blank" rel="noopener">Open in Maps ↗</a></li>
+              <li><span class="mono">Sri Plentong site</span><address>Lot 75288, Jalan Harum Utama, Off Lebuhraya Pasir Gudang,<br/>Taman Perindustrian Sri Plentong, 81750 Masai, Johor</address><a class="desk__map mono" href="https://www.google.com/maps/search/?api=1&amp;query=Lot+75288+Jalan+Harum+Utama+Sri+Plentong+Johor" target="_blank" rel="noopener">Open in Maps ↗</a></li>
+              <li><span class="mono">Office hours</span><span class="desk__val">Monday – Friday, 8:00 am – 5:00 pm</span></li>
+              <li><span class="mono">Social</span><span class="desk__social"><a href="https://www.facebook.com/broadlinkjb/" target="_blank" rel="noopener">Facebook · broadlinkjb</a><a href="https://www.facebook.com/BroadLinkLogistics/" target="_blank" rel="noopener">Facebook · BroadLinkLogistics</a><a href="https://www.linkedin.com/company/broadlinklogistics" target="_blank" rel="noopener">LinkedIn</a></span></li>
+            </ul>
+            <div class="desk__sla"><span class="dot-live"></span><span class="mono">Service &amp; customer satisfaction first</span></div>
+          </aside>
+
+          <form class="quote reveal" data-delay="1" data-quote novalidate>
+            <div class="quote__head"><h3>Request a quotation</h3><p>Fill in your shipment details. We copy your enquiry and open Facebook Messenger so you can paste and send it to our team.</p></div>
+            <div class="quote__grid">
+              <label class="field"><span class="mono">Origin</span>
+                <select name="origin"><option>Singapore</option><option>Johor Bahru</option><option>Kuala Lumpur / Port Klang</option><option>Penang / Prai</option><option>Other (please note)</option></select></label>
+              <label class="field"><span class="mono">Destination</span>
+                <select name="destination"><option>Johor Bahru</option><option>Singapore</option><option>Kuala Lumpur / Port Klang</option><option>Penang / Prai</option><option>Other (please note)</option></select></label>
+              <label class="field"><span class="mono">Cargo / service</span>
+                <select name="vehicle"><option>General cargo</option><option>Bulk cargo</option><option>Chemical / dangerous goods</option><option>Container (FCL)</option><option>Machinery / bulky</option><option>Warehousing</option><option>Not sure, please advise</option></select></label>
+              <label class="field"><span class="mono">Est. weight (MT)</span><input type="number" name="weight" min="0" step="0.1" placeholder="18" /></label>
+              <label class="field"><span class="mono">Target date</span><input type="date" name="date" /></label>
+              <label class="field"><span class="mono">Company / name</span><input type="text" name="name" placeholder="Your name or company" required /></label>
+              <label class="field field--wide"><span class="mono">Notes</span><textarea name="notes" rows="3" placeholder="Pallet count, dimensions, special handling…"></textarea></label>
+              <label class="check field--wide"><input type="checkbox" name="customs" checked /><span>Include customs forwarding (cross-border documentation)</span></label>
+            </div>
+            <p class="quote__error" role="alert" data-quote-error hidden>Please add your name or company so we know who to reply to.</p>
+            <p class="quote__ok" role="status" data-quote-ok hidden></p>
+            <div class="quote__actions">
+              <a class="btn btn--ghost" href="tel:+6073329889">Call 07-332 9889</a>
+              <button type="submit" class="btn btn--primary">Send via Messenger <span aria-hidden="true">→</span></button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer__big" aria-hidden="true">Broad-link</div>
+      <div class="footer__grid">
+        <div class="footer__brand">
+          <a href="#top" class="brand brand--light"><span class="brand__text"><strong>Broad-link</strong> Logistics</span></a>
+          <p>Broad-Link Logistics Sdn Bhd (636115-X). Your one-stop road transportation logistics provider for import &amp; export between Singapore and Malaysia.</p>
+        </div>
+        <div><span class="mono">Services</span><a href="#services">Cross-border transport</a><a href="#services">General cargo &amp; bulk</a><a href="#services">Chemical transportation</a><a href="#services">Custom forwarding</a><a href="#services">Warehousing &amp; workshop</a></div>
+        <div><span class="mono">Company</span><a href="#about">About</a><a href="#network">Network</a><a href="#fleet">Fleet</a><a href="#projects">Showcase</a><a href="#contact">Contact</a></div>
+        <div><span class="mono">Contact</span><a href="tel:+6073329889">+60 7-332 9889</a><a href="https://www.facebook.com/broadlinkjb/" target="_blank" rel="noopener">Facebook</a><a href="https://www.linkedin.com/company/broadlinklogistics" target="_blank" rel="noopener">LinkedIn</a><span class="footer__addr">Jalan Dewani, Off Jalan Tampoi,<br/>81200 Johor Bahru, Johor</span></div>
+      </div>
+      <div class="footer__base mono"><span>© <span data-year>2026</span> Broad-Link Logistics Sdn Bhd (636115-X). All rights reserved.</span><span>Tampoi · Johor Bahru · Malaysia</span></div>
+    </div>
+  </footer>
+
+  <script src="assets/js/hero.js" defer></script>
+  <script src="assets/js/main.js" defer></script>
+</body>
+</html>
