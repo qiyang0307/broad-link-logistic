@@ -34,6 +34,8 @@
     sederhana: { ic: '🚶', add: 350 },
     aktif: { ic: '⚽', add: 700 },
   };
+  // How Meowie behaves for each activity level on the setup screen.
+  const VIBE = { santai: 'relax', sederhana: 'walk', aktif: 'hyper' };
   const GENDER = {
     lelaki: { ic: '👨', f: 1 },
     perempuan: { ic: '👩', f: .92 },
@@ -277,11 +279,10 @@
             p.weight = Math.max(30, Math.min(150, v));
             range.value = p.weight;
             $('#wNum', el).textContent = p.weight;
-            // Cat puffs up slightly with the number, just for fun.
-            cat.style.transform = `scale(${.9 + (p.weight - 30) / 600})`;
+            // Meowie slims down or fills out with the weight.
+            Meowie.setBuild(cat, (p.weight - 65) / 45);
             save();
           };
-          cat.style.transition = 'transform .2s ease';
           setW(p.weight);
           range.addEventListener('input', () => setW(Number(range.value)));
           el.querySelectorAll('[data-w]').forEach((b) => b.addEventListener('click', () => setW(p.weight + Number(b.dataset.w))));
@@ -294,15 +295,23 @@
           <div class="stagger" style="display:grid;gap:10px">${Object.entries(ACTIVITY).map(([k, a]) =>
             `<button class="option ${p.activity === k ? 'sel' : ''}" data-pick="activity" data-val="${k}"><span class="ic">${a.ic}</span><span><b>${L().activity[k][0]}</b><small>${L().activity[k][1]}</small></span></button>`).join('')}</div></div>
           <div class="ob-foot"><button class="cta" data-act="next" ${p.activity ? '' : 'disabled'}>${t('next')}</button></div>`;
-        mount = (el) => mountCat(el, { level: fill });
+        mount = (el) => {
+          const cat = mountCat(el, { level: fill });
+          if (p.activity) Meowie.setVibe(cat, VIBE[p.activity]);
+        };
         break;
 
       case 'city':
         html = `${chrome(step)}
-          <div class="ob-body"><h1 class="ob-title" style="margin-top:14px">${t('cityTitle')}</h1><p class="ob-sub">${t('citySub')}</p>
-          <div class="city-list stagger">${CITIES.map(([c]) =>
+          <h1 class="ob-title" style="margin-top:14px">${t('cityTitle')}</h1><p class="ob-sub">${t('citySub')}</p>
+          <div class="ob-body scroll"><div class="city-list stagger">${CITIES.map(([c]) =>
             `<button class="option ${p.city === c ? 'sel' : ''}" data-pick="city" data-val="${esc(c)}">${esc(c)}</button>`).join('')}</div></div>
-          <div class="ob-foot" style="position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 30%)"><button class="cta" data-act="next" ${p.city ? '' : 'disabled'}>${t('next')}</button></div>`;
+          <div class="ob-foot"><button class="cta" data-act="next" ${p.city ? '' : 'disabled'}>${t('next')}</button></div>`;
+        mount = (el) => {
+          el.classList.add('fixed-foot');
+          const sel = $('.option.sel', el);
+          if (sel) sel.scrollIntoView({ block: 'center' });
+        };
         break;
 
       case 'times':
@@ -439,7 +448,11 @@
       const cta = $('.screen.active [data-act="next"]');
       if (cta) cta.disabled = false;
       const cat = $('.screen.active .cat-wrap');
-      if (t.dataset.pick !== 'city') setTimeout(next, 380);
+      // Activity choices show straight away on Meowie; the user moves on with Next.
+      if (t.dataset.pick === 'activity') {
+        const cw = $('.screen.active .cat-wrap');
+        if (cw) Meowie.setVibe(cw, VIBE[t.dataset.val]);
+      }
       return;
     }
     if (act === 'next') next();

@@ -665,3 +665,39 @@ button.pill.fire:active { transform: scale(.94); }
 .b-state { font-weight: 900; color: var(--muted); font-variant-numeric: tabular-nums; }
 .badges li.got .b-state { color: var(--ok); font-size: 20px; }
 .streak-how { margin: 0; font-size: 13px; color: var(--muted); text-align: center; }
+
+/* Body build (weight screen) */
+.mw-bodyfit { transition: transform .35s cubic-bezier(.34, 1.45, .64, 1); }
+.mw-headpos { transition: transform .35s cubic-bezier(.34, 1.45, .64, 1); }
+
+/* Activity vibes */
+.mw-ball { display: none; }
+.mw--hyper .mw-ball { display: inline; }
+.mw-ball-in { animation: juggle .5s cubic-bezier(.3, 0, .7, 1) infinite alternate; }
+@keyframes juggle { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(-80px) rotate(200deg); } }
+.mw--hyper:not(.mw--swim) .mw-drift { animation: hyperHop .5s cubic-bezier(.3, 0, .7, 1) infinite alternate; }
+@keyframes hyperHop { from { transform: translateY(0) scale(1.06, .94); } to { transform: translateY(-16px) scale(.97, 1.03); } }
+.mw--hyper .mw-tail-sit { animation-duration: .5s; }
+.mw.mw--hyper .mw-spark { opacity: 1; }
+.mw--hyper .mw-spark path { transform-box: fill-box; transform-origin: center; animation: twinkle .8s ease-in-out infinite; }
+.mw--walk:not(.mw--swim) .mw-drift { animation: stroll 3.2s ease-in-out infinite; }
+@keyframes stroll {
+  0%, 100% { transform: translate(-40px, 0) rotate(-3deg); }
+  12% { transform: translate(-30px, -6px) rotate(0deg); } 25% { transform: translate(-20px, 0) rotate(3deg); }
+  37% { transform: translate(-10px, -6px) rotate(0deg); } 50% { transform: translate(40px, 0) rotate(-3deg); }
+  62% { transform: translate(30px, -6px) rotate(0deg); } 75% { transform: translate(20px, 0) rotate(3deg); }
+  87% { transform: translate(10px, -6px) rotate(0deg); }
+}
+.mw--walk .mw-tail-sit { animation-duration: 1.2s; }
+.mw.mw--relax .mw-eo, .mw.mw--relax .mw-ek, .mw.mw--relax .mw-mf, .mw.mw--relax .mw-mw, .mw.mw--relax .mw-mo, .mw.mw--relax .mw-sweat { opacity: 0; }
+.mw.mw--relax .mw-eh, .mw.mw--relax .mw-ms, .mw.mw--relax .mw-blush { opacity: 1; }
+.mw--relax:not(.mw--swim) .mw-drift { animation: relaxBreath 3.4s ease-in-out infinite; transform-origin: 0 0; }
+@keyframes relaxBreath { 0%, 100% { transform: scale(1, 1) rotate(-2deg); } 50% { transform: scale(1.03, .98) rotate(2deg); } }
+.mw--relax .mw-sit .mw-head { animation-duration: 6s; }
+.mw--relax .mw-tail-sit { animation-duration: 4.5s; }
+
+/* City step: the list scrolls; the Next button stays below it */
+.screen.fixed-foot { overflow: hidden; }
+.screen.fixed-foot .ob-body.scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 2px 2px 12px; margin: 0 -2px; -webkit-overflow-scrolling: touch;
+  mask-image: linear-gradient(180deg, #000 calc(100% - 24px), transparent); -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 24px), transparent); }
+.screen.fixed-foot .ob-foot { flex-shrink: 0; }

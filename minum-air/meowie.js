@@ -91,6 +91,7 @@
   // Sitting pose. Origin = between the feet.
   function sitPose(id) {
     return `<g class="mw-sit">
+      <g class="mw-bodyfit">
       <g class="mw-tail-sit">
         <path d="M38 -14 C92 -8 108 -44 86 -74" fill="none" stroke="${LINE}" stroke-width="19" stroke-linecap="round"/>
         <path d="M38 -14 C92 -8 108 -44 86 -74" fill="none" stroke="${FUR}" stroke-width="13" stroke-linecap="round"/>
@@ -101,15 +102,21 @@
       <ellipse cx="0" cy="-42" rx="31" ry="40" fill="${CREAM}"/>
       <g><ellipse cx="-21" cy="-6" rx="16" ry="10" fill="#fff" stroke="${LINE}" stroke-width="2.6"/>
         <ellipse cx="21" cy="-6" rx="16" ry="10" fill="#fff" stroke="${LINE}" stroke-width="2.6"/></g>
+      <path d="M-34 -98 Q0 -84 34 -98" fill="none" stroke="#56606b" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="0" cy="-88" r="6" fill="#d7dbe0" stroke="${LINE}" stroke-width="2"/>
+      </g>
       <g class="mw-glass">
         <path d="M-84 -46 H-50 L-53 -2 Q-54 2 -58 2 H-76 Q-80 2 -81 -2 Z" fill="rgba(210,236,255,.6)" stroke="#8fb4cf" stroke-width="2.4" stroke-linejoin="round"/>
         <clipPath id="${id}-gl"><path d="M-84 -46 H-50 L-53 -2 Q-54 2 -58 2 H-76 Q-80 2 -81 -2 Z"/></clipPath>
         <g clip-path="url(#${id}-gl)"><rect class="mw-glass-water" x="-90" y="-32" width="50" height="40" fill="#7cc8f5"/></g>
         <path d="M-78 -40 L-76 -8" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".8"/>
       </g>
-      <path d="M-34 -98 Q0 -84 34 -98" fill="none" stroke="#56606b" stroke-width="7" stroke-linecap="round"/>
-      <circle cx="0" cy="-88" r="6" fill="#d7dbe0" stroke="${LINE}" stroke-width="2"/>
-      <g transform="translate(0 -150)">${head(id + 's')}</g>
+      <g class="mw-headpos" transform="translate(0 -150)">${head(id + 's')}</g>
+      <g class="mw-ball" transform="translate(0 -232)"><g class="mw-ball-in">
+        <circle r="17" fill="#fff" stroke="${LINE}" stroke-width="2.6"/>
+        <path d="M-17 0 A17 17 0 0 1 0 -17 L0 0 Z" fill="#e8453c"/><path d="M17 0 A17 17 0 0 1 0 17 L0 0 Z" fill="#e8453c"/>
+        <path d="M0 -17 A17 17 0 0 1 17 0 L0 0 Z" fill="#ffc93c"/><path d="M0 17 A17 17 0 0 1 -17 0 L0 0 Z" fill="#2f7fe0"/>
+        <circle r="17" fill="none" stroke="${LINE}" stroke-width="2.6"/><circle cx="-6" cy="-7" r="4" fill="#fff" opacity=".7"/></g></g>
     </g>`;
   }
 
@@ -222,7 +229,7 @@
   </g></g>
   <g mask="url(#${id}-mask)" clip-path="url(#${id}-above)" pointer-events="none">
     <g class="mw-water mw-water-front"><g class="mw-slosh"><g class="mw-wave"><path d="${wave(6)}" fill="var(--water-2)" opacity=".2"/></g></g>
-      <path d="M-60 6 H900" stroke="#fff" stroke-width="2" opacity=".55"/></g>
+</g>
   </g>
   <g class="mw-fx" pointer-events="none"></g>
 </svg>`;
@@ -315,6 +322,25 @@
     const x = st.mode === 'swim' ? 112 : 108;
     const top = Math.max(-30, levelY(st.level) - 230);
     return toClient(wrap.querySelector('svg'), x, top);
+  }
+
+  // Body build from thin (-1) to chubby (1): the body widens, the head drops to sit on it and puffs a little.
+  function setBuild(wrap, k) {
+    const b = Math.max(-1, Math.min(1, k));
+    const sx = 1 + b * (b > 0 ? .62 : .34);
+    const sy = 1 - b * (b > 0 ? .1 : -.08);
+    const hx = 1 + b * (b > 0 ? .14 : .07);
+    const body = wrap.querySelector('.mw-sit .mw-bodyfit');
+    const head = wrap.querySelector('.mw-sit .mw-headpos');
+    if (!body || !head) return;
+    body.style.transform = `scale(${sx.toFixed(3)}, ${sy.toFixed(3)})`;
+    head.style.transform = `translate(0px, ${(-150 + 104 * (1 - sy)).toFixed(1)}px) scale(${hx.toFixed(3)}, 1)`;
+  }
+
+  // Activity moods: relax (eyes shut, slow breathing), walk (strolls about), hyper (hops and juggles a ball).
+  function setVibe(wrap, vibe) {
+    const svg = wrap.querySelector('svg');
+    ['relax', 'walk', 'hyper'].forEach((v) => svg.classList.toggle('mw--' + v, v === vibe));
   }
 
   function setMood(wrap, mood, instant) {
@@ -886,5 +912,5 @@
     }
   }
 
-  window.Meowie = { create, setLevel, setLayers, pourPoint, act, moodFor, interact, tilt, slosh, lookAt, pet, pour, pourAndDrink, pourTarget, skyNow };
+  window.Meowie = { create, setLevel, setLayers, pourPoint, act, moodFor, interact, tilt, slosh, lookAt, pet, pour, pourAndDrink, pourTarget, skyNow, setBuild, setVibe };
 })();
