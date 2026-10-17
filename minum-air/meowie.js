@@ -139,13 +139,51 @@
     return d + ' V420 H-60 Z';
   }
 
+  // Time of day in Malaysia picks the sky: sun, sunset or moon and stars.
+  function skyNow() {
+    const forced = (location.hash || '').slice(1);
+    if (['day', 'dusk', 'night'].includes(forced)) return forced;
+    const h = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kuala_Lumpur', hour: '2-digit', hour12: false }).format(new Date()));
+    return h >= 7 && h < 18 ? 'day' : h >= 18 && h < 20 ? 'dusk' : 'night';
+  }
+
+  function skyMarkup(id, sky) {
+    if (sky === 'night') {
+      const stars = [[40, 30], [96, 14], [150, 44], [214, 18], [262, 52], [300, 22], [372, 70], [70, 72], [190, 60], [240, 86]]
+        .map(([x, y], i) => `<path class="mw-star" style="animation-delay:${(i * .37).toFixed(2)}s" transform="translate(${x} ${y}) scale(${.35 + (i % 3) * .15})" d="M0 -10 L2.6 -2.6 L10 0 L2.6 2.6 L0 10 L-2.6 2.6 L-10 0 L-2.6 -2.6 Z"/>`).join('');
+      return `<g class="mw-sky">
+        <rect x="0" y="-120" width="${W}" height="280" fill="url(#${id}-night)"/>
+        <defs><linearGradient id="${id}-night" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2a5a" stop-opacity="0"/><stop offset=".45" stop-color="#1b2a5a" stop-opacity=".45"/><stop offset="1" stop-color="#1b2a5a" stop-opacity="0"/></linearGradient>
+          <mask id="${id}-moon"><rect x="280" y="0" width="100" height="100" fill="#fff"/><circle cx="345" cy="36" r="16" fill="#000"/></mask></defs>
+        <g fill="#ffd54a">${stars}</g>
+        <g class="mw-moon"><circle cx="336" cy="44" r="26" fill="#ffe7a0" opacity=".18"/><circle cx="336" cy="44" r="18" fill="#ffe7a0" mask="url(#${id}-moon)"/></g>
+      </g>`;
+    }
+    const dusk = sky === 'dusk';
+    const sx = 334;
+    const sy = dusk ? 92 : 44;
+    const rays = Array.from({ length: 10 }, (_, i) => {
+      const a = (i / 10) * Math.PI * 2;
+      return `M${(sx + Math.cos(a) * 24).toFixed(1)} ${(sy + Math.sin(a) * 24).toFixed(1)} L${(sx + Math.cos(a) * 33).toFixed(1)} ${(sy + Math.sin(a) * 33).toFixed(1)}`;
+    }).join(' ');
+    const cloud = (x, y, s, cls) => `<g class="mw-cloud ${cls}" transform="translate(${x} ${y}) scale(${s})"><path d="M0 14 Q0 0 14 2 Q20 -10 34 -4 Q48 -8 50 6 Q62 8 58 18 Z" fill="#fff" opacity=".9"/></g>`;
+    return `<g class="mw-sky">
+      ${dusk ? `<rect x="0" y="-120" width="${W}" height="280" fill="url(#${id}-dusk)"/><defs><linearGradient id="${id}-dusk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9a5a" stop-opacity="0"/><stop offset=".45" stop-color="#ff9a5a" stop-opacity=".3"/><stop offset="1" stop-color="#ff9a5a" stop-opacity="0"/></linearGradient></defs>` : ''}
+      <g class="mw-sun"><circle cx="${sx}" cy="${sy}" r="34" fill="${dusk ? '#ff8a4c' : '#ffd54a'}" opacity=".2"/>
+        <path class="mw-sunrays" d="${rays}" stroke="${dusk ? '#ff9a5a' : '#ffc93c'}" stroke-width="4" stroke-linecap="round" style="transform-origin:${sx}px ${sy}px"/>
+        <circle cx="${sx}" cy="${sy}" r="18" fill="${dusk ? '#ff9a5a' : '#ffd54a'}"/></g>
+      ${cloud(40, 30, .9, 'mw-cloud-1')}${cloud(190, 12, .7, 'mw-cloud-2')}
+    </g>`;
+  }
+
   function create(opts = {}) {
     const id = 'mw' + (++uid);
+    const sky = opts.sky || skyNow();
     const bubbles = [60, 110, 170, 250, 300, 345].map((x, i) =>
       `<circle class="mw-bub" cx="${x}" cy="250" r="${2.5 + (i % 3) * 1.5}" style="animation-delay:${i * .8}s;animation-duration:${3.6 + (i % 3) * .9}s"/>`).join('');
     const weed = (x, h, c, cls) => `<g class="mw-weed ${cls}"><path d="M${x} ${FLOOR + 2} C${x - 10} ${FLOOR - h * .3} ${x + 12} ${FLOOR - h * .5} ${x} ${FLOOR - h * .75} C${x - 8} ${FLOOR - h * .9} ${x + 6} ${FLOOR - h} ${x + 2} ${FLOOR - h}" fill="none" stroke="${c}" stroke-width="7" stroke-linecap="round"/></g>`;
     const svg = `
-<svg class="mw mw--m0 ${opts.intro ? 'mw--intro' : ''}" viewBox="0 0 ${W} 320" role="img" aria-label="Meowie, a cat in a shark hood, in the water">
+<svg class="mw mw--m0 mw--${sky} ${opts.intro ? 'mw--intro' : ''}" viewBox="0 0 ${W} 320" role="img" aria-label="Meowie, a cat in a shark hood, in the water">
   <defs>
     <linearGradient id="${id}-wb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--water-1)"/><stop offset="1" stop-color="var(--water-2)"/></linearGradient>
     <linearGradient id="${id}-fade" x1="0" y1="0" x2="1" y2="0">
@@ -156,6 +194,7 @@
     <linearGradient id="${id}-bfade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--bg)" stop-opacity="0"/><stop offset="1" stop-color="var(--bg)"/></linearGradient>
     <clipPath id="${id}-above"><path d="M0 -400 H${W} V283 Q310 293 200 288 Q90 276 0 289 Z"/></clipPath>
   </defs>
+  ${skyMarkup(id, sky)}
   <g mask="url(#${id}-mask)" clip-path="url(#${id}-box)">
     <ellipse cx="200" cy="${FLOOR + 6}" rx="190" ry="26" class="mw-glow"/>
     <g class="mw-water mw-water-back"><g class="mw-slosh"><g class="mw-wave mw-wave-back"><path d="${wave(9)}" fill="url(#${id}-wb)"/></g></g>
@@ -538,5 +577,31 @@
     set('.mw-par3', -6, -3);
   }
 
-  window.Meowie = { create, setLevel, act, moodFor, interact, tilt, slosh, lookAt, pet };
+  // A stream of the drink pours down into the water, then the tail falls in with splashes.
+  function pour(wrap, color = '#7cc8f5') {
+    const st = wrap._mw;
+    if (reduced()) { slosh(wrap, .6); return Promise.resolve(); }
+    const fx = wrap.querySelector('.mw-fx');
+    const ns = 'http://www.w3.org/2000/svg';
+    const x = st.mode === 'swim' ? 112 : 108;
+    const surf = levelY(st.level);
+    const top = Math.max(-30, surf - 230);
+    const len = surf - top + 4;
+    const g = document.createElementNS(ns, 'g');
+    g.innerHTML = `<g class="mw-stream"><rect x="${x - 7}" y="${top}" width="14" height="${len}" rx="7" fill="${color}" opacity=".92"/>
+      <rect x="${x - 3.5}" y="${top}" width="4" height="${len}" rx="2" fill="#fff" opacity=".55"/></g>`;
+    g.style.transformOrigin = `${x}px ${top}px`;
+    fx.appendChild(g);
+    g.animate([{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { duration: 360, easing: 'cubic-bezier(.55,0,.8,.3)', fill: 'forwards' });
+    setTimeout(() => {
+      g.animate([{ transform: 'translateY(0) scaleY(1)' }, { transform: `translateY(${len}px) scaleY(0)` }],
+        { duration: 360, easing: 'cubic-bezier(.55,0,.8,.3)', fill: 'forwards' }).onfinish = () => g.remove();
+    }, 900);
+    setTimeout(() => ripple(wrap, x, surf + 6), 620);
+    setTimeout(() => ripple(wrap, x, surf + 6), 1020);
+    lookAtSvg(wrap, x, surf);
+    return new Promise((r) => setTimeout(() => { splash(wrap, x); slosh(wrap, .8); r(); }, 360));
+  }
+
+  window.Meowie = { create, setLevel, act, moodFor, interact, tilt, slosh, lookAt, pet, pour, skyNow };
 })();

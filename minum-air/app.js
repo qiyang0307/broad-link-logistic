@@ -114,6 +114,7 @@
     return n;
   }
 
+  let weatherFailed = false;
   async function fetchWeather() {
     const city = CITIES.find((c) => c[0] === state.profile.city);
     if (!city || todaysWeather()) return;
@@ -124,7 +125,11 @@
       state.weather = { city: city[0], day: dayKey(), feels: j.daily.apparent_temperature_max[0], temp: j.daily.temperature_2m_max[0] };
       save();
       if (current === 'home') renderHome(false);
-    } catch { /* offline: base goal only */ }
+    } catch {
+      // Offline or blocked: keep the base goal and stop showing the loading text.
+      weatherFailed = true;
+      if (current === 'home') renderHome(false);
+    }
   }
 
   // ---------- drink icon (glass with liquid, ice, foam and straw) ----------
@@ -475,8 +480,7 @@
     const html = `
       <div class="home-head"><div><h2>${greeting()}${t('comma')}${name}</h2><p>${dateStr}</p></div>
         <span class="pill fire" title="Streak">🔥 ${streakCount()}</span></div>
-      <span class="pill weather-chip">${w ? (w.feels >= HEAT_START ? '☀️' : '⛅') : '🌤️'} ${esc(state.profile.city || 'Malaysia')} ·
-        ${w ? `${t('feels', { f: Math.round(w.feels) })}${bonus ? ` · ${t('goalPlus', { b: bonus })}` : ''}` : t('loadingWeather')}</span>
+      <span class="pill weather-chip">${Meowie.skyNow() === 'night' ? '🌙' : w ? (w.feels >= HEAT_START ? '☀️' : '⛅') : '🌤️'} ${esc(state.profile.city || 'Malaysia')}${w ? ` · ${t('feels', { f: Math.round(w.feels) })}${bonus ? ` · ${t('goalPlus', { b: bonus })}` : ''}` : weatherFailed ? '' : ` · ${t('loadingWeather')}`}</span>
       <div class="stage"><div class="bubble-say" id="say" data-bracket="${bracket(pct)}">${lines[0]}</div><div class="hero-cat"></div></div>
       <div class="stats-row"><div class="pct"><span id="pctNum">${Math.round(shownPct * 100)}</span>%</div>
         <div class="ml"><b id="mlNum">${fmt(drunk)}</b> / ${fmt(d.goal)} ml</div></div>
@@ -538,7 +542,7 @@
     quick.addEventListener('contextmenu', (e) => e.preventDefault());
     quick.addEventListener('click', (e) => { if (held) { held = false; return; } addDrink(DRINKS[0], state.lastSize, e.currentTarget); });
     $('#moreBtn', el).addEventListener('click', () => openSheet());
-    el.querySelectorAll('[data-drink]').forEach((b) => b.addEventListener('click', () => openSheet(b.dataset.drink)));
+    el.querySelectorAll('[data-drink]').forEach((b) => b.addEventListener('click', () => openSheet(b.dataset.drink, b)));
     el.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => removeDrink(Number(b.dataset.del))));
   }
 
@@ -565,7 +569,7 @@
     if (drink.id === 'air') state.lastSize = ml;
     save();
     if (navigator.vibrate) navigator.vibrate(20);
-    if (fromEl) flyDrops(fromEl);
+    Meowie.pour(homeCat, drink.color);
     const after = total(d);
     const hit = before < d.goal && after >= d.goal;
     // Crossing 25%, 50% or 75% earns a small celebration of its own.
@@ -623,7 +627,7 @@
     </svg>`;
   }
 
-  function openSheet(drinkId) {
+  function openSheet(drinkId, originEl) {
     let drink = DRINKS.find((x) => x.id === drinkId);
     let size = state.lastSize;
     function draw() {
@@ -681,6 +685,31 @@
     }
     draw();
     openSheetEl();
+    if (originEl && drink) flyCup(originEl);
+  }
+
+  // The tapped drink's cup flies from its chip into the sheet header.
+  function flyCup(originEl) {
+    const head = $('.sheet-head svg', sheet);
+    const src = $('svg', originEl);
+    if (!head || !src || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const from = src.getBoundingClientRect();
+    const sr = sheet.getBoundingClientRect();
+    const hr = head.getBoundingClientRect();
+    // The sheet is still below the screen; work out where the header will land.
+    const finalTop = hr.top - (sr.top - (innerHeight - sr.height));
+    const clone = head.cloneNode(true);
+    Object.assign(clone.style, { position: 'fixed', left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px', zIndex: 60, transformOrigin: '0 0', pointerEvents: 'none' });
+    document.body.appendChild(clone);
+    head.style.visibility = 'hidden';
+    const dx = hr.left - from.left;
+    const dy = finalTop - from.top;
+    const k = hr.width / from.width;
+    clone.animate([
+      { transform: 'translate(0, 0) scale(1) rotate(0deg)' },
+      { transform: `translate(${dx * .5}px, ${dy * .5 - 60}px) scale(${(1 + k) / 2}) rotate(-12deg)`, offset: .5 },
+      { transform: `translate(${dx}px, ${dy}px) scale(${k}) rotate(0deg)` },
+    ], { duration: 560, easing: 'cubic-bezier(.22,1,.36,1)' }).onfinish = () => { clone.remove(); head.style.visibility = ''; };
   }
 
   // Swipe the sheet down by its handle to close it.
@@ -731,7 +760,17 @@
   // ---------- tabs ----------
   function setTab(t) {
     tab = t;
-    document.querySelectorAll('#tabbar button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
+    const btns = [...document.querySelectorAll('#tabbar button')];
+    btns.forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
+    // A soft blob slides under the active tab and stretches as it moves.
+    const blob = $('#tabbar .tab-blob');
+    const i = btns.findIndex((b) => b.dataset.tab === t);
+    if (blob && i >= 0) {
+      const moved = blob.dataset.i !== undefined && blob.dataset.i !== String(i);
+      blob.dataset.i = i;
+      blob.style.transform = `translateX(${i * 100}%)`;
+      if (moved) { blob.classList.remove('moving'); void blob.offsetWidth; blob.classList.add('moving'); }
+    }
   }
   $('#tabbar').addEventListener('click', (e) => {
     const b = e.target.closest('[data-tab]');
@@ -985,6 +1024,6 @@
   splash();
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 })();

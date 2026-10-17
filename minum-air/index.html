@@ -6,18 +6,19 @@
 <title>Minum Air</title>
 <meta name="description" content="Minum Air: a Malaysian water habit app with Meowie, the shark-hood cat whose tank fills up as you drink. Goal adjusts to today's heat in your city.">
 <meta name="theme-color" content="#0a84d6">
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@500;700;800;900&display=swap">
-<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div class="app" id="app"></div>
 
 <nav class="tabbar" id="tabbar" hidden>
+  <span class="tab-blob" aria-hidden="true"></span>
   <button type="button" data-tab="home" class="on"><span>💧</span>Today</button>
   <button type="button" data-tab="history"><span>📊</span>History</button>
   <button type="button" data-tab="profile"><span>😺</span>Profile</button>
@@ -28,8 +29,8 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <canvas class="fx" id="fx"></canvas>
 
-<script src="/meowie.js"></script>
-<script src="/i18n.js"></script>
-<script src="/app.js"></script>
+<script src="meowie.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

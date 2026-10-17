@@ -229,7 +229,14 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 32px; }
   padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
 }
 .tabbar[hidden] { display: none; }
-.tabbar button { border: 0; background: none; display: grid; justify-items: center; gap: 2px; font-size: 12px; font-weight: 800; color: var(--muted); padding: 4px; }
+.tab-blob {
+  position: absolute; top: 8px; left: 8px; width: calc((100% - 16px) / 3); height: calc(100% - 16px - env(safe-area-inset-bottom));
+  transition: transform .6s cubic-bezier(.34, 1.45, .64, 1); pointer-events: none;
+}
+.tab-blob::before { content: ""; position: absolute; inset: 0 14px; border-radius: 18px; background: color-mix(in srgb, var(--brand) 14%, transparent); }
+.tab-blob.moving::before { animation: blobStretch .6s cubic-bezier(.22, 1, .36, 1); }
+@keyframes blobStretch { 0% { transform: scaleX(1); } 35% { transform: scaleX(1.6) scaleY(.8); } 100% { transform: scaleX(1); } }
+.tabbar button { position: relative; z-index: 1; border: 0; background: none; display: grid; justify-items: center; gap: 2px; font-size: 12px; font-weight: 800; color: var(--muted); padding: 4px; }
 .tabbar button span { font-size: 22px; transition: transform .25s cubic-bezier(.2, 1.6, .4, 1); }
 .tabbar button.on { color: var(--brand); }
 .tabbar button.on span { transform: translateY(-3px) scale(1.15); }
@@ -385,6 +392,21 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 32px; }
 @keyframes headDroop { 0%, 100% { transform: rotate(-4deg) translateY(4px); } 50% { transform: rotate(2deg) translateY(6px); } }
 .mw--moodpop .mw-actor { animation: moodPop .6s cubic-bezier(.3, 1.6, .5, 1); }
 @keyframes moodPop { 0% { transform: scale(1); } 35% { transform: scale(1.08, .94); } 70% { transform: scale(.97, 1.04); } 100% { transform: scale(1); } }
+
+/* Sky: sun, sunset or moon with stars, by Malaysian time */
+.mw-sunrays { animation: spin 24s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.mw-sun { animation: sunPulse 4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes sunPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+.mw-cloud { animation: cloud 26s linear infinite; }
+.mw-cloud-2 { animation-duration: 38s; animation-delay: -12s; }
+@keyframes cloud { from { translate: -90px 0; } to { translate: 160px 0; } }
+.mw-star { transform-box: fill-box; transform-origin: center; animation: twinkleStar 2.4s ease-in-out infinite; }
+@keyframes twinkleStar { 0%, 100% { opacity: .25; scale: .7; } 50% { opacity: 1; scale: 1.1; } }
+.mw--night { --water-1: #4f93e6; --water-2: #1d4f9e; }
+.mw--dusk { --water-1: #6fb8f0; --water-2: #2a6fc4; }
+.mw-stream { transform-box: fill-box; transform-origin: center; animation: streamWobble .12s ease-in-out infinite alternate; }
+@keyframes streamWobble { from { transform: scaleX(.85); } to { transform: scaleX(1.1); } }
 
 /* Petting: happy squint, cute w mouth, purr wiggle */
 .mw.mw--pet .mw-eo, .mw.mw--pet .mw-ek, .mw.mw--pet .mw-mf, .mw.mw--pet .mw-mo, .mw.mw--pet .mw-ms, .mw.mw--pet .mw-sweat { opacity: 0; }
