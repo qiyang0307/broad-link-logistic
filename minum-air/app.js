@@ -364,6 +364,7 @@
     }
     state.onboarded = true;
     save();
+    fetchWeather();
     $('#tabbar').hidden = false;
     renderHome(true);
     setTimeout(() => toast(`Selamat datang, ${state.profile.name || 'kawan'}! 🎉`), 500);
