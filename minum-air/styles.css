@@ -496,3 +496,36 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 32px; }
 .add-more .press-ripple, .drink-chip .press-ripple { background: color-mix(in srgb, var(--brand) 25%, transparent); }
 @keyframes pressRipple { from { transform: scale(0); opacity: 1; } to { transform: scale(14); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .float-ml, .press-ripple { display: none; } }
+
+/* Stacked drink bands in the water */
+.mw-band { transition: transform 1.6s cubic-bezier(.34, 1.45, .64, 1); }
+
+/* Orbiting dot ring on the "working out your goal" screen */
+.orbit-wrap { position: relative; }
+.orbit { position: absolute; left: 50%; top: 56%; width: 0; height: 0; animation: spin 16s linear infinite; pointer-events: none; }
+.orbit span { position: absolute; left: 0; top: 0; transform: rotate(var(--a)) translateY(-150px); }
+.orbit i { display: block; width: 9px; height: 9px; margin: -4.5px; border-radius: 50%; animation: dotPulse 1.6s ease-in-out infinite; }
+@keyframes dotPulse { 0%, 100% { transform: scale(.5); opacity: .45; } 50% { transform: scale(1.25); opacity: 1; } }
+
+/* Icy goal screen */
+.screen.icy { background: linear-gradient(180deg, color-mix(in srgb, var(--water-1) 35%, var(--bg)), var(--bg) 70%); }
+.screen.icy > *:not(.ice-field) { position: relative; z-index: 1; }
+.ice-field { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.ice-field i {
+  position: absolute; border-radius: 22%; transform: rotate(var(--r));
+  background: linear-gradient(135deg, rgba(255, 255, 255, .85), rgba(190, 230, 255, .35));
+  box-shadow: inset -4px -4px 0 rgba(120, 190, 235, .35), 0 6px 18px rgba(30, 120, 200, .12);
+  animation: iceFloat 6s ease-in-out infinite;
+}
+@keyframes iceFloat { 0%, 100% { translate: 0 0; rotate: 0deg; } 50% { translate: 0 -16px; rotate: 10deg; } }
+
+/* Reminder carousel text swap */
+.notify-line { color: var(--muted); font-size: 14px; }
+.notify-line.swap { animation: lineSwap .4s ease; }
+@keyframes lineSwap { 0% { opacity: 1; transform: none; } 45% { opacity: 0; transform: translateY(-6px); } 55% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: none; } }
+
+/* Steam over hot drinks in the pour glass */
+.pour-steam path { animation: steam 2.2s ease-in-out infinite; }
+.pour-steam path:nth-child(2) { animation-delay: .5s; }
+.pour-steam path:nth-child(3) { animation-delay: 1s; }
+@keyframes steam { 0% { transform: translateY(6px); opacity: 0; } 40% { opacity: .8; } 100% { transform: translateY(-12px); opacity: 0; } }

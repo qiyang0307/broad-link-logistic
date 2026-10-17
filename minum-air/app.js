@@ -222,7 +222,19 @@
         </div>
         <div class="ob-foot"><button class="cta" data-act="next">${t('welcomeStart')}</button>
         <button class="cta ghost" data-act="demo">${t('welcomeDemo')}</button></div>`;
-        mount = (el) => mountCat(el, { size: 320, level: .25 });
+        mount = (el) => {
+          const cat = mountCat(el, { size: 320, level: 0 });
+          // Demo: the water fills drink by drink in different colours, then drains and repeats.
+          const colors = ['#3fb4f0', '#8fd14f', '#c98b4e', '#ffb02e', '#f39bb7', '#4a2c1a'];
+          let n = 0;
+          (function step() {
+            if (!cat.isConnected) return;
+            n = (n + 1) % 6;
+            Meowie.setLayers(cat, colors.slice(0, n).map((c) => ({ color: c, w: 1 })));
+            Meowie.setLevel(cat, n * .13);
+            setTimeout(step, n === 5 ? 2200 : 1100);
+          })();
+        };
         break;
 
       case 'name':
@@ -307,7 +319,7 @@
 
       case 'calc':
         html = `<div class="screen-inner calc" style="flex:1;display:flex;flex-direction:column">
-          ${hero('')}<div class="pct" id="calcPct">0%</div>
+          <div class="orbit-wrap">${hero('')}<div class="orbit" aria-hidden="true">${orbitDots()}</div></div><div class="pct" id="calcPct">0%</div>
           <ul class="checks" id="checks">
             ${L().calc.map((f) => `<li>${f({ w: p.weight, city: esc(p.city) })}</li>`).join('')}
           </ul></div>`;
@@ -321,6 +333,7 @@
           (function tick(now) {
             const k = Math.min(1, (now - t0) / dur);
             $('#calcPct', el).textContent = Math.round(k * 100) + '%';
+            Meowie.setLayers(cat, ['#3fb4f0', '#8fd14f', '#c98b4e', '#ffb02e', '#f39bb7', '#4a2c1a'].slice(0, 1 + Math.floor(k * 5)).map((c) => ({ color: c, w: 1 })));
             Meowie.setLevel(cat, k);
             items.forEach((li, i) => li.classList.toggle('done', k >= (i + 1) / items.length - .02));
             if (k < 1) requestAnimationFrame(tick);
@@ -349,6 +362,8 @@
           </div>
           <div class="ob-foot"><button class="cta" data-act="next">${t('goalCta')}</button></div>`;
         mount = (el) => {
+          el.classList.add('icy');
+          el.insertAdjacentHTML('afterbegin', iceField());
           const cat = mountCat(el, { level: 1 });
           setTimeout(() => Meowie.act(cat, 'jump'), 500);
           countUp($('#goalNum', el), baseGoal() + bonus, 1200);
@@ -361,10 +376,27 @@
           <div class="ob-body stagger"><h1 class="ob-title">${t('notifyTitle')}</h1>
           <p class="ob-sub">${t('notifySub', { wake: p.wake, sleep: p.sleep })}</p>
           <div class="card" style="display:flex;gap:12px;align-items:center"><span style="font-size:30px">🦈</span>
-            <div><b>Meowie</b><div style="color:var(--muted);font-size:14px">${t('notifySample', { name: esc(name) })}</div></div></div></div>
+            <div><b>Meowie</b><div class="notify-line" id="notifyLine">${t('notifySample', { name: esc(name) })}</div></div></div></div>
           <div class="ob-foot"><button class="cta" data-act="allow">${t('allow')}</button>
           <button class="cta ghost" data-act="finish">${t('later')}</button></div>`;
-        mount = (el) => mountCat(el, { level: 1 });
+        mount = (el) => {
+          const cat = mountCat(el, { level: .6 });
+          // Like a reminder preview: the message and Meowie's pose change every few seconds.
+          const lines = t('notifyLines', { name: esc(name) });
+          const acts = ['drink', 'jump', 'swim'];
+          let i = 0;
+          (function cycle() {
+            setTimeout(() => {
+              if (!cat.isConnected) return;
+              i = (i + 1) % lines.length;
+              const line = $('#notifyLine', el);
+              line.classList.remove('swap'); void line.offsetWidth; line.classList.add('swap');
+              setTimeout(() => { line.textContent = lines[i]; }, 180);
+              Meowie.act(cat, acts[i % acts.length]);
+              cycle();
+            }, 2800);
+          })();
+        };
         break;
     }
 
@@ -526,7 +558,21 @@
     setTab('home');
   }
 
+  // Consecutive drinks of the same kind merge into one band.
+  function layersFor(d) {
+    const out = [];
+    d.log.forEach((x) => {
+      const dr = DRINKS.find((k) => k.id === x.drink) || DRINKS[0];
+      const color = dr.id === 'air' ? null : dr.color;
+      const last = out[out.length - 1];
+      if (last && last.id === dr.id) last.w += x.eff;
+      else out.push({ id: dr.id, color, w: x.eff });
+    });
+    return out;
+  }
+
   function wireHome(el, pct) {
+    Meowie.setLayers(homeCat, layersFor(today()));
     Meowie.setLevel(homeCat, pct);
     animateNumber($('#pctNum', el), shownPct * 100, Math.min(999, pct * 100), 900);
     shownPct = pct;
@@ -604,6 +650,40 @@
   const pourY = (ml) => 194 - (ml / POUR_MAX) * 184;
   const sizeName = (ml) => t('sizes')[ml <= 175 ? 0 : ml <= 325 ? 1 : ml <= 500 ? 2 : 3];
 
+  const HOT = ['tehtarik', 'kopio'];
+  function luminance(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    const [r, g, b] = [n >> 16, (n >> 8) & 255, n & 255].map((v) => v / 255);
+    return .2126 * r + .7152 * g + .0722 * b;
+  }
+
+  // After "Add", the glass shrinks, flies over the water and tips over to pour.
+  function flyGlass(svgEl, delay = 0) {
+    if (!svgEl || !homeCat || matchMedia('(prefers-reduced-motion: reduce)').matches) return new Promise((res) => setTimeout(res, delay));
+    // Lift the glass out of the sheet right away so it stays put while the sheet slides down.
+    const r = svgEl.getBoundingClientRect();
+    const clone = svgEl.cloneNode(true);
+    clone.querySelectorAll('.pour-handle, .pour-tick').forEach((n) => n.remove());
+    Object.assign(clone.style, { position: 'fixed', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px', zIndex: 60, transformOrigin: '50% 4%', pointerEvents: 'none' });
+    document.body.appendChild(clone);
+    return new Promise((res) => setTimeout(() => flyClone(clone, r).then(res), delay));
+  }
+  function flyClone(clone, r) {
+    const target = Meowie.pourPoint(homeCat);
+    const k = .36;
+    const dx = target.x - (r.left + r.width / 2) + 16;
+    const dy = target.y - (r.top + r.height * .04) - 26;
+    const a = clone.animate([
+      { transform: 'translate(0, 0) scale(1) rotate(0deg)' },
+      { transform: `translate(${dx * .6}px, ${dy * .6 - 50}px) scale(${(1 + k) / 2}) rotate(8deg)`, offset: .35 },
+      { transform: `translate(${dx}px, ${dy}px) scale(${k}) rotate(0deg)`, offset: .62 },
+      { transform: `translate(${dx}px, ${dy}px) scale(${k}) rotate(-118deg)`, offset: .85 },
+      { transform: `translate(${dx}px, ${dy}px) scale(${k}) rotate(-118deg)`, opacity: 0 },
+    ], { duration: 1100, easing: 'cubic-bezier(.45,0,.2,1)' });
+    a.onfinish = () => clone.remove();
+    return new Promise((res) => setTimeout(res, 800));
+  }
+
   function pourSvg(d, ml) {
     let wave = 'M-120 5';
     for (let x = -120; x < 240; x += 40) wave += ` Q${x + 10} 0 ${x + 20} 5 T${x + 40} 5`;
@@ -618,11 +698,15 @@
         <circle class="pour-bub" cx="44" cy="60" r="3" fill="#fff" opacity=".6"/><circle class="pour-bub b2" cx="70" cy="90" r="2.4" fill="#fff" opacity=".6"/>
       </g></g>
       ${ticks}
+      ${d.ice ? '<path d="M82 186 L104 -8" stroke="#f2b45c" stroke-width="7" stroke-linecap="round" opacity=".9"/>' : ''}
+      ${HOT.includes(d.id) ? `<path d="M104 48 Q132 50 130 92 Q128 130 98 132" fill="none" stroke="var(--cup-line)" stroke-width="7" stroke-linecap="round"/>
+        <g class="pour-steam" stroke="var(--muted)" stroke-width="3" fill="none" stroke-linecap="round" opacity=".6">
+          <path d="M44 0 Q38 -10 44 -20 Q50 -30 44 -40"/><path d="M60 -4 Q54 -14 60 -24 Q66 -34 60 -44"/><path d="M76 0 Q70 -10 76 -20 Q82 -30 76 -40"/></g>` : ''}
       <path d="${GLASS}" fill="none" stroke="var(--cup-line)" stroke-width="3" stroke-linejoin="round"/>
       <path d="M24 22 L32 170" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".55"/>
       <g class="pour-handle" style="transform: translateY(${pourY(ml)}px)">
-        <rect x="100" y="-15" width="30" height="30" rx="15" fill="var(--brand)"/>
-        <path d="M115 -8 L110 -3 H120 Z M115 8 L110 3 H120 Z" fill="var(--brand-ink)"/>
+        <circle cx="60" cy="0" r="15" fill="var(--card)" stroke="var(--cup-line)" stroke-width="2"/>
+        <path d="M60 -8 L55 -3 H65 Z M60 8 L55 3 H65 Z" fill="var(--ink)"/>
       </g>
     </svg>`;
   }
@@ -681,7 +765,19 @@
         if (step) { e.preventDefault(); setSize(size + step); }
       });
       sheet.querySelectorAll('[data-size]').forEach((b) => b.addEventListener('click', () => setSize(Number(b.dataset.size))));
-      $('#sheetAdd', sheet).addEventListener('click', (e) => { const btn = e.currentTarget; closeSheet(); addDrink(drink, size, btn); });
+      const addBtn = $('#sheetAdd', sheet);
+      if (drink.id !== 'air') {
+        addBtn.style.background = drink.color;
+        addBtn.style.color = luminance(drink.color) > .55 ? '#14212e' : '#fff';
+      }
+      addBtn.addEventListener('click', () => {
+        // Bring Meowie into view first so the glass has somewhere to pour.
+        const scrolled = screenEl && screenEl.scrollTop > 0;
+        const flight = flyGlass($('#pour svg', sheet), scrolled ? 420 : 0);
+        closeSheet();
+        if (scrolled) screenEl.scrollTo({ top: 0, behavior: 'smooth' });
+        flight.then(() => addDrink(drink, size, null));
+      });
     }
     draw();
     openSheetEl();
@@ -860,6 +956,18 @@
   }
 
   // ---------- motion helpers ----------
+  // A ring of coloured dots that orbits and pulses around Meowie while the goal is worked out.
+  function orbitDots() {
+    const colors = ['#3fb4f0', '#8fd14f', '#ffb02e', '#f39bb7', '#c98b4e', '#7b6cf0'];
+    return Array.from({ length: 42 }, (_, i) =>
+      `<span style="--a:${(i * 360 / 42).toFixed(1)}deg"><i style="background:${colors[i % colors.length]};animation-delay:${(i * .06).toFixed(2)}s"></i></span>`).join('');
+  }
+  // Floating ice cubes behind the goal screen.
+  function iceField() {
+    const cubes = [[8, 14, 46, -12], [78, 8, 38, 18], [64, 46, 56, 8], [6, 58, 34, -22], [86, 70, 44, 30], [30, 84, 40, 12], [46, 22, 26, -6]];
+    return `<div class="ice-field" aria-hidden="true">${cubes.map(([x, y, s, r], i) =>
+      `<i style="left:${x}%;top:${y}%;width:${s}px;height:${s}px;--r:${r}deg;animation-delay:${(-i * .9).toFixed(1)}s"></i>`).join('')}</div>`;
+  }
   function countUp(el, to, dur) { animateNumber(el, 0, to, dur, true); }
   function animateNumber(el, from, to, dur, comma) {
     if (!el) return;

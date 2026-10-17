@@ -197,7 +197,7 @@
   ${skyMarkup(id, sky)}
   <g mask="url(#${id}-mask)" clip-path="url(#${id}-box)">
     <ellipse cx="200" cy="${FLOOR + 6}" rx="190" ry="26" class="mw-glow"/>
-    <g class="mw-water mw-water-back"><g class="mw-slosh"><g class="mw-wave mw-wave-back"><path d="${wave(9)}" fill="url(#${id}-wb)"/></g></g>
+    <g class="mw-water mw-water-back"><g class="mw-slosh"><g class="mw-layers"><g class="mw-band" data-j="0"><g class="mw-wave mw-wave-back"><path d="${wave(9)}" fill="url(#${id}-wb)"/></g></g></g></g>
       <g class="mw-bubs" fill="#fff" opacity=".75">${bubbles}</g></g>
     <g class="mw-par1"><g class="mw-rays"><path d="M90 0 L50 330 H86 L130 0 Z M220 0 L196 330 H240 L262 0 Z M320 0 L310 330 H338 L350 0 Z" fill="#fff"/></g></g>
     <g class="mw-fish" style="opacity:0">
@@ -227,7 +227,7 @@
     const wrap = document.createElement('div');
     wrap.className = 'cat-wrap';
     wrap.innerHTML = svg;
-    wrap._mw = { level: 0, mode: 'sit', mood: 0, busy: false };
+    wrap._mw = { id, level: 0, mode: 'sit', mood: 0, busy: false, layers: [] };
     place(wrap, 0, true);
     return wrap;
   }
@@ -239,6 +239,7 @@
     const moving = wrap.querySelectorAll('.mw-water, .mw-pos');
     if (instant) moving.forEach((g) => { g.style.transition = 'none'; });
     wrap.querySelectorAll('.mw-water').forEach((g) => { g.style.transform = `translateY(${y}px)`; });
+    renderLayers(wrap, pct);
     const swim = st.forceSwim || pct >= .45;
     st.mode = swim ? 'swim' : 'sit';
     svg.classList.toggle('mw--swim', swim);
@@ -249,6 +250,52 @@
       svg.getBoundingClientRect();
       requestAnimationFrame(() => moving.forEach((g) => { g.style.transition = ''; }));
     }
+  }
+
+  // Each drink is its own coloured band, stacked oldest at the bottom, newest at the surface.
+  function renderLayers(wrap, pct) {
+    const st = wrap._mw;
+    const box = wrap.querySelector('.mw-layers');
+    if (!box) return;
+    const layers = st.layers && st.layers.length ? st.layers : [{ color: null, w: 1 }];
+    const H = Math.max(0, Math.min(1, pct)) * 224;
+    const total = layers.reduce((a, l) => a + l.w, 0) || 1;
+    const ns = 'http://www.w3.org/2000/svg';
+    const byJ = {};
+    box.querySelectorAll('.mw-band').forEach((b) => { byJ[b.dataset.j] = b; });
+    Object.keys(byJ).forEach((k) => { if (Number(k) >= layers.length) { byJ[k].remove(); delete byJ[k]; } });
+    let off = 0;
+    let prev = null;
+    for (let j = layers.length - 1; j >= 0; j--) {
+      let b = byJ[j];
+      if (!b) {
+        b = document.createElementNS(ns, 'g');
+        b.setAttribute('class', 'mw-band');
+        b.dataset.j = j;
+        b.innerHTML = `<g class="mw-wave" style="animation-duration:${(3.4 + (j % 3) * .9).toFixed(1)}s;animation-direction:${j % 2 ? 'normal' : 'reverse'}"><path d="${wave(7)}"/></g>`;
+        b.style.transform = `translateY(${off}px)`;
+      }
+      // Keep DOM order top band first so lower (older) bands paint over the tail of newer ones.
+      const want = prev ? prev.nextSibling : box.firstChild;
+      if (b !== want) box.insertBefore(b, want);
+      b.querySelector('path').setAttribute('fill', layers[j].color || `url(#${st.id}-wb)`);
+      b.style.transform = `translateY(${off.toFixed(1)}px)`;
+      off += (layers[j].w / total) * H;
+      prev = b;
+    }
+  }
+
+  function setLayers(wrap, layers) {
+    wrap._mw.layers = layers || [];
+    renderLayers(wrap, wrap._mw.level);
+  }
+
+  // Where a pour stream starts, in screen coordinates.
+  function pourPoint(wrap) {
+    const st = wrap._mw;
+    const x = st.mode === 'swim' ? 112 : 108;
+    const top = Math.max(-30, levelY(st.level) - 230);
+    return toClient(wrap.querySelector('svg'), x, top);
   }
 
   function setMood(wrap, mood, instant) {
@@ -603,5 +650,5 @@
     return new Promise((r) => setTimeout(() => { splash(wrap, x); slosh(wrap, .8); r(); }, 360));
   }
 
-  window.Meowie = { create, setLevel, act, moodFor, interact, tilt, slosh, lookAt, pet, pour, skyNow };
+  window.Meowie = { create, setLevel, setLayers, pourPoint, act, moodFor, interact, tilt, slosh, lookAt, pet, pour, skyNow };
 })();
