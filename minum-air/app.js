@@ -513,7 +513,6 @@
     const html = `
       <div class="home-head"><div><h2>${greeting()}${t('comma')}${name}</h2><p>${dateStr}</p></div>
         <button type="button" class="pill fire" id="streakBtn" aria-label="${t('streakTitle')}">🔥 ${streakCount()}</button></div>
-      ${reviewCard(d, true)}
       <span class="pill weather-chip">${Meowie.skyNow() === 'night' ? '🌙' : w ? (w.feels >= HEAT_START ? '☀️' : '⛅') : '🌤️'} ${esc(state.profile.city || 'Malaysia')}${w ? ` · ${t('feels', { f: Math.round(w.feels) })}${bonus ? ` · ${t('goalPlus', { b: bonus })}` : ''}` : weatherFailed ? '' : ` · ${t('loadingWeather')}`}</span>
       <div class="stage"><div class="bubble-say" id="say" data-bracket="${bracket(pct)}">${lines[0]}</div><div class="hero-cat"></div></div>
       <div class="stats-row"><div class="pct"><span id="pctNum">${Math.round(shownPct * 100)}</span>%</div>
@@ -523,6 +522,7 @@
       <p class="hold-hint">${t('holdHint')}</p>
       <div class="drinks" id="drinkRow">${allDrinks().slice(1).map((x) =>
         `<button class="drink-chip" data-drink="${x.id}">${cupSvg(x)}<b>${drinkName(x)}</b></button>`).join('')}</div>
+      ${reviewCard(d, true)}
       <button type="button" class="section-title log-toggle" id="logToggle" aria-expanded="${logOpen}">${t('today')}
         <small>${t('drinksCount', { n: d.log.length })} <span class="chev">${logOpen ? '▴' : '▾'}</span></small></button>
       <ul class="log ${logOpen ? 'open' : ''}" id="todayLog">${d.log.length ? d.log.slice().reverse().map((x, i) => {

@@ -417,7 +417,8 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 32px; }
 
 /* Being poured a drink */
 .mw--fill .mw-glass { opacity: 1; transform: none; }
-.mw.mw--sip .mw-drift { animation-play-state: paused; }
+.mw--rev .mw-leg { animation-direction: alternate-reverse; animation-duration: .45s; }
+.mw--rev .mw-tail-s { animation-duration: .7s; }
 .mw.mw--sip .mw-eo, .mw.mw--sip .mw-ek, .mw.mw--sip .mw-mf, .mw.mw--sip .mw-mw, .mw.mw--sip .mw-ms, .mw.mw--sip .mw-sweat { opacity: 0; }
 .mw.mw--sip .mw-eh, .mw.mw--sip .mw-mo, .mw.mw--sip .mw-blush { opacity: 1; }
 .mw--sip .mw-leg { animation-duration: 1.4s; }
@@ -442,8 +443,6 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 32px; }
 @keyframes gulp { 50% { transform: translateY(-6px) rotate(-8deg); } }
 
 /* Action 2: swim */
-.mw--swim .mw-drift { animation: drift 9s ease-in-out infinite alternate; }
-@keyframes drift { from { transform: translate(-90px, 4px); } to { transform: translate(70px, -12px); } }
 .mw--swim .mw-actor { animation: bobSwim 1.8s ease-in-out infinite; }
 @keyframes bobSwim { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-9px) rotate(3deg); } }
 .mw-leg { animation: paddle .7s ease-in-out infinite alternate; }

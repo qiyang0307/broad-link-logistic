@@ -187,6 +187,7 @@
 <svg class="mw mw--m0 mw--${sky} ${opts.intro ? 'mw--intro' : ''}" viewBox="0 0 ${W} 320" role="img" aria-label="Meowie, a cat in a shark hood, in the water">
   <defs>
     <linearGradient id="${id}-wb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--water-1)"/><stop offset="1" stop-color="var(--water-2)"/></linearGradient>
+    <linearGradient id="${id}-mix" class="mw-mix" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color: var(--water-1)"/><stop offset="1" style="stop-color: var(--water-2)"/></linearGradient>
     <linearGradient id="${id}-fade" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".12" stop-color="#fff"/><stop offset=".88" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
     </linearGradient>
@@ -198,7 +199,7 @@
   ${skyMarkup(id, sky)}
   <g mask="url(#${id}-mask)" clip-path="url(#${id}-box)">
     <ellipse cx="200" cy="${FLOOR + 6}" rx="190" ry="26" class="mw-glow"/>
-    <g class="mw-water mw-water-back"><g class="mw-slosh"><g class="mw-layers"><g class="mw-band" data-j="0"><g class="mw-wave mw-wave-back"><path d="${wave(9)}" fill="url(#${id}-wb)"/></g></g></g></g>
+    <g class="mw-water mw-water-back"><g class="mw-slosh"><g class="mw-layers"><g class="mw-wave mw-wave-back"><path d="${wave(9)}" fill="url(#${id}-mix)"/></g></g></g>
       <g class="mw-bubs" fill="#fff" opacity=".75">${bubbles}</g></g>
     <g class="mw-par1"><g class="mw-rays"><path d="M90 0 L50 330 H86 L130 0 Z M220 0 L196 330 H240 L262 0 Z M320 0 L310 330 H338 L350 0 Z" fill="#fff"/></g></g>
     <g class="mw-fish" style="opacity:0">
@@ -228,7 +229,7 @@
     const wrap = document.createElement('div');
     wrap.className = 'cat-wrap';
     wrap.innerHTML = svg;
-    wrap._mw = { id, level: 0, mode: 'sit', mood: 0, busy: false, layers: [] };
+    wrap._mw = { id, level: 0, mode: 'sit', mood: 0, busy: false, layers: [], sx: 0, sy: 0, face: 1 };
     place(wrap, 0, true);
     return wrap;
   }
@@ -240,12 +241,19 @@
     const moving = wrap.querySelectorAll('.mw-water, .mw-pos');
     if (instant) moving.forEach((g) => { g.style.transition = 'none'; });
     wrap.querySelectorAll('.mw-water').forEach((g) => { g.style.transform = `translateY(${y}px)`; });
-    renderLayers(wrap, pct);
+    renderLayers(wrap);
     const swim = st.forceSwim || pct >= .45;
+    if (!swim && st.mode === 'swim') stopSwim(wrap);
     st.mode = swim ? 'swim' : 'sit';
     svg.classList.toggle('mw--swim', swim);
+    // Once swimming, Meowie keeps his depth when more water pours in; he only
+    // moves down if the surface drops too close to him.
+    if (swim) {
+      if (st.swimY == null) st.swimY = Math.min(236, Math.max((y + FLOOR) / 2 + 6, 118));
+      st.swimY = Math.min(236, Math.max(st.swimY, y + 52));
+    } else st.swimY = null;
     wrap.querySelector('.mw-pos').style.transform = swim
-      ? `translate(206px, ${Math.min(236, Math.max((y + FLOOR) / 2 + 6, 118))}px) scale(.66)`
+      ? `translate(206px, ${st.swimY}px) scale(.66)`
       : `translate(200px, ${FLOOR + 4}px) scale(.8)`;
     if (instant) {
       svg.getBoundingClientRect();
@@ -253,42 +261,52 @@
     }
   }
 
-  // Each drink is its own coloured band, stacked oldest at the bottom, newest at the surface.
-  function renderLayers(wrap, pct) {
-    const st = wrap._mw;
-    const box = wrap.querySelector('.mw-layers');
-    if (!box) return;
-    const layers = st.layers && st.layers.length ? st.layers : [{ color: null, w: 1 }];
-    const H = Math.max(0, Math.min(1, pct)) * 224;
-    const total = layers.reduce((a, l) => a + l.w, 0) || 1;
-    const ns = 'http://www.w3.org/2000/svg';
-    const byJ = {};
-    box.querySelectorAll('.mw-band').forEach((b) => { byJ[b.dataset.j] = b; });
-    Object.keys(byJ).forEach((k) => { if (Number(k) >= layers.length) { byJ[k].remove(); delete byJ[k]; } });
-    let off = 0;
-    let prev = null;
-    for (let j = layers.length - 1; j >= 0; j--) {
-      let b = byJ[j];
-      if (!b) {
-        b = document.createElementNS(ns, 'g');
-        b.setAttribute('class', 'mw-band');
-        b.dataset.j = j;
-        b.innerHTML = `<g class="mw-wave" style="animation-duration:${(3.4 + (j % 3) * .9).toFixed(1)}s;animation-direction:${j % 2 ? 'normal' : 'reverse'}"><path d="${wave(7)}"/></g>`;
-        b.style.transform = `translateY(${off}px)`;
-      }
-      // Keep DOM order top band first so lower (older) bands paint over the tail of newer ones.
-      const want = prev ? prev.nextSibling : box.firstChild;
-      if (b !== want) box.insertBefore(b, want);
-      b.querySelector('path').setAttribute('fill', layers[j].color || `url(#${st.id}-wb)`);
-      b.style.transform = `translateY(${off.toFixed(1)}px)`;
-      off += (layers[j].w / total) * H;
-      prev = b;
+  // The drinks blend into one colour: a weighted mix of everything poured in, kept bright and watery.
+  const WATER = [63, 180, 240];
+  const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+  const rgbHex = (c) => '#' + c.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+  function liven([r, g, b], light, minSat) {
+    // Through HSL so a blue + brown mix stays a clear tint instead of going grey.
+    r /= 255; g /= 255; b /= 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    let h = 0, sat = 0, l = (mx + mn) / 2;
+    if (mx !== mn) {
+      const d = mx - mn;
+      sat = l > .5 ? d / (2 - mx - mn) : d / (mx + mn);
+      h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+      h /= 6;
     }
+    sat = Math.max(sat, minSat);
+    l = Math.max(.25, Math.min(.85, l + light));
+    const q = l < .5 ? l * (1 + sat) : l + sat - l * sat, p = 2 * l - q;
+    const f = (tt) => { tt = (tt + 1) % 1; return tt < 1 / 6 ? p + (q - p) * 6 * tt : tt < .5 ? q : tt < 2 / 3 ? p + (q - p) * (2 / 3 - tt) * 6 : p; };
+    return [f(h + 1 / 3) * 255, f(h) * 255, f(h - 1 / 3) * 255];
+  }
+  function renderLayers(wrap) {
+    const st = wrap._mw;
+    const stops = wrap.querySelectorAll('.mw-mix stop');
+    if (stops.length < 2) return;
+    const layers = (st.layers || []).filter((l) => l.w > 0);
+    const coloured = layers.some((l) => l.color);
+    if (!coloured) {
+      // Plain water keeps the theme's blues (and their night tint).
+      stops[0].style.stopColor = 'var(--water-1)';
+      stops[1].style.stopColor = 'var(--water-2)';
+      return;
+    }
+    const tot = layers.reduce((a, l) => a + l.w, 0);
+    const mix = [0, 0, 0];
+    layers.forEach((l) => {
+      const c = l.color ? hexRgb(l.color) : WATER;
+      for (let i = 0; i < 3; i++) mix[i] += (c[i] * l.w) / tot;
+    });
+    stops[0].style.stopColor = rgbHex(liven(mix, .12, .45));
+    stops[1].style.stopColor = rgbHex(liven(mix, -.1, .5));
   }
 
   function setLayers(wrap, layers) {
     wrap._mw.layers = layers || [];
-    renderLayers(wrap, wrap._mw.level);
+    renderLayers(wrap);
   }
 
   // Where a pour stream starts, in screen coordinates.
@@ -615,6 +633,7 @@
     svg.addEventListener('pointercancel', () => { down = null; });
     svg.addEventListener('pointerleave', () => { down = null; });
     startIdle(wrap);
+    startSwimLoop(wrap);
   }
 
   // Parallax: nx, ny in -1..1 from phone tilt or pointer position.
@@ -723,6 +742,109 @@
     return toClient(svg, mouth.x + 2, Math.max(-40, levelY(st.level) - 196) - 2);
   }
 
+  function mouthBubbles(wrap, n) {
+    const fx = wrap.querySelector('.mw-fx');
+    const ns = 'http://www.w3.org/2000/svg';
+    const m = mouthPoint(wrap);
+    const surf = levelY(wrap._mw.level);
+    for (let i = 0; i < n; i++) {
+      const b = document.createElementNS(ns, 'circle');
+      b.setAttribute('cx', m.x); b.setAttribute('cy', m.y); b.setAttribute('r', 2 + Math.random() * 2.5);
+      b.setAttribute('fill', 'none'); b.setAttribute('stroke', '#fff'); b.setAttribute('stroke-width', 1.5);
+      fx.appendChild(b);
+      const rise = Math.max(20, m.y - surf - 4);
+      b.animate([{ transform: 'translate(0,0)', opacity: 0 }, { transform: `translate(${(Math.random() - .5) * 10}px, -10px)`, opacity: 1, offset: .15 },
+        { transform: `translate(${(Math.random() - .5) * 24}px, ${-rise}px)`, opacity: 0 }],
+        { duration: 1100 + Math.random() * 600, delay: i * 110, easing: 'ease-in', fill: 'backwards' }).onfinish = () => b.remove();
+    }
+  }
+
+  // ---------- Swim choreography ----------
+  // While in the water Meowie strings together different moves: cruising, turning round,
+  // swimming backwards, a loop-the-loop, a dive, and a backstroke on his back.
+  const SX_MIN = -110;
+  const SX_MAX = 90;
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const tf = (x, y, face, rot = 0, fy = 1) => `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${rot}deg) scale(${face}, ${fy})`;
+
+  function stopSwim(wrap) {
+    const st = wrap._mw;
+    if (st.swimAnim) { st.swimAnim.cancel(); st.swimAnim = null; }
+    st.sx = 0; st.sy = 0; st.face = 1;
+    const d = wrap.querySelector('.mw-drift');
+    if (d) d.style.transform = '';
+    wrap.querySelector('svg').classList.remove('mw--rev');
+  }
+
+  async function swimMove(wrap) {
+    const st = wrap._mw;
+    const drift = wrap.querySelector('.mw-drift');
+    const svg = wrap.querySelector('svg');
+    const { sx, sy, face } = st;
+    const ahead = face > 0 ? SX_MAX - sx : sx - SX_MIN;
+    const behind = face > 0 ? sx - SX_MIN : SX_MAX - sx;
+    let move = Math.random();
+    // Pick a move that fits the space in front of him.
+    if (ahead < 50) move = behind > 70 && Math.random() < .35 ? .45 : .2; // reverse or turn round
+    let frames, dur, ex = sx, ey = 0, ef = face, easing = 'cubic-bezier(.45,.05,.35,1)';
+    if (move < .3) {
+      if (ahead < 50) { // turn round
+        frames = [tf(sx, sy, face), tf(sx, sy - 8, face * .15), tf(sx, sy, -face)];
+        ef = -face; dur = 800;
+      } else { // cruise forward with a gentle wave
+        ex = sx + face * rand(50, Math.min(ahead, 140));
+        frames = [tf(sx, sy, face), tf((sx + ex) / 2, sy - 10, face), tf(ex, 0, face)];
+        dur = Math.max(1500, Math.abs(ex - sx) * 20);
+      }
+    } else if (move < .45 && behind > 70) { // swim backwards, tail first
+      ex = sx - face * rand(60, Math.min(behind, 110));
+      frames = [tf(sx, sy, face, 0), tf((sx + ex) / 2, sy + 6, face, 4), tf(ex, 0, face, 0)];
+      dur = 2400;
+      svg.classList.add('mw--rev');
+    } else if (move < .6 && ahead >= 70) { // loop-the-loop
+      ex = sx + face * 60;
+      frames = [tf(sx, sy, face, 0), tf(sx + face * 20, sy - 28, face, -120), tf(sx + face * 40, sy - 20, face, -240), tf(ex, 0, face, -360)];
+      dur = 1700;
+    } else if (move < .78 && ahead >= 60) { // dive down and come back up
+      ex = sx + face * rand(60, Math.min(ahead, 110));
+      frames = [tf(sx, sy, face, 0), tf(sx + (ex - sx) * .45, sy + 32, face, 14), tf(ex, 0, face, -6)];
+      dur = 1900;
+    } else if (ahead >= 60) { // backstroke: roll onto his back, glide, roll back
+      ex = sx + face * rand(55, Math.min(ahead, 100));
+      frames = [tf(sx, sy, face, 0, 1), tf(sx + (ex - sx) * .15, sy - 4, face, 0, -1), tf(sx + (ex - sx) * .85, sy - 4, face, 0, -1), tf(ex, 0, face, 0, 1)];
+      dur = 2600;
+      easing = 'ease-in-out';
+    } else {
+      frames = [tf(sx, sy, face), tf(sx, sy - 8, face * .15), tf(sx, sy, -face)];
+      ef = -face; dur = 800;
+    }
+    const anim = drift.animate(frames.map((transform) => ({ transform })), { duration: dur, easing, fill: 'forwards' });
+    st.swimAnim = anim;
+    try { await anim.finished; } catch { return; }
+    if (st.swimAnim !== anim) return;
+    st.sx = ex; st.sy = ey; st.face = ef;
+    drift.style.transform = tf(ex, ey, ef);
+    anim.cancel();
+    st.swimAnim = null;
+    svg.classList.remove('mw--rev');
+  }
+
+  function startSwimLoop(wrap) {
+    const st = wrap._mw;
+    if (st.swimLoop) return;
+    st.swimLoop = true;
+    if (st.face == null) { st.sx = 0; st.sy = 0; st.face = 1; }
+    (async function loop() {
+      while (wrap.isConnected) {
+        if (st.mode === 'swim' && !document.hidden && !reduced()) {
+          await swimMove(wrap);
+          await wait(rand(350, 1300));
+        } else await wait(700);
+      }
+      st.swimLoop = false;
+    })();
+  }
+
   // Pour a drink for Meowie and let him enjoy it.
   // Sitting: the cup fills his glass and he laps it up.
   // Swimming: he rises to the surface, catches the stream in his mouth and looks blissful.
@@ -748,21 +870,15 @@
         await wait(1500);
         svg.classList.remove('mw--drink');
       } else {
-        svg.classList.add('mw--sip');
-        await wait(40);
+        // He keeps swimming at his depth and gulps the fresh water happily, blowing bubbles.
         const mouth = mouthPoint(wrap);
         const surf = levelY(st.level);
-        const dy = ((surf + 2) - mouth.y) / .66;
-        wrap.querySelector('.mw-actor').animate([
-          { transform: 'translate(0, 0) rotate(0deg)' },
-          { transform: `translate(0px, ${dy}px) rotate(-5deg)`, offset: .2 },
-          { transform: `translate(0px, ${dy + 4}px) rotate(-3deg)`, offset: .5 },
-          { transform: `translate(0px, ${dy}px) rotate(-5deg)`, offset: .8 },
-          { transform: 'translate(0, 0) rotate(0deg)' },
-        ], { duration: 2800, easing: 'cubic-bezier(.22,1,.36,1)' });
-        setTimeout(() => pour(wrap, color, { x: mouth.x, end: surf - 6, cup: o.cup }), 420);
-        setTimeout(() => floatHearts(wrap, 4), 1200);
-        await wait(2800);
+        pour(wrap, color, { x: Math.max(40, Math.min(360, mouth.x)), end: surf, cup: o.cup });
+        setTimeout(() => svg.classList.add('mw--sip'), 500);
+        setTimeout(() => mouthBubbles(wrap, 5), 700);
+        setTimeout(() => mouthBubbles(wrap, 4), 1400);
+        setTimeout(() => floatHearts(wrap, 3), 1100);
+        await wait(2600);
         svg.classList.remove('mw--sip');
       }
     } finally {
