@@ -50,3 +50,18 @@ Company details come from public listings: the Facebook pages (broadlinkjb, Broa
 - Tel 07-332 9889, Mon–Fri 8:00–17:00
 
 **Please verify before going live:** the postcodes, the phone number, the leg distances on the map (approximate), and the network legs beyond Singapore ⇄ Johor Bahru. The quote form copies the enquiry and opens Messenger (`m.me/broadlinkjb`). To send it to an email address or WhatsApp number instead, change the submit handler in `assets/js/main.js`.
+
+## Minum Air (water habit app)
+
+`minum-air/` is a separate, standalone PWA served at `/minum-air`. It is a one-tap water tracker whose daily goal goes up with the day's "feels like" temperature in the chosen Malaysian city.
+
+- **Goal:** 2000 ml normally, +250 ml once the feels-like max reaches 32 °C and another +250 ml for every 2 °C above that (up to +1250 ml). Weather comes from [Open-Meteo](https://open-meteo.com/) (free, no API key); offline it falls back to 2000 ml.
+- **Data:** everything is stored in the browser's `localStorage`. There is no login or server.
+- **Install:** open `/minum-air` on a phone and use *Add to Home Screen*. `sw.js` caches the app for offline use.
+
+```
+minum-air/index.html            the app (markup, styles and script in one file)
+minum-air/sw.js                 offline cache service worker
+minum-air/manifest.webmanifest  install metadata
+minum-air/icon.svg              app icon
+```

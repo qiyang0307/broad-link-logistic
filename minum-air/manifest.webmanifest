@@ -1,0 +1,13 @@
+{
+  "name": "Minum Air",
+  "short_name": "Minum Air",
+  "description": "One-tap water habit that adjusts to Malaysian heat.",
+  "start_url": "/minum-air",
+  "scope": "/minum-air",
+  "display": "standalone",
+  "background_color": "#f3f9ff",
+  "theme_color": "#0b7fd1",
+  "icons": [
+    { "src": "/minum-air/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
