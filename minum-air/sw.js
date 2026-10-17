@@ -1,6 +1,6 @@
 // Offline shell for Minum Air. Weather calls go straight to the network.
-const CACHE = 'minum-air-v2';
-const SHELL = ['/minum-air', '/minum-air/styles.css', '/minum-air/cat.js', '/minum-air/app.js', '/minum-air/manifest.webmanifest', '/minum-air/icon.svg'];
+const CACHE = 'minum-air-v3';
+const SHELL = ['/', '/styles.css', '/cat.js', '/i18n.js', '/app.js', '/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -25,6 +25,6 @@ self.addEventListener('fetch', (e) => {
         caches.open(CACHE).then((c) => c.put(e.request, copy));
         return res;
       })
-      .catch(() => caches.match(e.request).then((r) => r || caches.match('/minum-air')))
+      .catch(() => caches.match(e.request).then((r) => r || caches.match('/')))
   );
 });

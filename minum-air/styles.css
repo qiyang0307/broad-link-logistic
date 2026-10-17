@@ -84,6 +84,11 @@ h1, h2, h3 { font-family: var(--font-head); line-height: 1.1; margin: 0; }
 .back[hidden] { visibility: hidden; display: grid; }
 .progress { flex: 1; height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
 .progress i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--water-1), var(--water-2)); border-radius: inherit; transition: width .5s cubic-bezier(.2, .8, .2, 1); }
+.lang-pill {
+  border: 1px solid var(--line); background: var(--card); border-radius: 99px; padding: 8px 14px;
+  font-weight: 800; font-size: 14px; display: inline-flex; gap: 6px; align-items: center; box-shadow: var(--shadow);
+}
+.lang-pill span { color: var(--muted); font-size: 11px; }
 .skip { border: 0; background: none; color: var(--muted); font-weight: 700; padding: 8px; }
 
 .ob-hero { display: flex; justify-content: center; margin: 14px 0 6px; }

@@ -17,27 +17,27 @@
 
   // hyd = how much of the drink counts as water.
   const DRINKS = [
-    { id: 'air', name: 'Air Kosong', color: '#9fdcff', hyd: 1, ice: false },
-    { id: 'tehtarik', name: 'Teh Tarik', color: '#c98b4e', hyd: .8, foam: '#f1dcc0' },
-    { id: 'kopio', name: 'Kopi O', color: '#4a2c1a', hyd: .8 },
-    { id: 'milo', name: 'Milo Ais', color: '#7a4a2a', hyd: .85, ice: true, foam: '#9b6a45' },
-    { id: 'bandung', name: 'Sirap Bandung', color: '#f39bb7', hyd: .9, ice: true },
-    { id: 'kelapa', name: 'Air Kelapa', color: '#f4f1e2', hyd: 1, ice: true },
-    { id: 'limau', name: 'Air Limau', color: '#d9ef7a', hyd: 1, ice: true },
-    { id: 'barli', name: 'Air Barli', color: '#efe3bd', hyd: .95, ice: true },
-    { id: 'isotonik', name: 'Isotonik', color: '#d6f0ff', hyd: .95 },
+    { id: 'air', color: '#9fdcff', hyd: 1, ice: false },
+    { id: 'tehtarik', color: '#c98b4e', hyd: .8, foam: '#f1dcc0' },
+    { id: 'kopio', color: '#4a2c1a', hyd: .8 },
+    { id: 'milo', color: '#7a4a2a', hyd: .85, ice: true, foam: '#9b6a45' },
+    { id: 'bandung', color: '#f39bb7', hyd: .9, ice: true },
+    { id: 'kelapa', color: '#f4f1e2', hyd: 1, ice: true },
+    { id: 'limau', color: '#d9ef7a', hyd: 1, ice: true },
+    { id: 'barli', color: '#efe3bd', hyd: .95, ice: true },
+    { id: 'isotonik', color: '#d6f0ff', hyd: .95 },
   ];
-  const SIZES = [[150, 'Cawan'], [250, 'Gelas'], [400, 'Besar'], [600, 'Jumbo mamak']];
+  const SIZES = [150, 250, 400, 600];
 
   const ACTIVITY = {
-    santai: { label: 'Santai', sub: 'Kerja ofis, banyak duduk', ic: '🛋️', add: 0 },
-    sederhana: { label: 'Aktif sikit', sub: 'Jalan kaki, kerja berdiri', ic: '🚶', add: 350 },
-    aktif: { label: 'Aktif gila', sub: 'Gym, futsal, kerja luar', ic: '⚽', add: 700 },
+    santai: { ic: '🛋️', add: 0 },
+    sederhana: { ic: '🚶', add: 350 },
+    aktif: { ic: '⚽', add: 700 },
   };
   const GENDER = {
-    lelaki: { label: 'Lelaki', ic: '👨', f: 1 },
-    perempuan: { label: 'Perempuan', ic: '👩', f: .92 },
-    rahsia: { label: 'Tak nak bagitahu', ic: '🤐', f: .96 },
+    lelaki: { ic: '👨', f: 1 },
+    perempuan: { ic: '👩', f: .92 },
+    rahsia: { ic: '🤐', f: .96 },
   };
 
   // ---------- state ----------
@@ -53,7 +53,23 @@
     days: {},
     weather: null,
     lastSize: 250,
+    lang: 'en',
   }, load());
+
+  // ---------- i18n ----------
+  const I18N = window.MA_I18N;
+  const LANGS = Object.keys(I18N);
+  const L = () => I18N[state.lang] || I18N.en;
+  function t(key, params) {
+    const v = L()[key] !== undefined ? L()[key] : I18N.en[key];
+    return typeof v === 'function' ? v(params || {}) : v;
+  }
+  const drinkName = (d) => L().drinks[d.id];
+  const friend = () => state.profile.name || t('friend');
+  function applyLang() {
+    document.documentElement.lang = L()._html;
+    document.querySelectorAll('#tabbar [data-tab]').forEach((b) => { b.lastChild.textContent = t('tabs')[b.dataset.tab]; });
+  }
 
   const $ = (s, el = document) => el.querySelector(s);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -162,9 +178,9 @@
     const pi = PROGRESS_STEPS.indexOf(step);
     const pct = pi < 0 ? 0 : ((pi + 1) / PROGRESS_STEPS.length) * 100;
     return `<div class="ob-top">
-      <button class="back" type="button" data-act="back" aria-label="Kembali">←</button>
+      <button class="back" type="button" data-act="back" aria-label="${t('back')}">←</button>
       <div class="progress"><i style="width:${pct}%"></i></div>
-      ${skip ? '<button class="skip" type="button" data-act="skip">Langkau</button>' : '<span style="width:40px"></span>'}
+      ${skip ? `<button class="skip" type="button" data-act="skip">${t('skip')}</button>` : '<span style="width:40px"></span>'}
     </div>`;
   }
   function hero(say, opts = {}) {
@@ -185,28 +201,29 @@
     stepIdx = i;
     const step = STEPS[i];
     const p = state.profile;
-    const name = p.name || 'kawan';
+    const name = friend();
     const fill = Math.min(.9, i / STEPS.length);
     let html = '';
     let mount = null;
 
     switch (step) {
       case 'welcome':
-        html = `<div style="flex:1;display:flex;flex-direction:column;justify-content:center" class="stagger">
-          ${hero('Hai! Saya <b>Bos Meow</b> 😎<br>Cikgu minum air you.', { intro: true })}
-          <h1 class="ob-title">Minum air, jangan malas!</h1>
-          <p class="ob-sub">Setiap gelas isi badan Bos Meow. Target ikut cuaca panas Malaysia hari ni ☀️</p>
+        html = `<div class="ob-top" style="justify-content:flex-end"><button class="lang-pill" type="button" data-act="lang" aria-label="${t('chooseLang')}">🌐 ${L()._label} <span aria-hidden="true">▾</span></button></div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:center" class="stagger">
+          ${hero(t('welcomeSay'), { intro: !back })}
+          <h1 class="ob-title">${t('welcomeTitle')}</h1>
+          <p class="ob-sub">${t('welcomeSub')}</p>
         </div>
-        <div class="ob-foot"><button class="cta" data-act="next">Jom mula!</button>
-        <button class="cta ghost" data-act="demo">Tengok demo dulu</button></div>`;
+        <div class="ob-foot"><button class="cta" data-act="next">${t('welcomeStart')}</button>
+        <button class="cta ghost" data-act="demo">${t('welcomeDemo')}</button></div>`;
         mount = (el) => mountCat(el, { size: 170, level: .25 });
         break;
 
       case 'name':
-        html = `${chrome(step, { skip: true })}${hero('Boleh saya panggil you apa?')}
-          <div class="ob-body stagger"><h1 class="ob-title">Nama you?</h1><p class="ob-sub">Nanti Bos Meow tegur dengan nama ni.</p>
-          <input class="field" id="nameIn" maxlength="20" placeholder="cth. Aisyah, Ah Meng, Kumar" value="${esc(p.name)}" autocomplete="given-name"></div>
-          <div class="ob-foot"><button class="cta" data-act="next">Seterusnya</button></div>`;
+        html = `${chrome(step, { skip: true })}${hero(t('nameSay'))}
+          <div class="ob-body stagger"><h1 class="ob-title">${t('nameTitle')}</h1><p class="ob-sub">${t('nameSub')}</p>
+          <input class="field" id="nameIn" maxlength="20" placeholder="${t('namePh')}" value="${esc(p.name)}" autocomplete="given-name"></div>
+          <div class="ob-foot"><button class="cta" data-act="next">${t('next')}</button></div>`;
         mount = (el) => {
           mountCat(el, { level: fill });
           const inp = $('#nameIn', el);
@@ -216,22 +233,22 @@
         break;
 
       case 'gender':
-        html = `${chrome(step)}${hero(`Selamat berkenalan, ${esc(name)}! 🤝`)}
-          <div class="ob-body"><h1 class="ob-title">Jantina</h1><p class="ob-sub">Bantu kira keperluan air badan.</p>
+        html = `${chrome(step)}${hero(t('genderSay', { name: esc(name) }))}
+          <div class="ob-body"><h1 class="ob-title">${t('genderTitle')}</h1><p class="ob-sub">${t('genderSub')}</p>
           <div class="stagger" style="display:grid;gap:10px">${Object.entries(GENDER).map(([k, g]) =>
-            `<button class="option ${p.gender === k ? 'sel' : ''}" data-pick="gender" data-val="${k}"><span class="ic">${g.ic}</span><b>${g.label}</b></button>`).join('')}</div></div>
-          <div class="ob-foot"><button class="cta" data-act="next" ${p.gender ? '' : 'disabled'}>Seterusnya</button></div>`;
+            `<button class="option ${p.gender === k ? 'sel' : ''}" data-pick="gender" data-val="${k}"><span class="ic">${g.ic}</span><b>${L().gender[k]}</b></button>`).join('')}</div></div>
+          <div class="ob-foot"><button class="cta" data-act="next" ${p.gender ? '' : 'disabled'}>${t('next')}</button></div>`;
         mount = (el) => mountCat(el, { level: fill });
         break;
 
       case 'weight':
-        html = `${chrome(step)}${hero('Rahsia, Bos Meow tak bagitahu sesiapa 🤫')}
-          <div class="ob-body"><h1 class="ob-title">Berat badan</h1>
+        html = `${chrome(step)}${hero(t('weightSay'))}
+          <div class="ob-body"><h1 class="ob-title">${t('weightTitle')}</h1>
           <div class="big-num"><span id="wNum">${p.weight}</span> <small>kg</small></div>
-          <div class="stepper"><button type="button" data-w="-1" aria-label="Kurang">−</button>
-          <input type="range" id="wRange" min="30" max="150" value="${p.weight}" aria-label="Berat badan" style="max-width:200px">
-          <button type="button" data-w="1" aria-label="Tambah">+</button></div></div>
-          <div class="ob-foot"><button class="cta" data-act="next">Seterusnya</button></div>`;
+          <div class="stepper"><button type="button" data-w="-1" aria-label="${t('less')}">−</button>
+          <input type="range" id="wRange" min="30" max="150" value="${p.weight}" aria-label="${t('weightTitle')}" style="max-width:200px">
+          <button type="button" data-w="1" aria-label="${t('more')}">+</button></div></div>
+          <div class="ob-foot"><button class="cta" data-act="next">${t('next')}</button></div>`;
         mount = (el) => {
           const cat = mountCat(el, { level: fill });
           const range = $('#wRange', el);
@@ -251,30 +268,30 @@
         break;
 
       case 'activity':
-        html = `${chrome(step)}${hero('Selalu berpeluh tak? 💦')}
-          <div class="ob-body"><h1 class="ob-title">Tahap aktiviti</h1><p class="ob-sub">Lagi aktif, lagi banyak air diperlukan.</p>
+        html = `${chrome(step)}${hero(t('activitySay'))}
+          <div class="ob-body"><h1 class="ob-title">${t('activityTitle')}</h1><p class="ob-sub">${t('activitySub')}</p>
           <div class="stagger" style="display:grid;gap:10px">${Object.entries(ACTIVITY).map(([k, a]) =>
-            `<button class="option ${p.activity === k ? 'sel' : ''}" data-pick="activity" data-val="${k}"><span class="ic">${a.ic}</span><span><b>${a.label}</b><small>${a.sub}</small></span></button>`).join('')}</div></div>
-          <div class="ob-foot"><button class="cta" data-act="next" ${p.activity ? '' : 'disabled'}>Seterusnya</button></div>`;
+            `<button class="option ${p.activity === k ? 'sel' : ''}" data-pick="activity" data-val="${k}"><span class="ic">${a.ic}</span><span><b>${L().activity[k][0]}</b><small>${L().activity[k][1]}</small></span></button>`).join('')}</div></div>
+          <div class="ob-foot"><button class="cta" data-act="next" ${p.activity ? '' : 'disabled'}>${t('next')}</button></div>`;
         mount = (el) => mountCat(el, { level: fill });
         break;
 
       case 'city':
         html = `${chrome(step)}
-          <div class="ob-body"><h1 class="ob-title" style="margin-top:14px">Duduk mana? 📍</h1><p class="ob-sub">Bos Meow semak cuaca setiap hari. Hari panas = target naik.</p>
+          <div class="ob-body"><h1 class="ob-title" style="margin-top:14px">${t('cityTitle')}</h1><p class="ob-sub">${t('citySub')}</p>
           <div class="city-list stagger">${CITIES.map(([c]) =>
             `<button class="option ${p.city === c ? 'sel' : ''}" data-pick="city" data-val="${esc(c)}">${esc(c)}</button>`).join('')}</div></div>
-          <div class="ob-foot" style="position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 30%)"><button class="cta" data-act="next" ${p.city ? '' : 'disabled'}>Seterusnya</button></div>`;
+          <div class="ob-foot" style="position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 30%)"><button class="cta" data-act="next" ${p.city ? '' : 'disabled'}>${t('next')}</button></div>`;
         break;
 
       case 'times':
-        html = `${chrome(step)}${hero('Bos Meow tak kacau masa you tidur 😴')}
-          <div class="ob-body"><h1 class="ob-title">Rutin harian</h1><p class="ob-sub">Peringatan hanya antara waktu bangun dan tidur.</p>
+        html = `${chrome(step)}${hero(t('timesSay'))}
+          <div class="ob-body"><h1 class="ob-title">${t('timesTitle')}</h1><p class="ob-sub">${t('timesSub')}</p>
           <div class="time-row stagger">
-            <div class="time-card"><div class="ic">🌅</div><label for="wakeIn">Bangun</label><input type="time" id="wakeIn" value="${p.wake}"></div>
-            <div class="time-card"><div class="ic">🌙</div><label for="sleepIn">Tidur</label><input type="time" id="sleepIn" value="${p.sleep}"></div>
+            <div class="time-card"><div class="ic">🌅</div><label for="wakeIn">${t('wake')}</label><input type="time" id="wakeIn" value="${p.wake}"></div>
+            <div class="time-card"><div class="ic">🌙</div><label for="sleepIn">${t('sleep')}</label><input type="time" id="sleepIn" value="${p.sleep}"></div>
           </div></div>
-          <div class="ob-foot"><button class="cta" data-act="next">Kira target saya</button></div>`;
+          <div class="ob-foot"><button class="cta" data-act="next">${t('calcCta')}</button></div>`;
         mount = (el) => {
           mountCat(el, { level: fill });
           $('#wakeIn', el).addEventListener('change', (e) => { p.wake = e.target.value || '07:00'; save(); });
@@ -286,8 +303,7 @@
         html = `<div class="screen-inner calc" style="flex:1;display:flex;flex-direction:column">
           ${hero('')}<div class="pct" id="calcPct">0%</div>
           <ul class="checks" id="checks">
-            <li>Kira ikut berat ${p.weight} kg</li><li>Tambah tahap aktiviti</li>
-            <li>Semak cuaca ${esc(p.city)}</li><li>Siapkan pelan minum</li>
+            ${L().calc.map((f) => `<li>${f({ w: p.weight, city: esc(p.city) })}</li>`).join('')}
           </ul></div>`;
         mount = (el) => {
           el.classList.add('calc');
@@ -310,21 +326,22 @@
       case 'goal': {
         const g = GENDER[p.gender] || GENDER.rahsia;
         const a = ACTIVITY[p.activity] || ACTIVITY.santai;
+        const aLabel = L().activity[p.activity in ACTIVITY ? p.activity : 'santai'][0];
         const w = todaysWeather();
         const bonus = heatBonus(w && w.feels);
-        html = `${chrome(step)}${hero(`Ini target you, ${esc(name)}! 💪`)}
+        html = `${chrome(step)}${hero(t('goalSay', { name: esc(name) }))}
           <div class="ob-body stagger">
-            <div class="goal-card"><div style="text-align:center;color:var(--muted);font-weight:800">Target harian</div>
+            <div class="goal-card"><div style="text-align:center;color:var(--muted);font-weight:800">${t('goalLabel')}</div>
               <div class="big-num"><span id="goalNum">0</span> <small>ml</small></div>
-              <div style="text-align:center;color:var(--muted);font-weight:700">≈ ${Math.ceil(baseGoal() / 250)} gelas sehari</div>
+              <div style="text-align:center;color:var(--muted);font-weight:700">${t('glasses', { n: Math.ceil(baseGoal() / 250) })}</div>
               <ul class="breakdown">
-                <li>Berat ${p.weight} kg × 33 ml${g.f !== 1 ? ` × ${g.f}` : ''}<b>${fmt(p.weight * 33 * g.f)} ml</b></li>
-                <li>Aktiviti: ${a.label}<b>+${a.add} ml</b></li>
-                <li>Cuaca hari ini${w ? ` (${Math.round(w.feels)}° terasa)` : ''}<b>${bonus ? '+' + bonus : '+0'} ml</b></li>
+                <li>${t('weightRow', { w: p.weight })}${g.f !== 1 ? ` × ${g.f}` : ''}<b>${fmt(p.weight * 33 * g.f)} ml</b></li>
+                <li>${t('activityRow', { a: aLabel })}<b>+${a.add} ml</b></li>
+                <li>${t('weatherRow', { f: w ? Math.round(w.feels) : 0 })}<b>${bonus ? '+' + bonus : '+0'} ml</b></li>
               </ul></div>
-            <p class="ob-sub" style="margin-top:4px">Hari panas, target naik automatik. Hari sejuk (hujan), balik ke asal.</p>
+            <p class="ob-sub" style="margin-top:4px">${t('goalNote')}</p>
           </div>
-          <div class="ob-foot"><button class="cta" data-act="next">Cantik, setuju!</button></div>`;
+          <div class="ob-foot"><button class="cta" data-act="next">${t('goalCta')}</button></div>`;
         mount = (el) => {
           const cat = mountCat(el, { level: 1 });
           setTimeout(() => BosMeow.react(cat, 'happy'), 300);
@@ -334,13 +351,13 @@
       }
 
       case 'notify':
-        html = `${chrome(step)}${hero('Kalau you lupa, Bos Meow tegur sikit je 🔔')}
-          <div class="ob-body stagger"><h1 class="ob-title">Peringatan minum</h1>
-          <p class="ob-sub">Bos Meow ingatkan bila dah lama tak minum, antara ${p.wake} hingga ${p.sleep}.</p>
+        html = `${chrome(step)}${hero(t('notifySay'))}
+          <div class="ob-body stagger"><h1 class="ob-title">${t('notifyTitle')}</h1>
+          <p class="ob-sub">${t('notifySub', { wake: p.wake, sleep: p.sleep })}</p>
           <div class="card" style="display:flex;gap:12px;align-items:center"><span style="font-size:30px">😼</span>
-            <div><b>Bos Meow</b><div style="color:var(--muted);font-size:14px">Oi ${esc(name)}, dah 2 jam tak minum. Jom satu gelas! 💧</div></div></div></div>
-          <div class="ob-foot"><button class="cta" data-act="allow">Boleh, ingatkan saya</button>
-          <button class="cta ghost" data-act="finish">Nanti dulu</button></div>`;
+            <div><b>Bos Meow</b><div style="color:var(--muted);font-size:14px">${t('notifySample', { name: esc(name) })}</div></div></div></div>
+          <div class="ob-foot"><button class="cta" data-act="allow">${t('allow')}</button>
+          <button class="cta ghost" data-act="finish">${t('later')}</button></div>`;
         mount = (el) => mountCat(el, { level: 1 });
         break;
     }
@@ -367,7 +384,7 @@
     fetchWeather();
     $('#tabbar').hidden = false;
     renderHome(true);
-    setTimeout(() => toast(`Selamat datang, ${state.profile.name || 'kawan'}! 🎉`), 500);
+    setTimeout(() => toast(t('welcomeToast', { name: friend() })), 500);
   }
 
   app.addEventListener('click', (e) => {
@@ -391,12 +408,13 @@
     else if (act === 'allow') finishOnboarding(true);
     else if (act === 'finish') finishOnboarding(false);
     else if (act === 'demo') runDemo();
+    else if (act === 'lang') openLangSheet();
     else if (act === 'start') goStep(0);
   });
 
   // Fills a sample profile so people can peek at the home screen first.
   function runDemo() {
-    Object.assign(state.profile, { name: state.profile.name || 'Kawan', gender: 'rahsia', weight: 60, activity: 'sederhana', city: 'Kuala Lumpur' });
+    Object.assign(state.profile, { name: state.profile.name, gender: 'rahsia', weight: 60, activity: 'sederhana', city: 'Kuala Lumpur' });
     finishOnboarding(false);
   }
 
@@ -404,7 +422,7 @@
   function splash() {
     const drops = Array.from({ length: 14 }, (_, i) =>
       `<span style="left:${(i * 7.3 + 3) % 100}%;animation-duration:${1.6 + (i % 5) * .35}s;animation-delay:${(i % 7) * .25}s"></span>`).join('');
-    show('splash', `<div class="drops">${drops}</div>${hero('', { intro: true })}<h1>Minum Air</h1><p>bersama Bos Meow 😎</p>`, {
+    show('splash', `<div class="drops">${drops}</div>${hero('', { intro: true })}<h1>Minum Air</h1><p>${t('splashSub')}</p>`, {
       onMount: (el) => {
         el.classList.add('splash');
         const cat = mountCat(el, { size: 200, level: 0 });
@@ -424,20 +442,16 @@
   // ---------- home ----------
   function greeting() {
     const h = myHour();
-    if (h < 12) return 'Selamat pagi';
-    if (h < 14) return 'Selamat tengah hari';
-    if (h < 19) return 'Selamat petang';
-    return 'Selamat malam';
+    const g = t('greet');
+    return g[h < 12 ? 0 : h < 14 ? 1 : h < 19 ? 2 : 3];
   }
   function catLine(d, pct) {
     const w = todaysWeather();
     const hot = w && w.feels >= HEAT_START;
-    const n = esc(state.profile.name || 'bos');
-    if (pct >= 1) return ['Target settle! Steady la you 😎', 'Badan segar, otak power 💪', 'Tak payah minum teh ais lagi, ok? 😆'];
-    if (pct >= .75) return ['Sikit lagi je, can one!', `Last push, ${n}!`, 'Hampir penuh dah perut saya 🫃'];
-    if (pct >= .5) return ['Separuh jalan dah 👍', 'Jangan tukar jadi teh tarik pula…', 'Steady, teruskan!'];
-    if (pct > 0) return hot ? ['Panas gila hari ni 🥵 minum lagi!', 'Bahang betul, jangan lupa air!'] : ['Good start! Satu lagi?', 'Bos Meow masih dahaga 🥲'];
-    return hot ? [`${Math.round(w.feels)}° terasa! Target naik hari ni ☀️`, 'Hari panas, mula dengan segelas air!'] : [`${greeting()}, ${n}! Jom segelas air 💧`, 'Perut saya kosong ni… 🥲'];
+    const n = esc(state.profile.name || t('boss'));
+    const lines = L().lines;
+    const kind = pct >= 1 ? 'done' : pct >= .75 ? 'close' : pct >= .5 ? 'half' : pct > 0 ? (hot ? 'someHot' : 'some') : (hot ? 'noneHot' : 'none');
+    return lines[kind]({ n, f: w ? Math.round(w.feels) : 0, greet: greeting() });
   }
 
   const bracket = (pct) => (pct >= 1 ? 4 : pct >= .75 ? 3 : pct >= .5 ? 2 : pct > 0 ? 1 : 0);
@@ -453,27 +467,27 @@
     const pct = drunk / d.goal;
     const w = todaysWeather();
     const lines = catLine(d, pct);
-    const name = esc(state.profile.name || 'kawan');
-    const dateStr = new Intl.DateTimeFormat('ms-MY', { timeZone: 'Asia/Kuala_Lumpur', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
+    const name = esc(friend());
+    const dateStr = new Intl.DateTimeFormat(L()._locale, { timeZone: 'Asia/Kuala_Lumpur', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
     const bonus = heatBonus(w && w.feels);
     const html = `
-      <div class="home-head"><div><h2>${greeting()}, ${name}</h2><p>${dateStr}</p></div>
+      <div class="home-head"><div><h2>${greeting()}${t('comma')}${name}</h2><p>${dateStr}</p></div>
         <span class="pill fire" title="Streak">🔥 ${streakCount()}</span></div>
       <span class="pill weather-chip">${w ? (w.feels >= HEAT_START ? '☀️' : '⛅') : '🌤️'} ${esc(state.profile.city || 'Malaysia')} ·
-        ${w ? `${Math.round(w.feels)}° terasa${bonus ? ` · target +${bonus} ml` : ''}` : 'memuatkan cuaca…'}</span>
+        ${w ? `${t('feels', { f: Math.round(w.feels) })}${bonus ? ` · ${t('goalPlus', { b: bonus })}` : ''}` : t('loadingWeather')}</span>
       <div class="stage"><div class="ring"></div><div class="bubble-say" id="say" data-bracket="${bracket(pct)}">${lines[0]}</div><div class="hero-cat"></div></div>
       <div class="stats-row"><div class="pct"><span id="pctNum">${Math.round(shownPct * 100)}</span>%</div>
         <div class="ml"><b id="mlNum">${fmt(drunk)}</b> / ${fmt(d.goal)} ml</div></div>
-      <div class="add-main"><button class="cta" id="quickAdd">${cupSvg(DRINKS[0]).replace('<svg', '<svg style="width:26px;height:32px"')} + ${state.lastSize} ml air</button>
-        <button class="add-more" id="moreBtn" aria-label="Minuman lain">+</button></div>
+      <div class="add-main"><button class="cta" id="quickAdd">${cupSvg(DRINKS[0]).replace('<svg', '<svg style="width:26px;height:32px"')} ${t('addWater', { ml: state.lastSize })}</button>
+        <button class="add-more" id="moreBtn" aria-label="${t('otherDrinks')}">+</button></div>
       <div class="drinks" id="drinkRow">${DRINKS.slice(1).map((x) =>
-        `<button class="drink-chip" data-drink="${x.id}">${cupSvg(x)}<b>${x.name}</b></button>`).join('')}</div>
-      <div class="section-title">Hari ini <small>${d.log.length} minuman</small></div>
+        `<button class="drink-chip" data-drink="${x.id}">${cupSvg(x)}<b>${drinkName(x)}</b></button>`).join('')}</div>
+      <div class="section-title">${t('today')} <small>${t('drinksCount', { n: d.log.length })}</small></div>
       <ul class="log">${d.log.length ? d.log.slice().reverse().map((x) => {
         const dr = DRINKS.find((k) => k.id === x.drink) || DRINKS[0];
-        return `<li>${cupSvg(dr)}<div class="t"><b>${dr.name} · ${x.ml} ml</b><small>${timeStr(x.t)}${x.eff !== x.ml ? ` · dikira ${x.eff} ml air` : ''}</small></div>
-          <button class="del" data-del="${x.t}" aria-label="Padam">✕</button></li>`;
-      }).join('') : '<li class="empty">Belum minum lagi hari ni. Tekan butang biru! 👆</li>'}</ul>`;
+        return `<li>${cupSvg(dr)}<div class="t"><b>${drinkName(dr)} · ${x.ml} ml</b><small>${timeStr(x.t)}${x.eff !== x.ml ? ` · ${t('countsAs', { ml: x.eff })}` : ''}</small></div>
+          <button class="del" data-del="${x.t}" aria-label="${t('del')}">✕</button></li>`;
+      }).join('') : `<li class="empty">${t('empty')}</li>`}</ul>`;
 
     if (current === 'home' && screenEl) {
       // Re-render in place around the existing stage. Moving the cat out of the
@@ -536,9 +550,9 @@
       if (before < d.goal && after >= d.goal) {
         BosMeow.react(homeCat, 'party');
         confetti();
-        toast('Target hari ni settle! 🎉🇲🇾');
+        toast(t('goalHit'));
       } else {
-        toast(`+${eff} ml ${drink.id === 'air' ? '💧' : `(${drink.name})`}`);
+        toast(`+${eff} ml ${drink.id === 'air' ? '💧' : `(${drinkName(drink)})`}`);
       }
     }, fromEl ? 420 : 0);
   }
@@ -557,22 +571,40 @@
     let size = state.lastSize;
     function draw() {
       if (!drink) {
-        sheet.innerHTML = `<div class="grab"></div><h3 style="font-size:22px">Minum apa tadi? 🥤</h3>
-          <div class="drink-grid">${DRINKS.map((x) => `<button class="drink-chip" data-pick-drink="${x.id}">${cupSvg(x)}<b>${x.name}</b></button>`).join('')}</div>`;
+        sheet.innerHTML = `<div class="grab"></div><h3 style="font-size:22px">${t('pickDrink')}</h3>
+          <div class="drink-grid">${DRINKS.map((x) => `<button class="drink-chip" data-pick-drink="${x.id}">${cupSvg(x)}<b>${drinkName(x)}</b></button>`).join('')}</div>`;
         sheet.querySelectorAll('[data-pick-drink]').forEach((b) => b.addEventListener('click', () => { drink = DRINKS.find((x) => x.id === b.dataset.pickDrink); draw(); }));
         return;
       }
       sheet.innerHTML = `<div class="grab"></div>
-        <div class="sheet-head">${cupSvg(drink, .3 + SIZES.findIndex((s) => s[0] === size) * .18)}<div><h3>${drink.name}</h3>
-          <p>${drink.hyd === 1 ? 'Dikira 100% air 💧' : `Dikira ${Math.round(drink.hyd * 100)}% air (ada gula/kafein)`}</p></div></div>
-        <div class="sizes">${SIZES.map(([ml, l]) => `<button class="${ml === size ? 'sel' : ''}" data-size="${ml}">${ml}<small>${l}</small></button>`).join('')}</div>
-        <button class="cta" id="sheetAdd">Tambah ${size} ml</button>`;
+        <div class="sheet-head">${cupSvg(drink, .3 + Math.max(0, SIZES.indexOf(size)) * .18)}<div><h3>${drinkName(drink)}</h3>
+          <p>${drink.hyd === 1 ? t('full') : t('partial', { p: Math.round(drink.hyd * 100) })}</p></div></div>
+        <div class="sizes">${SIZES.map((ml, i) => `<button class="${ml === size ? 'sel' : ''}" data-size="${ml}">${ml}<small>${t('sizes')[i]}</small></button>`).join('')}</div>
+        <button class="cta" id="sheetAdd">${t('add', { ml: size })}</button>`;
       sheet.querySelectorAll('[data-size]').forEach((b) => b.addEventListener('click', () => { size = Number(b.dataset.size); draw(); }));
       $('#sheetAdd', sheet).addEventListener('click', (e) => { const btn = e.currentTarget; closeSheet(); addDrink(drink, size, btn); });
     }
     draw();
     sheet.classList.add('open');
     sheetBg.classList.add('open');
+  }
+  function openLangSheet() {
+    sheet.innerHTML = `<div class="grab"></div><h3 style="font-size:22px">🌐 ${t('chooseLang')}</h3>
+      <div style="display:grid;gap:10px;margin-top:14px">${LANGS.map((k) =>
+        `<button class="option ${k === state.lang ? 'sel' : ''}" data-lang="${k}"><b>${I18N[k]._label}</b></button>`).join('')}</div>`;
+    sheet.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => { closeSheet(); setLang(b.dataset.lang); }));
+    sheet.classList.add('open');
+    sheetBg.classList.add('open');
+  }
+  function setLang(lang) {
+    if (!I18N[lang] || lang === state.lang) return;
+    state.lang = lang;
+    save();
+    applyLang();
+    // Redraw whatever is on screen in the new language.
+    if (current && current.startsWith('ob-')) goStep(stepIdx, true);
+    else if (current === 'home') { current = null; renderHome(false); }
+    else if (current) renderTab(tab);
   }
   function closeSheet() { sheet.classList.remove('open'); sheetBg.classList.remove('open'); }
   sheetBg.addEventListener('click', closeSheet);
@@ -596,7 +628,7 @@
   }
 
   function renderHistory() {
-    const names = ['Ahd', 'Isn', 'Sel', 'Rab', 'Kha', 'Jum', 'Sab'];
+    const dayName = (k) => new Intl.DateTimeFormat(L()._locale, { weekday: 'short' }).format(new Date(k + 'T12:00:00'));
     today();
     const days = [];
     for (let i = 6; i >= 0; i--) {
@@ -610,18 +642,18 @@
     const cups = all.reduce((s, r) => s + r.log.length, 0);
     let best = 0, run = 0;
     Object.keys(state.days).sort().forEach((k) => { const r = state.days[k]; run = r.goal && total(r) >= r.goal ? run + 1 : 0; best = Math.max(best, run); });
-    show('history', `<h2 style="font-size:28px;margin-top:6px">Sejarah 📊</h2>
-      <div class="card"><div class="section-title" style="margin:0 0 14px">7 hari lepas <small>% target</small></div>
+    show('history', `<h2 style="font-size:28px;margin-top:6px">${t('histTitle')}</h2>
+      <div class="card"><div class="section-title" style="margin:0 0 14px">${t('last7')} <small>${t('pctGoal')}</small></div>
         <div class="week">${days.map((x) => `<div class="bar ${x.i === 0 ? 'today' : ''}" title="${x.k}: ${fmt(x.ml)}/${fmt(x.goal)} ml">
           <div class="b ${x.ml >= x.goal ? 'hit' : ''}"><i data-h="${Math.min(100, Math.round(x.ml / x.goal * 100))}"></i></div>
-          <span>${names[new Date(x.k + 'T12:00:00').getDay()]}</span></div>`).join('')}</div></div>
+          <span>${dayName(x.k)}</span></div>`).join('')}</div></div>
       <div class="tiles stagger">
-        <div class="tile"><div class="v">🔥 ${streakCount()}</div><div class="l">Streak sekarang</div></div>
-        <div class="tile"><div class="v">🏆 ${best}</div><div class="l">Streak terbaik</div></div>
-        <div class="tile"><div class="v">${fmt(avg)}</div><div class="l">Purata ml / hari (7 hari)</div></div>
-        <div class="tile"><div class="v">${hit}</div><div class="l">Hari capai target</div></div>
-        <div class="tile"><div class="v">${cups}</div><div class="l">Jumlah minuman dicatat</div></div>
-        <div class="tile"><div class="v">${fmt(baseGoal())}</div><div class="l">Target asas (ml)</div></div>
+        <div class="tile"><div class="v">🔥 ${streakCount()}</div><div class="l">${t('streakNow')}</div></div>
+        <div class="tile"><div class="v">🏆 ${best}</div><div class="l">${t('streakBest')}</div></div>
+        <div class="tile"><div class="v">${fmt(avg)}</div><div class="l">${t('avg')}</div></div>
+        <div class="tile"><div class="v">${hit}</div><div class="l">${t('daysHit')}</div></div>
+        <div class="tile"><div class="v">${cups}</div><div class="l">${t('logged')}</div></div>
+        <div class="tile"><div class="v">${fmt(baseGoal())}</div><div class="l">${t('baseGoal')}</div></div>
       </div>`, {
       onMount: (el) => {
         el.classList.add('home');
@@ -632,19 +664,20 @@
 
   function renderProfile() {
     const p = state.profile;
-    const opt = (obj, v) => Object.entries(obj).map(([k, o]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${o.label}</option>`).join('');
-    show('profile', `<h2 style="font-size:28px;margin-top:6px">Profil 😺</h2>
-      ${hero('Nak ubah apa-apa? Target dikira semula automatik.')}
+    const opt = (labels, v) => Object.entries(labels).map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${Array.isArray(l) ? l[0] : l}</option>`).join('');
+    show('profile', `<h2 style="font-size:28px;margin-top:6px">${t('profTitle')}</h2>
+      ${hero(t('profSay'))}
       <div class="card">
-        <div class="prof-row"><span>Nama</span><input id="pName" value="${esc(p.name)}" maxlength="20"></div>
-        <div class="prof-row"><span>Jantina</span><select id="pGender">${opt(GENDER, p.gender)}</select></div>
-        <div class="prof-row"><span>Berat (kg)</span><input id="pWeight" type="number" min="30" max="150" value="${p.weight}" style="width:90px"></div>
-        <div class="prof-row"><span>Aktiviti</span><select id="pAct">${opt(ACTIVITY, p.activity)}</select></div>
-        <div class="prof-row"><span>Bandar</span><select id="pCity">${CITIES.map(([c]) => `<option ${c === p.city ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
-        <div class="prof-row"><span>Bangun / Tidur</span><span><input id="pWake" type="time" value="${p.wake}"> <input id="pSleep" type="time" value="${p.sleep}"></span></div>
-        <div class="prof-row"><span>Target asas</span><b id="pGoal">${fmt(baseGoal())} ml</b></div>
+        <div class="prof-row"><span>${t('pLang')}</span><select id="pLang">${LANGS.map((k) => `<option value="${k}" ${k === state.lang ? 'selected' : ''}>${I18N[k]._label}</option>`).join('')}</select></div>
+        <div class="prof-row"><span>${t('pName')}</span><input id="pName" value="${esc(p.name)}" maxlength="20"></div>
+        <div class="prof-row"><span>${t('pGender')}</span><select id="pGender">${opt(L().gender, p.gender)}</select></div>
+        <div class="prof-row"><span>${t('pWeight')}</span><input id="pWeight" type="number" min="30" max="150" value="${p.weight}" style="width:90px"></div>
+        <div class="prof-row"><span>${t('pActivity')}</span><select id="pAct">${opt(L().activity, p.activity)}</select></div>
+        <div class="prof-row"><span>${t('pCity')}</span><select id="pCity">${CITIES.map(([c]) => `<option ${c === p.city ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
+        <div class="prof-row"><span>${t('pTimes')}</span><span><input id="pWake" type="time" value="${p.wake}"> <input id="pSleep" type="time" value="${p.sleep}"></span></div>
+        <div class="prof-row"><span>${t('pBase')}</span><b id="pGoal">${fmt(baseGoal())} ml</b></div>
       </div>
-      <button class="danger" id="pReset">Padam semua data & mula semula</button>`, {
+      <button class="danger" id="pReset">${t('reset')}</button>`, {
       onMount: (el) => {
         el.classList.add('home');
         mountCat(el, { size: 120, level: Math.min(1, total(today()) / today().goal) });
@@ -655,12 +688,13 @@
           save();
           $('#pGoal', el).textContent = fmt(baseGoal()) + ' ml';
           if (key === 'city') fetchWeather();
-          toast('Disimpan ✓');
+          toast(t('saved'));
         });
         bind('#pName', 'name'); bind('#pGender', 'gender'); bind('#pWeight', 'weight', true); bind('#pAct', 'activity');
         bind('#pCity', 'city'); bind('#pWake', 'wake'); bind('#pSleep', 'sleep');
+        $('#pLang', el).addEventListener('change', (e) => setLang(e.target.value));
         $('#pReset', el).addEventListener('click', () => {
-          if (!confirm('Padam semua data minum dan profil?')) return;
+          if (!confirm(t('resetConfirm'))) return;
           try { localStorage.removeItem(STORE_KEY); } catch {}
           location.reload();
         });
@@ -757,9 +791,9 @@
     const gap = 2 * 3600e3;
     if (Date.now() - Math.max(last, lastNudge) < gap) return;
     lastNudge = Date.now();
-    const body = `Oi ${state.profile.name || 'kawan'}, dah lama tak minum. Jom satu gelas! 💧`;
+    const body = t('remind', { name: friend() });
     if (state.profile.remind && 'Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker) {
-      navigator.serviceWorker.ready.then((r) => r.showNotification('Bos Meow 😼', { body, icon: '/minum-air/icon.svg', tag: 'minum' })).catch(() => {});
+      navigator.serviceWorker.ready.then((r) => r.showNotification('Bos Meow 😼', { body, icon: '/icon.svg', tag: 'minum' })).catch(() => {});
     } else if (!document.hidden) toast(body);
   }, 60e3);
 
@@ -770,11 +804,11 @@
   }, 60e3);
 
   // ---------- boot ----------
+  applyLang();
   if (state.onboarded) fetchWeather();
   splash();
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/minum-air/sw.js', { scope: '/minum-air' })
-      .catch(() => navigator.serviceWorker.register('/minum-air/sw.js').catch(() => {}));
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
 })();

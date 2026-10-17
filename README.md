@@ -53,20 +53,23 @@ Company details come from public listings: the Facebook pages (broadlinkjb, Broa
 
 ## Minum Air (water habit app)
 
-`minum-air/` is a separate, standalone PWA served at `/minum-air`. **Bos Meow**, a cool cat in a backwards cap and pixel shades, fills up with water as you drink. It is inspired by the Waterllama flow and given a Malaysian twist (BM/Manglish copy, mamak drinks, local cities, Jalur Gemilang confetti).
+`minum-air/` is a separate, standalone PWA with its own Vercel project (it is not part of the company site, and `.vercelignore` keeps it out of that deployment). Deploy the `minum-air/` folder on its own: `cd minum-air && npx vercel --prod`. Run it locally with `cd minum-air && python3 -m http.server 8000`. **Bos Meow**, a cool cat in a backwards cap and pixel shades, fills up with water as you drink. It is inspired by the Waterllama flow and given a Malaysian twist (BM/Manglish copy, mamak drinks, local cities, Jalur Gemilang confetti).
 
 - **Onboarding:** splash, welcome, name, gender, weight, activity, city, wake/sleep times, an animated "calculating" step, the goal with its breakdown, and a reminder opt-in. There's also a "Tengok demo dulu" shortcut.
 - **Goal:** weight × 33 ml (× 0.92 for women), plus activity (+0/+350/+700 ml), rounded to 50 ml. On hot days it adds +250 ml once the feels-like max reaches 32 °C and another +250 ml for every 2 °C above that (up to +1250 ml). Weather comes from [Open-Meteo](https://open-meteo.com/) (free, no key).
 - **Home:** the cat fills to today's percentage, with a one-tap water button and mamak drinks (Teh Tarik, Kopi O, Milo Ais, Sirap Bandung…). Each drink counts at its own hydration rate and you pick a size from 150 ml up to "Jumbo mamak" 600 ml. Also a streak, today's log, a 7-day history and an editable profile.
 - **Motion:** all drawn in code. The cat is SVG with CSS keyframes (waves, bubbles, blinking ears, tail, a shades drop and hops), water droplets fly in through the Web Animations API, and confetti runs on a canvas. `prefers-reduced-motion` is respected.
+- **Languages:** English (default), Bahasa Melayu and 中文, switchable on the welcome screen or in Profile. Strings live in `i18n.js`.
 - **Data:** stays in the browser's `localStorage`. There is no login or server. Reminders work only while the app is open (or in a background tab), so true background reminders need a native wrapper or a push server.
 
 ```
 minum-air/index.html            page shell
 minum-air/styles.css            design tokens, screens and all animations
 minum-air/cat.js                Bos Meow SVG mascot (water level + moods)
+minum-air/i18n.js               UI strings (en, ms, zh)
 minum-air/app.js                onboarding, home, history, profile, effects
 minum-air/sw.js                 offline cache service worker
 minum-air/manifest.webmanifest  install metadata
 minum-air/icon.svg              app icon
+minum-air/vercel.json           headers for the standalone deployment
 ```
