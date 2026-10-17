@@ -64,7 +64,10 @@
     const v = L()[key] !== undefined ? L()[key] : I18N.en[key];
     return typeof v === 'function' ? v(params || {}) : v;
   }
-  const drinkName = (d) => L().drinks[d.id];
+  const drinkName = (d) => (d.custom ? esc(d.name) : L().drinks[d.id]);
+  // Built-in drinks plus the ones the user made.
+  const allDrinks = () => DRINKS.concat(state.customDrinks || []);
+  const findDrink = (id) => allDrinks().find((k) => k.id === id) || DRINKS[0];
   const friend = () => state.profile.name || t('friend');
   function applyLang() {
     document.documentElement.lang = L()._html;
@@ -221,7 +224,7 @@
           <p class="ob-sub">${t('welcomeSub')}</p>
         </div>
         <div class="ob-foot"><button class="cta" data-act="next">${t('welcomeStart')}</button>
-        <button class="cta ghost" data-act="demo">${t('welcomeDemo')}</button></div>`;
+</div>`;
         mount = (el) => {
           const cat = mountCat(el, { size: 320, level: 0 });
           // Demo: the water fills drink by drink in different colours, then drains and repeats.
@@ -444,16 +447,10 @@
     else if (act === 'skip') next();
     else if (act === 'allow') finishOnboarding(true);
     else if (act === 'finish') finishOnboarding(false);
-    else if (act === 'demo') runDemo();
     else if (act === 'lang') openLangSheet();
     else if (act === 'start') goStep(0);
   });
 
-  // Fills a sample profile so people can peek at the home screen first.
-  function runDemo() {
-    Object.assign(state.profile, { name: state.profile.name, gender: 'rahsia', weight: 60, activity: 'sederhana', city: 'Kuala Lumpur' });
-    finishOnboarding(false);
-  }
 
   // ---------- splash ----------
   function splash() {
@@ -495,6 +492,10 @@
 
   let homeCat = null;
   let tapCount = 0;
+  // Today's list shows the newest few drinks until expanded.
+  const LOG_PEEK = 3;
+  let logOpen = false;
+  let reviewOpen = false;
   let lastAddedT = 0;
   let shownPct = 0;
   let tab = 'home';
@@ -511,7 +512,8 @@
     const bonus = heatBonus(w && w.feels);
     const html = `
       <div class="home-head"><div><h2>${greeting()}${t('comma')}${name}</h2><p>${dateStr}</p></div>
-        <span class="pill fire" title="Streak">🔥 ${streakCount()}</span></div>
+        <button type="button" class="pill fire" id="streakBtn" aria-label="${t('streakTitle')}">🔥 ${streakCount()}</button></div>
+      ${reviewCard(d, true)}
       <span class="pill weather-chip">${Meowie.skyNow() === 'night' ? '🌙' : w ? (w.feels >= HEAT_START ? '☀️' : '⛅') : '🌤️'} ${esc(state.profile.city || 'Malaysia')}${w ? ` · ${t('feels', { f: Math.round(w.feels) })}${bonus ? ` · ${t('goalPlus', { b: bonus })}` : ''}` : weatherFailed ? '' : ` · ${t('loadingWeather')}`}</span>
       <div class="stage"><div class="bubble-say" id="say" data-bracket="${bracket(pct)}">${lines[0]}</div><div class="hero-cat"></div></div>
       <div class="stats-row"><div class="pct"><span id="pctNum">${Math.round(shownPct * 100)}</span>%</div>
@@ -519,15 +521,16 @@
       <div class="add-main"><button class="cta" id="quickAdd">${cupSvg(DRINKS[0]).replace('<svg', '<svg style="width:26px;height:32px"')} ${t('addWater', { ml: state.lastSize })}</button>
         <button class="add-more" id="moreBtn" aria-label="${t('otherDrinks')}">+</button></div>
       <p class="hold-hint">${t('holdHint')}</p>
-      <div class="drinks" id="drinkRow">${DRINKS.slice(1).map((x) =>
+      <div class="drinks" id="drinkRow">${allDrinks().slice(1).map((x) =>
         `<button class="drink-chip" data-drink="${x.id}">${cupSvg(x)}<b>${drinkName(x)}</b></button>`).join('')}</div>
-      <div class="section-title">${t('today')} <small>${t('drinksCount', { n: d.log.length })}</small></div>
-      <ul class="log">${d.log.length ? d.log.slice().reverse().map((x) => {
-        const dr = DRINKS.find((k) => k.id === x.drink) || DRINKS[0];
-        return `<li class="${x.t === lastAddedT ? 'new' : ''}">${cupSvg(dr)}<div class="t"><b>${drinkName(dr)} · ${x.ml} ml</b><small>${timeStr(x.t)}${x.eff !== x.ml ? ` · ${t('countsAs', { ml: x.eff })}` : ''}</small></div>
+      <button type="button" class="section-title log-toggle" id="logToggle" aria-expanded="${logOpen}">${t('today')}
+        <small>${t('drinksCount', { n: d.log.length })} <span class="chev">${logOpen ? '▴' : '▾'}</span></small></button>
+      <ul class="log ${logOpen ? 'open' : ''}" id="todayLog">${d.log.length ? d.log.slice().reverse().map((x, i) => {
+        const dr = findDrink(x.drink);
+        return `<li class="${x.t === lastAddedT ? 'new' : ''} ${!logOpen && i >= LOG_PEEK ? 'more' : ''}">${cupSvg(dr)}<div class="t"><b>${drinkName(dr)} · ${x.ml} ml</b><small>${timeStr(x.t)}${x.eff !== x.ml ? ` · ${t('countsAs', { ml: x.eff })}` : ''}</small></div>
           <button class="del" data-del="${x.t}" aria-label="${t('del')}">✕</button></li>`;
       }).join('') : `<li class="empty">${t('empty')}</li>`}</ul>
-      ${reviewCard(d, true)}`;
+      ${d.log.length > LOG_PEEK ? `<button type="button" class="log-more" id="logMore">${logOpen ? t('showLess') : t('showMore', { n: d.log.length - LOG_PEEK })}</button>` : ''}`;
 
     if (current === 'home' && screenEl) {
       // Re-render in place around the existing stage. Moving the cat out of the
@@ -563,7 +566,7 @@
   function layersFor(d) {
     const out = [];
     d.log.forEach((x) => {
-      const dr = DRINKS.find((k) => k.id === x.drink) || DRINKS[0];
+      const dr = findDrink(x.drink);
       const color = dr.id === 'air' ? null : dr.color;
       const last = out[out.length - 1];
       if (last && last.id === dr.id) last.w += x.eff;
@@ -594,6 +597,18 @@
     quick.addEventListener('click', (e) => { if (held) { held = false; return; } addDrink(DRINKS[0], state.lastSize, e.currentTarget); });
     $('#moreBtn', el).addEventListener('click', () => openSheet());
     el.querySelectorAll('[data-drink]').forEach((b) => b.addEventListener('click', () => openSheet(b.dataset.drink, b)));
+    $('#streakBtn', el).addEventListener('click', openStreakSheet);
+    const toggleLog = () => { logOpen = !logOpen; renderHome(false); };
+    // The review at the top shows its first tip; tap it to see the rest.
+    const rv = el.querySelector(':scope > .review');
+    if (rv) {
+      rv.classList.toggle('expanded', reviewOpen);
+      rv.addEventListener('click', () => { reviewOpen = !reviewOpen; rv.classList.toggle('expanded', reviewOpen); });
+    }
+    const lt = $('#logToggle', el);
+    if (lt) lt.addEventListener('click', toggleLog);
+    const lm = $('#logMore', el);
+    if (lm) lm.addEventListener('click', toggleLog);
     el.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => removeDrink(Number(b.dataset.del))));
   }
 
@@ -725,13 +740,22 @@
   }
 
   function openSheet(drinkId, originEl) {
-    let drink = DRINKS.find((x) => x.id === drinkId);
+    let drink = drinkId ? allDrinks().find((x) => x.id === drinkId) : null;
     let size = state.lastSize;
     function draw() {
       if (!drink) {
         sheet.innerHTML = `<div class="grab"></div><h3 style="font-size:22px">${t('pickDrink')}</h3>
-          <div class="drink-grid">${DRINKS.map((x) => `<button class="drink-chip" data-pick-drink="${x.id}">${cupSvg(x)}<b>${drinkName(x)}</b></button>`).join('')}</div>`;
-        sheet.querySelectorAll('[data-pick-drink]').forEach((b) => b.addEventListener('click', () => { drink = DRINKS.find((x) => x.id === b.dataset.pickDrink); draw(); }));
+          <div class="drink-grid">${allDrinks().map((x) => `<div class="chip-wrap"><button class="drink-chip" data-pick-drink="${x.id}">${cupSvg(x)}<b>${drinkName(x)}</b></button>
+            ${x.custom ? `<button class="chip-del" data-del-custom="${x.id}" aria-label="${t('del')} ${esc(x.name)}">✕</button>` : ''}</div>`).join('')}
+            <button class="drink-chip custom-chip" id="customNew"><span class="plus">＋</span><b>${t('customDrink')}</b></button></div>`;
+        sheet.querySelectorAll('[data-pick-drink]').forEach((b) => b.addEventListener('click', () => { drink = allDrinks().find((x) => x.id === b.dataset.pickDrink); draw(); }));
+        sheet.querySelectorAll('[data-del-custom]').forEach((b) => b.addEventListener('click', () => {
+          state.customDrinks = (state.customDrinks || []).filter((x) => x.id !== b.dataset.delCustom);
+          save();
+          draw();
+          if (current === 'home') renderHome(false);
+        }));
+        $('#customNew', sheet).addEventListener('click', () => customForm((made) => { drink = made; draw(); if (current === 'home') renderHome(false); }));
         return;
       }
       sheet.innerHTML = `<div class="grab"></div>
@@ -845,6 +869,53 @@
     grab.addEventListener('pointerup', end);
     grab.addEventListener('pointercancel', end);
   }
+  // Make a drink that isn't on the list: name, colour, how much counts as water, sweet or caffeinated.
+  const CUSTOM_COLORS = ['#7cc8f5', '#8fd14f', '#ffb02e', '#ff7a59', '#f39bb7', '#b07cf0', '#c98b4e', '#4a2c1a'];
+  function customForm(done) {
+    const f = { name: '', color: CUSTOM_COLORS[2], hyd: .9, sweet: false, caff: false };
+    sheet.innerHTML = `<div class="grab"></div>
+      <div class="custom-form">
+        <div class="custom-preview" id="cPrev">${cupSvg({ id: 'cprev', color: f.color })}</div>
+        <h3>${t('customTitle')}</h3>
+        <label class="c-label" for="cName">${t('customName')}</label>
+        <input class="field" id="cName" maxlength="24" placeholder="${t('customNamePh')}" autocomplete="off">
+        <span class="c-label">${t('customColor')}</span>
+        <div class="swatches" role="radiogroup" aria-label="${t('customColor')}">${CUSTOM_COLORS.map((c, i) =>
+          `<button type="button" class="swatch ${i === 2 ? 'sel' : ''}" data-color="${c}" style="background:${c}" role="radio" aria-checked="${i === 2}" aria-label="${c}"></button>`).join('')}</div>
+        <span class="c-label">${t('customHyd')}</span>
+        <div class="hyd-opts">${[[1, t('hydPlain')], [.9, t('hydJuice')], [.8, t('hydTea')], [.7, t('hydCoffee')]].map(([v, l]) =>
+          `<button type="button" class="hyd ${v === .9 ? 'sel' : ''}" data-hyd="${v}"><b>${Math.round(v * 100)}%</b><small>${l}</small></button>`).join('')}</div>
+        <div class="toggles">
+          <label class="tog"><input type="checkbox" id="cSweet"> <span>🍬 ${t('customSweet')}</span></label>
+          <label class="tog"><input type="checkbox" id="cCaff"> <span>☕ ${t('customCaff')}</span></label>
+        </div>
+        <p class="c-err" id="cErr" hidden>${t('customNeedName')}</p>
+        <button class="cta" id="cSave">${t('customSave')}</button>
+      </div>`;
+    $('#cName', sheet).addEventListener('input', () => { $('#cErr', sheet).hidden = true; });
+    const prev = $('#cPrev', sheet);
+    const paint = () => { prev.innerHTML = cupSvg({ id: 'cprev' + f.color.slice(1), color: f.color, ice: false }); };
+    sheet.querySelectorAll('[data-color]').forEach((b) => b.addEventListener('click', () => {
+      f.color = b.dataset.color;
+      sheet.querySelectorAll('[data-color]').forEach((x) => { x.classList.toggle('sel', x === b); x.setAttribute('aria-checked', x === b); });
+      paint();
+      bump(prev);
+    }));
+    sheet.querySelectorAll('[data-hyd]').forEach((b) => b.addEventListener('click', () => {
+      f.hyd = Number(b.dataset.hyd);
+      sheet.querySelectorAll('[data-hyd]').forEach((x) => x.classList.toggle('sel', x === b));
+    }));
+    $('#cSave', sheet).addEventListener('click', () => {
+      f.name = $('#cName', sheet).value.trim();
+      if (!f.name) { $('#cErr', sheet).hidden = false; $('#cName', sheet).focus(); return; }
+      const made = { id: 'c' + Date.now().toString(36), custom: true, name: f.name, color: f.color, hyd: f.hyd,
+        sweet: $('#cSweet', sheet).checked, caff: $('#cCaff', sheet).checked ? 80 : 0, ice: false };
+      state.customDrinks = (state.customDrinks || []).concat(made);
+      save();
+      done(made);
+    });
+  }
+
   function openLangSheet() {
     sheet.innerHTML = `<div class="grab"></div><h3 style="font-size:22px">🌐 ${t('chooseLang')}</h3>
       <div style="display:grid;gap:10px;margin-top:14px">${LANGS.map((k) =>
@@ -993,6 +1064,51 @@
     });
   }
 
+  // Streak milestones and the badge each one unlocks.
+  const MILESTONES = [
+    { d: 3, ic: '💧' }, { d: 7, ic: '🧊' }, { d: 14, ic: '🥥' },
+    { d: 30, ic: '🦈' }, { d: 60, ic: '🌊' }, { d: 100, ic: '👑' },
+  ];
+  function bestStreak() {
+    let best = 0;
+    let run = 0;
+    Object.keys(state.days).sort().forEach((k) => {
+      const r = state.days[k];
+      run = r.goal && total(r) >= r.goal ? run + 1 : 0;
+      best = Math.max(best, run);
+    });
+    return best;
+  }
+  function openStreakSheet() {
+    const now = streakCount();
+    const best = Math.max(bestStreak(), now);
+    const next = MILESTONES.find((m) => m.d > now);
+    const prev = [...MILESTONES].reverse().find((m) => m.d <= now);
+    const from = prev ? prev.d : 0;
+    const pct = next ? Math.round(((now - from) / (next.d - from)) * 100) : 100;
+    const names = t('badges');
+    sheet.innerHTML = `<div class="grab"></div>
+      <div class="streak-sheet">
+        <div class="streak-hero"><span class="flame ${now ? 'lit' : ''}">🔥</span>
+          <div><b class="streak-num">${now}</b><span>${t('streakDays', { n: now })}</span></div></div>
+        <p class="streak-sub">${now ? t('streakKeep') : t('streakStart')} · ${t('streakBestN', { n: best })}</p>
+        ${next ? `<div class="next-card">
+          <div class="next-top"><span>${t('streakNext', { n: next.d - now, badge: `${next.ic} ${names[MILESTONES.indexOf(next)]}` })}</span><b>${now}/${next.d}</b></div>
+          <div class="next-bar"><i style="--w:${pct}%"></i></div></div>` : `<div class="next-card done">${t('streakAll')}</div>`}
+        <h3 class="badge-title">${t('streakRewards')}</h3>
+        <ul class="badges">${MILESTONES.map((m, i) => {
+          const got = best >= m.d;
+          return `<li class="${got ? 'got' : ''} ${next === m ? 'next' : ''}" style="animation-delay:${i * 60}ms">
+            <span class="b-ic">${got ? m.ic : '🔒'}</span>
+            <span class="b-txt"><b>${names[i]}</b><small>${t('badgeDays', { n: m.d })} · ${t('badgePerks')[i]}</small></span>
+            <span class="b-state">${got ? '✓' : `${Math.min(now, m.d)}/${m.d}`}</span></li>`;
+        }).join('')}</ul>
+        <p class="streak-how">${t('streakHow')}</p>
+      </div>`;
+    openSheetEl();
+    requestAnimationFrame(() => { const bar = $('.next-bar i', sheet); if (bar) bar.classList.add('go'); });
+  }
+
   // Deleting everything takes two steps: confirm, then a final button that unlocks after a short countdown.
   function openDeleteSheet() {
     sheet.innerHTML = `<div class="grab"></div>
@@ -1051,8 +1167,8 @@
     const raw = d.log.reduce((a, x) => a + x.ml, 0);
     const plain = d.log.filter((x) => x.drink === 'air' || x.drink === 'kelapa').reduce((a, x) => a + x.ml, 0);
     const waterShare = raw ? plain / raw : 0;
-    const sweet = d.log.filter((x) => SWEET.includes(x.drink)).length;
-    const caff = Math.round(d.log.reduce((a, x) => a + ((CAFFEINE[x.drink] || 0) * x.ml) / 250, 0));
+    const sweet = d.log.filter((x) => SWEET.includes(x.drink) || findDrink(x.drink).sweet).length;
+    const caff = Math.round(d.log.reduce((a, x) => a + ((CAFFEINE[x.drink] || findDrink(x.drink).caff || 0) * x.ml) / 250, 0));
     const expected = isToday ? dayElapsed() : 1;
     const progress = tot / goal;
     const times = d.log.map((x) => x.t).sort((a, b) => a - b);
@@ -1094,6 +1210,7 @@
       </div>
       ${chips}
       <ul class="tips">${r.tips.map((x) => `<li>${x}</li>`).join('')}</ul>
+      ${isToday && r.tips.length > 1 ? `<span class="more-tips">${t('moreTips', { n: r.tips.length - 1 })}</span>` : ''}
     </div>`;
   }
 
@@ -1105,7 +1222,7 @@
     const tot = total(d);
     const title = new Intl.DateTimeFormat(L()._locale, { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(k + 'T12:00:00'));
     const strip = d.log.length ? `<div class="day-strip">${d.log.map((x) => {
-      const dr = DRINKS.find((q) => q.id === x.drink) || DRINKS[0];
+      const dr = findDrink(x.drink);
       return `<i style="flex:${x.eff};background:${dr.id === 'air' ? 'var(--water-1)' : dr.color}" title="${drinkName(dr)}"></i>`;
     }).join('')}${tot < goal ? `<i class="rest" style="flex:${goal - tot}"></i>` : ''}</div>` : '';
     sheet.innerHTML = `<div class="grab"></div>
@@ -1115,7 +1232,7 @@
         ${strip}
         ${reviewCard(d, isToday)}
         <ul class="log">${d.log.length ? d.log.map((x) => {
-          const dr = DRINKS.find((q) => q.id === x.drink) || DRINKS[0];
+          const dr = findDrink(x.drink);
           return `<li>${cupSvg(dr)}<div class="t"><b>${drinkName(dr)} · ${x.ml} ml</b><small>${timeStr(x.t)}${x.eff !== x.ml ? ` · ${t('countsAs', { ml: x.eff })}` : ''}</small></div></li>`;
         }).join('') : `<li class="empty">${t('dayEmpty')}</li>`}</ul>
       </div>`;
