@@ -53,7 +53,7 @@ Company details come from public listings: the Facebook pages (broadlinkjb, Broa
 
 ## Minum Air (water habit app)
 
-`minum-air/` is a separate, standalone PWA with its own Vercel project (it is not part of the company site, and `.vercelignore` keeps it out of that deployment). Deploy the `minum-air/` folder on its own: `cd minum-air && npx vercel --prod`. Run it locally with `cd minum-air && python3 -m http.server 8000`. **Bos Meow**, a cool cat in a backwards cap and pixel shades, fills up with water as you drink. It is inspired by the Waterllama flow and given a Malaysian twist (BM/Manglish copy, mamak drinks, local cities, Jalur Gemilang confetti).
+`minum-air/` is a separate, standalone PWA with its own Vercel project (`minum-air` on Vercel, root directory `minum-air/`), separate from the company site's project. Deploy the `minum-air/` folder on its own: `cd minum-air && npx vercel --prod`. Run it locally with `cd minum-air && python3 -m http.server 8000`. **Bos Meow**, a cool cat in a backwards cap and pixel shades, fills up with water as you drink. It is inspired by the Waterllama flow and given a Malaysian twist (BM/Manglish copy, mamak drinks, local cities, Jalur Gemilang confetti).
 
 - **Onboarding:** splash, welcome, name, gender, weight, activity, city, wake/sleep times, an animated "calculating" step, the goal with its breakdown, and a reminder opt-in. There's also a "Tengok demo dulu" shortcut.
 - **Goal:** weight × 33 ml (× 0.92 for women), plus activity (+0/+350/+700 ml), rounded to 50 ml. On hot days it adds +250 ml once the feels-like max reaches 32 °C and another +250 ml for every 2 °C above that (up to +1250 ml). Weather comes from [Open-Meteo](https://open-meteo.com/) (free, no key).
