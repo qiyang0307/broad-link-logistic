@@ -190,10 +190,10 @@
   function mountCat(el, { size = 150, level = 0, intro = false } = {}) {
     const holder = $('.hero-cat', el);
     if (!holder) return null;
-    const cat = BosMeow.create({ intro: intro || holder.dataset.intro === '1' });
+    const cat = Meowie.create({ intro: intro || holder.dataset.intro === '1' });
     cat.style.width = size + 'px';
     holder.appendChild(cat);
-    requestAnimationFrame(() => BosMeow.setLevel(cat, level));
+    requestAnimationFrame(() => Meowie.setLevel(cat, level));
     return cat;
   }
 
@@ -315,10 +315,10 @@
           (function tick(now) {
             const k = Math.min(1, (now - t0) / dur);
             $('#calcPct', el).textContent = Math.round(k * 100) + '%';
-            BosMeow.setLevel(cat, k);
+            Meowie.setLevel(cat, k);
             items.forEach((li, i) => li.classList.toggle('done', k >= (i + 1) / items.length - .02));
             if (k < 1) requestAnimationFrame(tick);
-            else { BosMeow.react(cat, 'party'); setTimeout(() => current === 'ob-calc' && next(), 700); }
+            else { Meowie.act(cat, 'jump'); setTimeout(() => current === 'ob-calc' && next(), 1400); }
           })(t0);
         };
         break;
@@ -344,7 +344,7 @@
           <div class="ob-foot"><button class="cta" data-act="next">${t('goalCta')}</button></div>`;
         mount = (el) => {
           const cat = mountCat(el, { level: 1 });
-          setTimeout(() => BosMeow.react(cat, 'happy'), 300);
+          setTimeout(() => Meowie.act(cat, 'jump'), 500);
           countUp($('#goalNum', el), baseGoal() + bonus, 1200);
         };
         break;
@@ -354,8 +354,8 @@
         html = `${chrome(step)}${hero(t('notifySay'))}
           <div class="ob-body stagger"><h1 class="ob-title">${t('notifyTitle')}</h1>
           <p class="ob-sub">${t('notifySub', { wake: p.wake, sleep: p.sleep })}</p>
-          <div class="card" style="display:flex;gap:12px;align-items:center"><span style="font-size:30px">😼</span>
-            <div><b>Bos Meow</b><div style="color:var(--muted);font-size:14px">${t('notifySample', { name: esc(name) })}</div></div></div></div>
+          <div class="card" style="display:flex;gap:12px;align-items:center"><span style="font-size:30px">🦈</span>
+            <div><b>Meowie</b><div style="color:var(--muted);font-size:14px">${t('notifySample', { name: esc(name) })}</div></div></div></div>
           <div class="ob-foot"><button class="cta" data-act="allow">${t('allow')}</button>
           <button class="cta ghost" data-act="finish">${t('later')}</button></div>`;
         mount = (el) => mountCat(el, { level: 1 });
@@ -398,7 +398,6 @@
       const cta = $('.screen.active [data-act="next"]');
       if (cta) cta.disabled = false;
       const cat = $('.screen.active .cat-wrap');
-      if (cat) BosMeow.react(cat, 'wiggle');
       if (t.dataset.pick !== 'city') setTimeout(next, 380);
       return;
     }
@@ -425,12 +424,12 @@
     show('splash', `<div class="drops">${drops}</div>${hero('', { intro: true })}<h1>Minum Air</h1><p>${t('splashSub')}</p>`, {
       onMount: (el) => {
         el.classList.add('splash');
-        const cat = mountCat(el, { size: 200, level: 0 });
-        setTimeout(() => BosMeow.setLevel(cat, .45), 900);
+        const cat = mountCat(el, { size: 220, level: .3 });
+        setTimeout(() => Meowie.act(cat, 'drink'), 1200);
         el.addEventListener('click', () => leave());
         let left = false;
         function leave() { if (left) return; left = true; state.onboarded ? enterHome() : goStep(0); }
-        setTimeout(leave, 2600);
+        setTimeout(leave, 3000);
       },
     });
   }
@@ -457,6 +456,7 @@
   const bracket = (pct) => (pct >= 1 ? 4 : pct >= .75 ? 3 : pct >= .5 ? 2 : pct > 0 ? 1 : 0);
 
   let homeCat = null;
+  let tapCount = 0;
   let shownPct = 0;
   let tab = 'home';
 
@@ -507,7 +507,7 @@
       show('home', html, {
         onMount: (el) => {
           el.classList.add('home');
-          homeCat = BosMeow.create({ intro: first });
+          homeCat = Meowie.create({ intro: first });
           $('.hero-cat', el).appendChild(homeCat);
           shownPct = 0;
           wireHome(el, pct);
@@ -518,7 +518,7 @@
   }
 
   function wireHome(el, pct) {
-    BosMeow.setLevel(homeCat, pct);
+    Meowie.setLevel(homeCat, pct);
     animateNumber($('#pctNum', el), shownPct * 100, Math.min(999, pct * 100), 900);
     shownPct = pct;
     $('#quickAdd', el).addEventListener('click', (e) => addDrink(DRINKS[0], state.lastSize, e.currentTarget));
@@ -526,7 +526,8 @@
     el.querySelectorAll('[data-drink]').forEach((b) => b.addEventListener('click', () => openSheet(b.dataset.drink)));
     el.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => removeDrink(Number(b.dataset.del))));
     homeCat.onclick = () => {
-      BosMeow.react(homeCat, 'wiggle');
+      tapCount++;
+      Meowie.act(homeCat, tapCount % 2 ? 'jump' : 'swim');
       const lines = catLine(today(), shownPct);
       const say = $('#say', el);
       say.textContent = lines[Math.floor(Math.random() * lines.length)];
@@ -543,17 +544,14 @@
     save();
     if (navigator.vibrate) navigator.vibrate(20);
     if (fromEl) flyDrops(fromEl);
+    const after = total(d);
+    const hit = before < d.goal && after >= d.goal;
+    // Meowie laps from the glass while the tank fills, then leaps if the goal is reached.
     setTimeout(() => {
-      renderHome(false);
-      BosMeow.react(homeCat, 'happy');
-      const after = total(d);
-      if (before < d.goal && after >= d.goal) {
-        BosMeow.react(homeCat, 'party');
-        confetti();
-        toast(t('goalHit'));
-      } else {
-        toast(`+${eff} ml ${drink.id === 'air' ? '💧' : `(${drinkName(drink)})`}`);
-      }
+      const drinking = Meowie.act(homeCat, 'drink');
+      setTimeout(() => renderHome(false), 600);
+      toast(hit ? t('goalHit') : `+${eff} ml ${drink.id === 'air' ? '💧' : `(${drinkName(drink)})`}`);
+      if (hit) drinking.then(() => { confetti(); Meowie.act(homeCat, 'jump'); });
     }, fromEl ? 420 : 0);
   }
   function removeDrink(t) {
@@ -716,7 +714,7 @@
     })(t0);
   }
 
-  // Water droplets arc from the tapped button into Bos Meow.
+  // Water droplets arc from the tapped button into Meowie's tank.
   function flyDrops(fromEl) {
     if (!homeCat) return;
     const a = fromEl.getBoundingClientRect();
@@ -793,7 +791,7 @@
     lastNudge = Date.now();
     const body = t('remind', { name: friend() });
     if (state.profile.remind && 'Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker) {
-      navigator.serviceWorker.ready.then((r) => r.showNotification('Bos Meow 😼', { body, icon: '/icon.svg', tag: 'minum' })).catch(() => {});
+      navigator.serviceWorker.ready.then((r) => r.showNotification('Meowie 🦈', { body, icon: '/icon.svg', tag: 'minum' })).catch(() => {});
     } else if (!document.hidden) toast(body);
   }, 60e3);
 

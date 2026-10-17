@@ -92,7 +92,7 @@ h1, h2, h3 { font-family: var(--font-head); line-height: 1.1; margin: 0; }
 .skip { border: 0; background: none; color: var(--muted); font-weight: 700; padding: 8px; }
 
 .ob-hero { display: flex; justify-content: center; margin: 14px 0 6px; }
-.ob-hero .cat-wrap { width: 150px; }
+.ob-hero .cat-wrap { width: 170px; }
 .ob-title { font-size: 30px; text-align: center; margin-top: 6px; }
 .ob-sub { text-align: center; color: var(--muted); margin: 8px 12px 18px; }
 .ob-body { flex: 1; display: flex; flex-direction: column; gap: 10px; }
@@ -155,7 +155,7 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 32px; }
 
 /* ---------- Splash ---------- */
 .splash { align-items: center; justify-content: center; text-align: center; background: linear-gradient(180deg, #0a84d6, #0663a6); color: #fff; }
-.splash .cat-wrap { width: 200px; }
+.splash .cat-wrap { width: 230px; }
 .splash h1 { font-size: 46px; margin-top: 14px; letter-spacing: -.01em; }
 .splash p { opacity: .85; margin: 4px 0 0; font-weight: 700; }
 .splash .drops span { position: absolute; top: -20px; width: 10px; height: 14px; background: rgba(255, 255, 255, .5); border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; animation: rain linear infinite; }
@@ -163,7 +163,7 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 32px; }
 
 /* ---------- Calculating ---------- */
 .calc { align-items: center; justify-content: center; text-align: center; }
-.calc .cat-wrap { width: 190px; }
+.calc .cat-wrap { width: 220px; }
 .calc .pct { font-family: var(--font-head); font-size: 40px; font-weight: 800; margin-top: 8px; }
 .checks { list-style: none; padding: 0; margin: 16px 0 0; text-align: left; display: grid; gap: 10px; }
 .checks li { display: flex; gap: 10px; align-items: center; color: var(--muted); font-weight: 700; opacity: .35; transition: opacity .3s ease, color .3s ease; }
@@ -189,7 +189,7 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 32px; }
 
 .stage { position: relative; display: flex; flex-direction: column; align-items: center; padding-top: 50px; }
 .stage .ring { position: absolute; top: 60px; width: 250px; height: 250px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--water-1) 30%, transparent), transparent 70%); animation: breathe 4s ease-in-out infinite; }
-.stage .cat-wrap { width: 210px; position: relative; cursor: pointer; }
+.stage .cat-wrap { width: 270px; position: relative; cursor: pointer; }
 .stage .bubble-say { position: absolute; top: 0; z-index: 2; font-size: 14px; }
 .stats-row { text-align: center; margin-top: 6px; }
 .stats-row .pct { font-family: var(--font-head); font-size: 48px; font-weight: 800; line-height: 1; }
@@ -284,43 +284,69 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 32px; }
 }
 .toast.show { transform: translate(-50%, 0); visibility: visible; }
 
-/* ---------- Cat motion ---------- */
+/* ---------- Meowie ---------- */
 .cat-wrap svg { width: 100%; height: auto; display: block; overflow: visible; }
-.cat-water { transition: transform 1.1s cubic-bezier(.2, .8, .2, 1); }
-.wave { animation: wave 3.2s linear infinite; }
-.wave-back { animation-duration: 5s; animation-direction: reverse; }
+.mw-tank-bg { fill: color-mix(in srgb, #e4f5ff 75%, var(--card)); }
+.mw-tank-line { stroke: #9ccbea; stroke-width: 4; }
+.mw-water, .mw-pos { transition: transform 1.1s cubic-bezier(.2, .8, .2, 1); }
+.mw-wave { animation: wave 3.4s linear infinite; }
+.mw-wave-back { animation-duration: 5.5s; animation-direction: reverse; }
 @keyframes wave { from { transform: translateX(0); } to { transform: translateX(-240px); } }
-.bubble { animation: rise 3.5s ease-in infinite; }
-.bubble.b2 { animation-delay: 1.2s; animation-duration: 4.2s; }
-.bubble.b3 { animation-delay: 2.1s; animation-duration: 3s; }
-@keyframes rise { 0% { transform: translateY(160px); opacity: 0; } 20% { opacity: .8; } 100% { transform: translateY(0); opacity: 0; } }
+.mw-bub { animation: bub 4s ease-in infinite; }
+@keyframes bub { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: .9; } 90% { opacity: .6; } 100% { transform: translateY(-238px); opacity: 0; } }
+.mw-weed { transform-box: fill-box; transform-origin: 50% 100%; animation: sway 3s ease-in-out infinite alternate; }
+.mw-weed-2 { animation-duration: 3.8s; }
+@keyframes sway { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }
 
-.cat-head { transform-origin: 120px 170px; animation: bob 3.6s ease-in-out infinite; }
-@keyframes bob { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg) translateY(-2px); } }
-.cat-tail { transform-origin: 196px 236px; animation: tail 2.4s ease-in-out infinite; }
-@keyframes tail { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-14deg); } }
-.cat-ear-l { transform-origin: 70px 48px; animation: earL 5s ease-in-out infinite; }
-.cat-ear-r { transform-origin: 170px 48px; animation: earR 6.5s ease-in-out infinite 1s; }
-@keyframes earL { 0%, 92%, 100% { transform: rotate(0); } 95% { transform: rotate(-12deg); } }
-@keyframes earR { 0%, 92%, 100% { transform: rotate(0); } 95% { transform: rotate(12deg); } }
-.cat-whiskers { transform-origin: 120px 140px; animation: whisk 4s ease-in-out infinite; }
-@keyframes whisk { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(.9); } }
-.cat-shades { transform-box: fill-box; transform-origin: center; }
+/* Poses: sitting by default, stretched while swimming or jumping */
+.mw-stretch { display: none; }
+.mw--swim .mw-sit, .mw--jump .mw-sit { display: none; }
+.mw--swim .mw-stretch, .mw--jump .mw-stretch { display: inline; }
+.mw--jump:not(.mw--swim) .mw-stretch { transform: translateY(-70px); }
 
-/* Intro: the shades drop in, "deal with it" style */
-.cat--intro .cat-shades { animation: shadesDrop 1.3s cubic-bezier(.3, 1.5, .5, 1) .6s both; }
-@keyframes shadesDrop { 0% { transform: translateY(-260px) rotate(-8deg); } 70% { transform: translateY(6px) rotate(2deg); } 100% { transform: none; } }
-.cat--intro .cat-cap { animation: capDrop .7s cubic-bezier(.3, 1.5, .5, 1) .2s both; }
-@keyframes capDrop { from { transform: translateY(-200px); } to { transform: none; } }
-.cat--intro { animation: popIn .6s cubic-bezier(.2, 1.5, .4, 1) both; transform-origin: 50% 100%; }
+/* Idle life */
+.mw-sit .mw-head { transform-origin: 0 60px; animation: headTilt 4s ease-in-out infinite; }
+@keyframes headTilt { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+.mw-tail-sit { transform-origin: 38px -14px; animation: tailSit 2.6s ease-in-out infinite; }
+@keyframes tailSit { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-16deg); } }
+.mw-eyes { transform-origin: 0 14px; animation: blink 4.5s infinite; }
+@keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+.mw-tongue { transform-origin: 0 39px; transform: scaleY(0); }
+.mw-glass { opacity: 0; transform: translateX(-24px); transition: opacity .3s ease, transform .35s ease; }
 
-.cat--happy { animation: hop .6s cubic-bezier(.3, 1.6, .5, 1); transform-origin: 50% 100%; }
-@keyframes hop { 0% { transform: none; } 30% { transform: translateY(-16px) scale(1.04, .97); } 60% { transform: translateY(0) scale(1.05, .94); } 100% { transform: none; } }
-.cat--slurp .cat-shades { animation: shadesBounce .6s ease; }
-@keyframes shadesBounce { 40% { transform: translateY(-10px); } }
-.cat--party { animation: party 1.2s ease; transform-origin: 50% 100%; }
-@keyframes party { 0%, 100% { transform: none; } 20% { transform: rotate(-8deg) translateY(-12px); } 40% { transform: rotate(8deg) translateY(-18px); } 60% { transform: rotate(-6deg) translateY(-8px); } 80% { transform: rotate(4deg); } }
-.cat--wiggle { animation: wiggle .5s ease; transform-origin: 50% 100%; }
+/* Action 1: drink */
+.mw--drink .mw-glass { opacity: 1; transform: none; }
+.mw--drink .mw-sit .mw-head { animation: drinkDip 1.5s ease-in-out; }
+@keyframes drinkDip { 0%, 100% { transform: none; } 20%, 80% { transform: rotate(-14deg) translate(-8px, 16px); } }
+.mw--drink .mw-tongue { animation: lap .3s ease-in-out .3s 4; }
+@keyframes lap { 0%, 100% { transform: scaleY(0); } 50% { transform: scaleY(1); } }
+.mw--drink .mw-glass-water { animation: sip 1.5s ease-in forwards; }
+@keyframes sip { to { transform: translateY(24px); } }
+.mw--drink .mw-stretch .mw-head { animation: gulp .5s ease-in-out 3; }
+@keyframes gulp { 50% { transform: translateY(-6px) rotate(-8deg); } }
+
+/* Action 2: swim */
+.mw--swim .mw-drift { animation: drift 7s ease-in-out infinite alternate; }
+@keyframes drift { from { transform: translate(-60px, 4px); } to { transform: translate(40px, -10px); } }
+.mw--swim .mw-actor { animation: bobSwim 1.8s ease-in-out infinite; }
+@keyframes bobSwim { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-9px) rotate(3deg); } }
+.mw-leg { animation: paddle .7s ease-in-out infinite alternate; }
+.mw-leg-f1 { transform-origin: 40px 24px; }
+.mw-leg-f2 { transform-origin: 30px 22px; animation-delay: -.35s; }
+.mw-leg-b1 { transform-origin: -50px 26px; animation-delay: -.2s; }
+.mw-leg-b2 { transform-origin: -62px 20px; animation-delay: -.55s; }
+@keyframes paddle { from { transform: rotate(-28deg); } to { transform: rotate(22deg); } }
+.mw-tail-s { transform-origin: -88px -4px; animation: tailSwim 1.2s ease-in-out infinite alternate; }
+@keyframes tailSwim { from { transform: rotate(-10deg); } to { transform: rotate(12deg); } }
+.mw--zoom .mw-actor { animation: roll 1.4s ease-in-out; }
+@keyframes roll { to { transform: rotate(-360deg); } }
+
+/* Action 3: jump (keyframes run from meowie.js) */
+.mw--jump .mw-leg { animation: none; }
+
+/* Intro: Meowie drops into the tank */
+.mw--intro .mw-actor { animation: dropIn 1.1s cubic-bezier(.3, 1.4, .5, 1) .2s both; }
+@keyframes dropIn { from { transform: translateY(-460px); } to { transform: none; } }
 @keyframes wiggle { 25% { transform: rotate(-5deg); } 75% { transform: rotate(5deg); } }
 
 @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
