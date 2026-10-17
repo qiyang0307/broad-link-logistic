@@ -526,7 +526,8 @@
         const dr = DRINKS.find((k) => k.id === x.drink) || DRINKS[0];
         return `<li class="${x.t === lastAddedT ? 'new' : ''}">${cupSvg(dr)}<div class="t"><b>${drinkName(dr)} · ${x.ml} ml</b><small>${timeStr(x.t)}${x.eff !== x.ml ? ` · ${t('countsAs', { ml: x.eff })}` : ''}</small></div>
           <button class="del" data-del="${x.t}" aria-label="${t('del')}">✕</button></li>`;
-      }).join('') : `<li class="empty">${t('empty')}</li>`}</ul>`;
+      }).join('') : `<li class="empty">${t('empty')}</li>`}</ul>
+      ${reviewCard(d, true)}`;
 
     if (current === 'home' && screenEl) {
       // Re-render in place around the existing stage. Moving the cat out of the
@@ -572,8 +573,12 @@
   }
 
   function wireHome(el, pct) {
-    Meowie.setLayers(homeCat, layersFor(today()));
-    Meowie.setLevel(homeCat, pct);
+    // While sitting Meowie is still drinking, hold the water level until he finishes.
+    const holding = homeCat._mw && homeCat._mw.busy && homeCat._mw.mode === 'sit';
+    if (!holding) {
+      Meowie.setLayers(homeCat, layersFor(today()));
+      Meowie.setLevel(homeCat, pct);
+    }
     animateNumber($('#pctNum', el), shownPct * 100, Math.min(999, pct * 100), 900);
     shownPct = pct;
     // Tap adds a glass; press and hold opens the pour sheet to change the amount.
@@ -615,24 +620,32 @@
     if (drink.id === 'air') state.lastSize = ml;
     save();
     if (navigator.vibrate) navigator.vibrate(20);
-    Meowie.pour(homeCat, drink.color);
     const after = total(d);
     const hit = before < d.goal && after >= d.goal;
     // Crossing 25%, 50% or 75% earns a small celebration of its own.
     const milestone = !hit && [.75, .5, .25].find((m) => before < d.goal * m && after >= d.goal * m);
-    // Meowie laps from the glass while the water rises, then leaps if the goal is reached.
+    // A cup pours the drink: sitting Meowie gets his glass filled and laps it up,
+    // swimming Meowie rises to the surface and drinks straight from the stream.
+    const flow = Meowie.pourAndDrink(homeCat, drink.color);
+    toast(hit ? t('goalHit') : `+${eff} ml ${drink.id === 'air' ? '💧' : `(${drinkName(drink)})`}`);
+    setTimeout(() => floatMl(`+${eff} ml`), 700);
     setTimeout(() => {
-      const drinking = Meowie.act(homeCat, 'drink');
-      floatMl(`+${eff} ml`);
-      setTimeout(() => {
-        renderHome(false);
-        bump($('.stats-row .pct', screenEl));
-        if (milestone) sayLine(t('milestone', { p: Math.round(milestone * 100) }));
-      }, 600);
-      toast(hit ? t('goalHit') : `+${eff} ml ${drink.id === 'air' ? '💧' : `(${drinkName(drink)})`}`);
-      if (hit) drinking.then(() => { confetti(); Meowie.act(homeCat, 'jump'); });
-      else if (milestone) drinking.then(() => { confetti(36); Meowie.act(homeCat, milestone >= .5 ? 'jump' : 'swim'); });
-    }, fromEl ? 420 : 0);
+      renderHome(false);
+      bump($('.stats-row .pct', screenEl));
+      if (milestone) sayLine(t('milestone', { p: Math.round(milestone * 100) }));
+    }, 900);
+    flow.then(() => {
+      if (!homeCat || !homeCat.isConnected) return;
+      // Sitting Meowie drank from his glass; now the water catches up.
+      syncWater();
+      if (hit) { confetti(); Meowie.act(homeCat, 'jump'); }
+      else if (milestone) { confetti(36); Meowie.act(homeCat, milestone >= .5 ? 'jump' : 'swim'); }
+    });
+  }
+  function syncWater() {
+    const d = today();
+    Meowie.setLayers(homeCat, layersFor(d));
+    Meowie.setLevel(homeCat, total(d) / d.goal);
   }
   function removeDrink(t) {
     const d = today();
@@ -669,19 +682,19 @@
     return new Promise((res) => setTimeout(() => flyClone(clone, r).then(res), delay));
   }
   function flyClone(clone, r) {
-    const target = Meowie.pourPoint(homeCat);
-    const k = .36;
-    const dx = target.x - (r.left + r.width / 2) + 16;
-    const dy = target.y - (r.top + r.height * .04) - 26;
+    // Fly to where Meowie's pouring cup appears, shrink to its size and hand over to it.
+    const target = Meowie.pourTarget(homeCat);
+    const k = .26;
+    const dx = target.x - (r.left + r.width / 2) + 8;
+    const dy = target.y - (r.top + r.height * .04);
     const a = clone.animate([
-      { transform: 'translate(0, 0) scale(1) rotate(0deg)' },
-      { transform: `translate(${dx * .6}px, ${dy * .6 - 50}px) scale(${(1 + k) / 2}) rotate(8deg)`, offset: .35 },
-      { transform: `translate(${dx}px, ${dy}px) scale(${k}) rotate(0deg)`, offset: .62 },
-      { transform: `translate(${dx}px, ${dy}px) scale(${k}) rotate(-118deg)`, offset: .85 },
-      { transform: `translate(${dx}px, ${dy}px) scale(${k}) rotate(-118deg)`, opacity: 0 },
-    ], { duration: 1100, easing: 'cubic-bezier(.45,0,.2,1)' });
+      { transform: 'translate(0, 0) scale(1) rotate(0deg)', opacity: 1 },
+      { transform: `translate(${dx * .6}px, ${dy * .6 - 50}px) scale(${(1 + k) / 2}) rotate(10deg)`, opacity: 1, offset: .45 },
+      { transform: `translate(${dx}px, ${dy}px) scale(${k}) rotate(0deg)`, opacity: 1, offset: .85 },
+      { transform: `translate(${dx}px, ${dy}px) scale(${k}) rotate(0deg)`, opacity: 0 },
+    ], { duration: 820, easing: 'cubic-bezier(.45,0,.2,1)' });
     a.onfinish = () => clone.remove();
-    return new Promise((res) => setTimeout(res, 800));
+    return new Promise((res) => setTimeout(res, 640));
   }
 
   function pourSvg(d, ml) {
@@ -897,9 +910,10 @@
     Object.keys(state.days).sort().forEach((k) => { const r = state.days[k]; run = r.goal && total(r) >= r.goal ? run + 1 : 0; best = Math.max(best, run); });
     show('history', `<h2 style="font-size:28px;margin-top:6px">${t('histTitle')}</h2>
       <div class="card"><div class="section-title" style="margin:0 0 14px">${t('last7')} <small>${t('pctGoal')}</small></div>
-        <div class="week">${days.map((x) => `<div class="bar ${x.i === 0 ? 'today' : ''}" title="${x.k}: ${fmt(x.ml)}/${fmt(x.goal)} ml">
+        <div class="week">${days.map((x) => `<button type="button" class="bar ${x.i === 0 ? 'today' : ''}" data-day="${x.k}" aria-label="${x.k}: ${fmt(x.ml)} / ${fmt(x.goal)} ml">
           <div class="b ${x.ml >= x.goal ? 'hit' : ''}"><i data-h="${Math.min(100, Math.round(x.ml / x.goal * 100))}"></i></div>
-          <span>${dayName(x.k)}</span></div>`).join('')}</div></div>
+          <span>${dayName(x.k)}</span></button>`).join('')}</div>
+        <p class="tap-hint">${t('tapDay')}</p></div>
       <div class="tiles stagger">
         <div class="tile"><div class="v">🔥 ${streakCount()}</div><div class="l">${t('streakNow')}</div></div>
         <div class="tile"><div class="v">🏆 ${best}</div><div class="l">${t('streakBest')}</div></div>
@@ -911,48 +925,201 @@
       onMount: (el) => {
         el.classList.add('home');
         setTimeout(() => el.querySelectorAll('.week i').forEach((i) => { i.style.height = i.dataset.h + '%'; }), 120);
+        el.querySelectorAll('[data-day]').forEach((b) => b.addEventListener('click', () => openDaySheet(b.dataset.day)));
       },
     });
   }
 
   function renderProfile() {
     const p = state.profile;
+    // Edits go into a draft; nothing changes until Save.
+    const draft = { ...p, lang: state.lang };
     const opt = (labels, v) => Object.entries(labels).map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${Array.isArray(l) ? l[0] : l}</option>`).join('');
     show('profile', `<h2 style="font-size:28px;margin-top:6px">${t('profTitle')}</h2>
       ${hero(t('profSay'))}
       <div class="card">
-        <div class="prof-row"><span>${t('pLang')}</span><select id="pLang">${LANGS.map((k) => `<option value="${k}" ${k === state.lang ? 'selected' : ''}>${I18N[k]._label}</option>`).join('')}</select></div>
-        <div class="prof-row"><span>${t('pName')}</span><input id="pName" value="${esc(p.name)}" maxlength="20"></div>
-        <div class="prof-row"><span>${t('pGender')}</span><select id="pGender">${opt(L().gender, p.gender)}</select></div>
-        <div class="prof-row"><span>${t('pWeight')}</span><input id="pWeight" type="number" min="30" max="150" value="${p.weight}" style="width:90px"></div>
-        <div class="prof-row"><span>${t('pActivity')}</span><select id="pAct">${opt(L().activity, p.activity)}</select></div>
-        <div class="prof-row"><span>${t('pCity')}</span><select id="pCity">${CITIES.map(([c]) => `<option ${c === p.city ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
-        <div class="prof-row"><span>${t('pTimes')}</span><span><input id="pWake" type="time" value="${p.wake}"> <input id="pSleep" type="time" value="${p.sleep}"></span></div>
+        <div class="prof-row"><label for="pLang">${t('pLang')}</label><select id="pLang">${LANGS.map((k) => `<option value="${k}" ${k === state.lang ? 'selected' : ''}>${I18N[k]._label}</option>`).join('')}</select></div>
+        <div class="prof-row"><label for="pName">${t('pName')}</label><input id="pName" value="${esc(p.name)}" maxlength="20"></div>
+        <div class="prof-row"><label for="pGender">${t('pGender')}</label><select id="pGender">${opt(L().gender, p.gender)}</select></div>
+        <div class="prof-row"><label for="pWeight">${t('pWeight')}</label><input id="pWeight" type="number" min="30" max="150" value="${p.weight}" style="width:90px"></div>
+        <div class="prof-row"><label for="pAct">${t('pActivity')}</label><select id="pAct">${opt(L().activity, p.activity)}</select></div>
+        <div class="prof-row"><label for="pCity">${t('pCity')}</label><select id="pCity">${CITIES.map(([c]) => `<option ${c === p.city ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
+        <div class="prof-row"><span>${t('pTimes')}</span><span><input id="pWake" type="time" value="${p.wake}" aria-label="${t('wake')}"> <input id="pSleep" type="time" value="${p.sleep}" aria-label="${t('sleep')}"></span></div>
         <div class="prof-row"><span>${t('pBase')}</span><b id="pGoal">${fmt(baseGoal())} ml</b></div>
       </div>
-      <button class="danger" id="pReset">${t('reset')}</button>`, {
+      <div class="save-bar"><span id="pDirty" class="dirty" hidden>${t('unsaved')}</span>
+        <button class="cta" id="pSave" disabled>${t('save')}</button></div>
+      <div class="danger-zone">
+        <h3>${t('dangerTitle')}</h3>
+        <p>${t('dangerBody')}</p>
+        <button class="danger-btn" id="pReset">🗑 ${t('reset')}</button>
+      </div>`, {
       onMount: (el) => {
         el.classList.add('home');
         mountCat(el, { size: 220, level: Math.min(1, total(today()) / today().goal) });
-        const bind = (id, key, num) => $(id, el).addEventListener('change', (e) => {
-          const v = num ? Math.max(30, Math.min(150, Number(e.target.value) || p[key])) : e.target.value;
-          if (key === 'city' && v !== p.city) { state.weather = null; }
-          p[key] = v;
+        const saveBtn = $('#pSave', el);
+        const dirtyNote = $('#pDirty', el);
+        const isDirty = () => draft.lang !== state.lang || ['name', 'gender', 'weight', 'activity', 'city', 'wake', 'sleep'].some((k) => String(draft[k]) !== String(p[k]));
+        const refresh = () => {
+          const dirty = isDirty();
+          saveBtn.disabled = !dirty;
+          dirtyNote.hidden = !dirty;
+          $('#pGoal', el).textContent = fmt(baseGoal(draft)) + ' ml';
+        };
+        const bind = (id, key, num) => {
+          const inp = $(id, el);
+          const update = () => {
+            draft[key] = num ? Math.max(30, Math.min(150, Number(inp.value) || p[key])) : (key === 'name' ? inp.value.trim() : inp.value);
+            refresh();
+          };
+          inp.addEventListener('input', update);
+          inp.addEventListener('change', update);
+        };
+        bind('#pLang', 'lang'); bind('#pName', 'name'); bind('#pGender', 'gender'); bind('#pWeight', 'weight', true);
+        bind('#pAct', 'activity'); bind('#pCity', 'city'); bind('#pWake', 'wake'); bind('#pSleep', 'sleep');
+        saveBtn.addEventListener('click', () => {
+          const cityChanged = draft.city !== p.city;
+          const langChanged = draft.lang !== state.lang;
+          ['name', 'gender', 'weight', 'activity', 'city', 'wake', 'sleep'].forEach((k) => { p[k] = draft[k]; });
+          if (cityChanged) state.weather = null;
           save();
-          $('#pGoal', el).textContent = fmt(baseGoal()) + ' ml';
-          if (key === 'city') fetchWeather();
+          if (cityChanged) fetchWeather();
+          if (langChanged) setLang(draft.lang);
+          else { refresh(); bump($('#pGoal', el)); }
           toast(t('saved'));
         });
-        bind('#pName', 'name'); bind('#pGender', 'gender'); bind('#pWeight', 'weight', true); bind('#pAct', 'activity');
-        bind('#pCity', 'city'); bind('#pWake', 'wake'); bind('#pSleep', 'sleep');
-        $('#pLang', el).addEventListener('change', (e) => setLang(e.target.value));
-        $('#pReset', el).addEventListener('click', () => {
-          if (!confirm(t('resetConfirm'))) return;
-          try { localStorage.removeItem(STORE_KEY); } catch {}
-          location.reload();
-        });
+        $('#pReset', el).addEventListener('click', openDeleteSheet);
       },
     });
+  }
+
+  // Deleting everything takes two steps: confirm, then a final button that unlocks after a short countdown.
+  function openDeleteSheet() {
+    sheet.innerHTML = `<div class="grab"></div>
+      <div class="del-step">
+        <div class="del-icon">🗑</div>
+        <h3>${t('del1Title')}</h3>
+        <p>${t('del1Body')}</p>
+        <button class="danger-btn" id="del1">${t('del1Yes')}</button>
+        <button class="cta ghost" id="delCancel">${t('cancel')}</button>
+      </div>`;
+    openSheetEl();
+    $('#delCancel', sheet).addEventListener('click', closeSheet);
+    $('#del1', sheet).addEventListener('click', () => {
+      sheet.innerHTML = `<div class="grab"></div>
+        <div class="del-step">
+          <div class="del-icon">⚠️</div>
+          <h3>${t('del2Title')}</h3>
+          <p>${t('del2Body')}</p>
+          <button class="danger-btn" id="del2" disabled>${t('del2Wait', { s: 3 })}</button>
+          <button class="cta ghost" id="delCancel">${t('cancel')}</button>
+        </div>`;
+      $('#delCancel', sheet).addEventListener('click', closeSheet);
+      const btn = $('#del2', sheet);
+      let left = 3;
+      const timer = setInterval(() => {
+        left--;
+        if (!btn.isConnected) { clearInterval(timer); return; }
+        if (left > 0) btn.textContent = t('del2Wait', { s: left });
+        else { clearInterval(timer); btn.disabled = false; btn.textContent = t('del2Yes'); }
+      }, 1000);
+      btn.addEventListener('click', () => {
+        try { localStorage.removeItem(STORE_KEY); } catch {}
+        btn.textContent = t('deleted');
+        setTimeout(() => location.reload(), 600);
+      });
+    });
+  }
+
+  // ---------- daily review ----------
+  const SWEET = ['tehtarik', 'milo', 'bandung', 'barli', 'limau', 'isotonik'];
+  const CAFFEINE = { kopio: 95, tehtarik: 45 }; // mg per 250 ml
+  // Share of the waking day that has passed (1 for past days).
+  function dayElapsed() {
+    const [h, m] = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kuala_Lumpur', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date()).split(':').map(Number);
+    const toMin = (x) => { const [a, b] = x.split(':').map(Number); return a * 60 + b; };
+    const w = toMin(state.profile.wake);
+    let sl = toMin(state.profile.sleep);
+    let now = h * 60 + m;
+    if (sl <= w) { sl += 1440; if (now < w) now += 1440; }
+    return Math.max(0, Math.min(1, (now - w) / (sl - w)));
+  }
+
+  function review(d, isToday) {
+    const goal = d.goal || baseGoal();
+    const tot = total(d);
+    const raw = d.log.reduce((a, x) => a + x.ml, 0);
+    const plain = d.log.filter((x) => x.drink === 'air' || x.drink === 'kelapa').reduce((a, x) => a + x.ml, 0);
+    const waterShare = raw ? plain / raw : 0;
+    const sweet = d.log.filter((x) => SWEET.includes(x.drink)).length;
+    const caff = Math.round(d.log.reduce((a, x) => a + ((CAFFEINE[x.drink] || 0) * x.ml) / 250, 0));
+    const expected = isToday ? dayElapsed() : 1;
+    const progress = tot / goal;
+    const times = d.log.map((x) => x.t).sort((a, b) => a - b);
+    let gap = 0;
+    for (let i = 1; i < times.length; i++) gap = Math.max(gap, times[i] - times[i - 1]);
+    if (isToday && times.length && expected < 1) gap = Math.max(gap, Date.now() - times[times.length - 1]);
+    const gapH = gap / 3600e3;
+    const score = !d.log.length ? 0 : Math.min(100, Math.round(
+      55 * Math.min(1, progress / Math.max(expected, .15)) + 30 * waterShare + 15 * (sweet <= 1 ? 1 : sweet === 2 ? .5 : 0)));
+    const grade = score >= 85 ? 0 : score >= 65 ? 1 : score >= 40 ? 2 : 3;
+    const tips = [];
+    if (!d.log.length) tips.push(t(isToday ? 'tipStart' : 'dayEmpty'));
+    else {
+      const behind = Math.round((expected * goal - tot) / 50) * 50;
+      if (progress < 1 && behind >= 250) tips.push(isToday ? t('tipBehind', { ml: fmt(behind) }) : t('tipMissed', { ml: fmt(Math.round((goal - tot) / 50) * 50) }));
+      if (sweet >= 2) tips.push(t('tipSugar', { n: sweet }));
+      if (caff >= 300) tips.push(t('tipCaffeine', { mg: caff }));
+      if (waterShare < .5) tips.push(t('tipWaterShare', { p: Math.round(waterShare * 100) }));
+      if (gapH >= 3) tips.push(t('tipGap', { h: gapH.toFixed(1) }));
+      const w = todaysWeather();
+      if (isToday && w && heatBonus(w.feels) && progress < expected) tips.push(t('tipHeat'));
+      if (!tips.length) tips.push(t('tipGreat'));
+    }
+    return { score, grade, waterShare, sweet, caff, gapH, tips: tips.slice(0, 3), count: d.log.length };
+  }
+
+  function reviewCard(d, isToday) {
+    const r = review(d, isToday);
+    const chips = r.count ? `<div class="review-stats">
+        <span class="stat-chip">💧 ${t('statWater', { p: Math.round(r.waterShare * 100) })}</span>
+        <span class="stat-chip ${r.sweet >= 2 ? 'warn' : ''}">🍬 ${t('statSweet', { n: r.sweet })}</span>
+        <span class="stat-chip ${r.caff >= 300 ? 'warn' : ''}">☕ ${t('statCaffeine', { mg: r.caff })}</span>
+        ${r.count > 1 && r.gapH >= .1 ? `<span class="stat-chip ${r.gapH >= 3 ? 'warn' : ''}">⏱ ${t('statGap', { h: r.gapH.toFixed(1) })}</span>` : ''}
+      </div>` : '';
+    return `<div class="card review">
+      <div class="review-head">
+        <div class="score-ring g${r.grade}" style="--p:${r.score}"><b>${r.score}</b></div>
+        <div><h3>${t(isToday ? 'reviewTitle' : 'reviewDay')}</h3><p class="grade g${r.grade}">${r.count ? t('grades')[r.grade] : t('gradeNone')}</p></div>
+      </div>
+      ${chips}
+      <ul class="tips">${r.tips.map((x) => `<li>${x}</li>`).join('')}</ul>
+    </div>`;
+  }
+
+  // Tap a day in History to see what was drunk and how the day went.
+  function openDaySheet(k) {
+    const isToday = k === dayKey();
+    const d = isToday ? today() : (state.days[k] || { log: [], goal: baseGoal() });
+    const goal = d.goal || baseGoal();
+    const tot = total(d);
+    const title = new Intl.DateTimeFormat(L()._locale, { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(k + 'T12:00:00'));
+    const strip = d.log.length ? `<div class="day-strip">${d.log.map((x) => {
+      const dr = DRINKS.find((q) => q.id === x.drink) || DRINKS[0];
+      return `<i style="flex:${x.eff};background:${dr.id === 'air' ? 'var(--water-1)' : dr.color}" title="${drinkName(dr)}"></i>`;
+    }).join('')}${tot < goal ? `<i class="rest" style="flex:${goal - tot}"></i>` : ''}</div>` : '';
+    sheet.innerHTML = `<div class="grab"></div>
+      <div class="day-sheet">
+        <h3>${title}</h3>
+        <p class="day-total"><b>${fmt(tot)}</b> / ${fmt(goal)} ml · ${Math.round((tot / goal) * 100)}%</p>
+        ${strip}
+        ${reviewCard(d, isToday)}
+        <ul class="log">${d.log.length ? d.log.map((x) => {
+          const dr = DRINKS.find((q) => q.id === x.drink) || DRINKS[0];
+          return `<li>${cupSvg(dr)}<div class="t"><b>${drinkName(dr)} · ${x.ml} ml</b><small>${timeStr(x.t)}${x.eff !== x.ml ? ` · ${t('countsAs', { ml: x.eff })}` : ''}</small></div></li>`;
+        }).join('') : `<li class="empty">${t('dayEmpty')}</li>`}</ul>
+      </div>`;
+    openSheetEl();
   }
 
   // ---------- motion helpers ----------

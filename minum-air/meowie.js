@@ -78,6 +78,7 @@
       <g class="mw-x mw-ms"><path d="M0 33.5 V36 M-12 36 Q-6 45 0 37 Q6 45 12 36" fill="none" stroke="#6d5f60" stroke-width="2.6" stroke-linecap="round"/></g>
       <g class="mw-x mw-mo"><path d="M-10 36 Q0 38 10 36 Q9 51 0 51 Q-9 51 -10 36 Z" fill="#7a2f3b" stroke="#5a2430" stroke-width="1.6" stroke-linejoin="round"/>
         <path d="M-6 46 Q0 41 6 46 Q5 51 0 51 Q-5 51 -6 46 Z" fill="#ef8296"/></g>
+      <circle class="mw-mouth-pt" cx="0" cy="40" r="1" fill="none"/>
       <path d="M-5 28 L5 28 L0 33.5 Z" fill="#f0a1b0" stroke="#c97a8a" stroke-width="1.2" stroke-linejoin="round"/>
       <g stroke="#cfcac3" stroke-width="1.6" stroke-linecap="round">
         <path d="M-24 34 L-58 28 M-24 39 L-58 42"/><path d="M24 34 L58 28 M24 39 L58 42"/>
@@ -625,30 +626,149 @@
   }
 
   // A stream of the drink pours down into the water, then the tail falls in with splashes.
-  function pour(wrap, color = '#7cc8f5') {
+  // A little cup tips over above (x, end) and pours a stream of the drink down to it.
+  function pour(wrap, color = '#7cc8f5', o = {}) {
     const st = wrap._mw;
-    if (reduced()) { slosh(wrap, .6); return Promise.resolve(); }
+    const x = o.x != null ? o.x : (st.mode === 'swim' ? 112 : 108);
+    const end = o.end != null ? o.end : levelY(st.level);
+    const toWater = o.surface !== false;
+    if (reduced()) { if (toWater) slosh(wrap, .6); return Promise.resolve(); }
     const fx = wrap.querySelector('.mw-fx');
     const ns = 'http://www.w3.org/2000/svg';
-    const x = st.mode === 'swim' ? 112 : 108;
-    const surf = levelY(st.level);
-    const top = Math.max(-30, surf - 230);
-    const len = surf - top + 4;
+    const top = Math.max(-40, end - 190);
+    const len = end - top + 4;
+    const lead = o.cup === false ? 0 : 260;
+    if (o.cup !== false) {
+      // Cup drawn with its pouring lip at (0,0) so it tips around the lip.
+      const cup = document.createElementNS(ns, 'g');
+      cup.setAttribute('transform', `translate(${x + 2} ${top - 2}) scale(1.35)`);
+      cup.innerHTML = `<g class="mw-cup">
+        <clipPath id="${st.id}-cupc"><path d="M0 0 H30 L27 36 Q26.5 38 24 38 H6 Q3.5 38 3 36 Z"/></clipPath>
+        <path d="M0 0 H30 L27 36 Q26.5 38 24 38 H6 Q3.5 38 3 36 Z" fill="#fff"/>
+        <g clip-path="url(#${st.id}-cupc)"><rect class="mw-cup-liquid" x="-10" y="10" width="50" height="40" fill="${color}"/></g>
+        <path d="M0 0 H30 L27 36 Q26.5 38 24 38 H6 Q3.5 38 3 36 Z" fill="none" stroke="#3b4048" stroke-width="2.8" stroke-linejoin="round"/>
+        <path d="M6 6 L8 30" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".8"/></g>`;
+      cup.style.filter = 'drop-shadow(0 3px 4px rgba(0,0,0,.18))';
+      fx.appendChild(cup);
+      const inner = cup.firstElementChild;
+      inner.style.transformOrigin = '0px 0px';
+      inner.animate([
+        { transform: 'translate(10px, -30px) rotate(0deg)', opacity: 0 },
+        { transform: 'translate(0, 0) rotate(0deg)', opacity: 1, offset: .14 },
+        { transform: 'rotate(-112deg)', offset: .3 },
+        { transform: 'rotate(-112deg)', offset: .8 },
+        { transform: 'translate(8px, -16px) rotate(-20deg)', opacity: 0 },
+      ], { duration: 1500, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = () => cup.remove();
+      cup.querySelector('.mw-cup-liquid').animate([{ transform: 'translateY(0)' }, { transform: 'translateY(0)', offset: .3 }, { transform: 'translateY(32px)' }],
+        { duration: 1200, fill: 'forwards' });
+    }
     const g = document.createElementNS(ns, 'g');
-    g.innerHTML = `<g class="mw-stream"><rect x="${x - 7}" y="${top}" width="14" height="${len}" rx="7" fill="${color}" opacity=".92"/>
-      <rect x="${x - 3.5}" y="${top}" width="4" height="${len}" rx="2" fill="#fff" opacity=".55"/></g>`;
+    g.innerHTML = `<g class="mw-stream"><rect x="${x - 6}" y="${top}" width="12" height="${len}" rx="6" fill="${color}" opacity=".92"/>
+      <rect x="${x - 3}" y="${top}" width="3.5" height="${len}" rx="2" fill="#fff" opacity=".55"/></g>`;
     g.style.transformOrigin = `${x}px ${top}px`;
+    g.style.opacity = 0;
     fx.appendChild(g);
-    g.animate([{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { duration: 360, easing: 'cubic-bezier(.55,0,.8,.3)', fill: 'forwards' });
+    setTimeout(() => {
+      g.style.opacity = 1;
+      g.animate([{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { duration: 320, easing: 'cubic-bezier(.55,0,.8,.3)', fill: 'forwards' });
+    }, lead);
     setTimeout(() => {
       g.animate([{ transform: 'translateY(0) scaleY(1)' }, { transform: `translateY(${len}px) scaleY(0)` }],
-        { duration: 360, easing: 'cubic-bezier(.55,0,.8,.3)', fill: 'forwards' }).onfinish = () => g.remove();
-    }, 900);
-    setTimeout(() => ripple(wrap, x, surf + 6), 620);
-    setTimeout(() => ripple(wrap, x, surf + 6), 1020);
-    lookAtSvg(wrap, x, surf);
-    return new Promise((r) => setTimeout(() => { splash(wrap, x); slosh(wrap, .8); r(); }, 360));
+        { duration: 320, easing: 'cubic-bezier(.55,0,.8,.3)', fill: 'forwards' }).onfinish = () => g.remove();
+    }, lead + 820);
+    if (toWater) {
+      setTimeout(() => ripple(wrap, x, end + 6), lead + 560);
+      setTimeout(() => ripple(wrap, x, end + 6), lead + 900);
+    } else {
+      setTimeout(() => dropsAt(wrap, x, end, 5), lead + 420);
+      setTimeout(() => dropsAt(wrap, x, end, 4), lead + 760);
+    }
+    lookAtSvg(wrap, x, end);
+    return new Promise((r) => setTimeout(() => {
+      if (toWater) { splash(wrap, x); slosh(wrap, .8); } else dropsAt(wrap, x, end, 6);
+      r();
+    }, lead + 320));
   }
 
-  window.Meowie = { create, setLevel, setLayers, pourPoint, act, moodFor, interact, tilt, slosh, lookAt, pet, pour, skyNow };
+  // Tiny droplets that hop out of a glass rim.
+  function dropsAt(wrap, x, y, n) {
+    const fx = wrap.querySelector('.mw-fx');
+    const ns = 'http://www.w3.org/2000/svg';
+    for (let i = 0; i < n; i++) {
+      const d = document.createElementNS(ns, 'circle');
+      d.setAttribute('cx', x); d.setAttribute('cy', y); d.setAttribute('r', 1.8 + Math.random() * 1.8);
+      d.setAttribute('fill', '#bfe6ff');
+      fx.appendChild(d);
+      const dx = (Math.random() - .5) * 40;
+      d.animate([{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${dx * .6}px, ${-12 - Math.random() * 16}px)`, offset: .45 }, { transform: `translate(${dx}px, 8px)`, opacity: 0 }],
+        { duration: 600, easing: 'ease-out' }).onfinish = () => d.remove();
+    }
+  }
+
+  // Swimming Meowie's mouth in scene coordinates (the mouth sits at 0,38 in head space).
+  function mouthPoint(wrap) {
+    const svg = wrap.querySelector('svg');
+    // Measured from a marker in the head so every CSS animation and transform is included.
+    const r = wrap.querySelector('.mw-stretch .mw-mouth-pt').getBoundingClientRect();
+    if (!r.width && !r.height && !r.left) return { x: 260, y: levelY(wrap._mw.level) + 20 };
+    return toSvg(svg, r.left + r.width / 2, r.top + r.height / 2);
+  }
+
+  // Where the pouring cup will appear, in screen coordinates (for hand-off animations).
+  function pourTarget(wrap) {
+    const st = wrap._mw;
+    const svg = wrap.querySelector('svg');
+    if (st.mode === 'sit') return toClient(svg, 148, Math.max(-40, 257 - 190) - 2);
+    const mouth = mouthPoint(wrap);
+    return toClient(svg, mouth.x + 2, Math.max(-40, levelY(st.level) - 196) - 2);
+  }
+
+  // Pour a drink for Meowie and let him enjoy it.
+  // Sitting: the cup fills his glass and he laps it up.
+  // Swimming: he rises to the surface, catches the stream in his mouth and looks blissful.
+  async function pourAndDrink(wrap, color, o = {}) {
+    const st = wrap._mw;
+    const svg = wrap.querySelector('svg');
+    if (reduced()) { slosh(wrap, .6); return; }
+    if (st.busy) { pour(wrap, color, { cup: o.cup }); await wait(1300); return; }
+    st.busy = true;
+    try {
+      if (st.mode === 'sit') {
+        svg.classList.add('mw--fill');
+        const gw = wrap.querySelector('.mw-sit .mw-glass-water');
+        const fill = gw.animate([{ transform: 'translateY(26px)' }, { transform: 'translateY(0)' }],
+          { duration: 800, delay: (o.cup === false ? 0 : 260) + 300, easing: 'ease-out', fill: 'both' });
+        // Glass rim in scene coordinates: sit pose sits at (200, FLOOR + 4) scaled .8; rim is at (-67, -46) locally.
+        await pour(wrap, color, { x: 146, end: 257, cup: o.cup, surface: false });
+        await wait(900);
+        svg.classList.add('mw--drink');
+        fill.cancel();
+        svg.classList.remove('mw--fill');
+        floatHearts(wrap, 3);
+        await wait(1500);
+        svg.classList.remove('mw--drink');
+      } else {
+        svg.classList.add('mw--sip');
+        await wait(40);
+        const mouth = mouthPoint(wrap);
+        const surf = levelY(st.level);
+        const dy = ((surf + 2) - mouth.y) / .66;
+        wrap.querySelector('.mw-actor').animate([
+          { transform: 'translate(0, 0) rotate(0deg)' },
+          { transform: `translate(0px, ${dy}px) rotate(-5deg)`, offset: .2 },
+          { transform: `translate(0px, ${dy + 4}px) rotate(-3deg)`, offset: .5 },
+          { transform: `translate(0px, ${dy}px) rotate(-5deg)`, offset: .8 },
+          { transform: 'translate(0, 0) rotate(0deg)' },
+        ], { duration: 2800, easing: 'cubic-bezier(.22,1,.36,1)' });
+        setTimeout(() => pour(wrap, color, { x: mouth.x, end: surf - 6, cup: o.cup }), 420);
+        setTimeout(() => floatHearts(wrap, 4), 1200);
+        await wait(2800);
+        svg.classList.remove('mw--sip');
+      }
+    } finally {
+      st.busy = false;
+    }
+  }
+
+  window.Meowie = { create, setLevel, setLayers, pourPoint, act, moodFor, interact, tilt, slosh, lookAt, pet, pour, pourAndDrink, pourTarget, skyNow };
 })();
