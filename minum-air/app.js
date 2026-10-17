@@ -193,6 +193,7 @@
     const cat = Meowie.create({ intro: intro || holder.dataset.intro === '1' });
     cat.style.width = size + 'px';
     holder.appendChild(cat);
+    Meowie.interact(cat, { onTap: () => Meowie.act(cat, 'jump') });
     requestAnimationFrame(() => Meowie.setLevel(cat, level));
     return cat;
   }
@@ -511,6 +512,7 @@
           el.classList.add('home');
           homeCat = Meowie.create({ intro: first });
           $('.hero-cat', el).appendChild(homeCat);
+          Meowie.interact(homeCat, { onTap: onCatTap });
           shownPct = 0;
           wireHome(el, pct);
         },
@@ -538,14 +540,20 @@
     $('#moreBtn', el).addEventListener('click', () => openSheet());
     el.querySelectorAll('[data-drink]').forEach((b) => b.addEventListener('click', () => openSheet(b.dataset.drink)));
     el.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => removeDrink(Number(b.dataset.del))));
-    homeCat.onclick = () => {
-      tapCount++;
-      Meowie.act(homeCat, tapCount % 2 ? 'jump' : 'swim');
-      const lines = catLine(today(), shownPct);
-      const say = $('#say', el);
-      say.textContent = lines[Math.floor(Math.random() * lines.length)];
-      say.style.animation = 'none'; void say.offsetWidth; say.style.animation = '';
-    };
+  }
+
+  function sayLine(text) {
+    const say = $('#say', screenEl);
+    if (!say) return;
+    say.innerHTML = text;
+    say.style.animation = 'none'; void say.offsetWidth; say.style.animation = '';
+  }
+
+  function onCatTap() {
+    tapCount++;
+    Meowie.act(homeCat, tapCount % 2 ? 'jump' : 'swim');
+    const lines = catLine(today(), shownPct);
+    sayLine(lines[Math.floor(Math.random() * lines.length)]);
   }
 
   function addDrink(drink, ml, fromEl) {
@@ -560,12 +568,20 @@
     if (fromEl) flyDrops(fromEl);
     const after = total(d);
     const hit = before < d.goal && after >= d.goal;
-    // Meowie laps from the glass while the tank fills, then leaps if the goal is reached.
+    // Crossing 25%, 50% or 75% earns a small celebration of its own.
+    const milestone = !hit && [.75, .5, .25].find((m) => before < d.goal * m && after >= d.goal * m);
+    // Meowie laps from the glass while the water rises, then leaps if the goal is reached.
     setTimeout(() => {
       const drinking = Meowie.act(homeCat, 'drink');
-      setTimeout(() => renderHome(false), 600);
+      floatMl(`+${eff} ml`);
+      setTimeout(() => {
+        renderHome(false);
+        bump($('.stats-row .pct', screenEl));
+        if (milestone) sayLine(t('milestone', { p: Math.round(milestone * 100) }));
+      }, 600);
       toast(hit ? t('goalHit') : `+${eff} ml ${drink.id === 'air' ? '💧' : `(${drinkName(drink)})`}`);
       if (hit) drinking.then(() => { confetti(); Meowie.act(homeCat, 'jump'); });
+      else if (milestone) drinking.then(() => { confetti(36); Meowie.act(homeCat, milestone >= .5 ? 'jump' : 'swim'); });
     }, fromEl ? 420 : 0);
   }
   function removeDrink(t) {
@@ -843,14 +859,14 @@
 
   // Confetti in Jalur Gemilang colours.
   const fx = $('#fx');
-  function confetti() {
+  function confetti(count = 140) {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const ctx = fx.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
     fx.width = innerWidth * dpr; fx.height = innerHeight * dpr;
     ctx.scale(dpr, dpr);
     const colors = ['#cc0001', '#ffffff', '#010066', '#ffcc00', '#5cc4ff'];
-    const parts = Array.from({ length: 140 }, () => ({
+    const parts = Array.from({ length: count }, () => ({
       x: innerWidth / 2, y: innerHeight * .4, vx: (Math.random() - .5) * 12, vy: -Math.random() * 13 - 4,
       r: Math.random() * 6 + 4, c: colors[Math.floor(Math.random() * colors.length)], a: Math.random() * 6, va: (Math.random() - .5) * .4,
     }));
@@ -866,6 +882,64 @@
       if (now - t0 < 2600) requestAnimationFrame(f); else ctx.clearRect(0, 0, innerWidth, innerHeight);
     })(t0);
   }
+
+  // "+250 ml" rises out of the water after a drink.
+  function floatMl(text) {
+    if (!homeCat || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const r = homeCat.getBoundingClientRect();
+    const el = document.createElement('div');
+    el.className = 'float-ml';
+    el.textContent = text;
+    el.style.left = r.left + r.width / 2 + 'px';
+    el.style.top = r.top + r.height * .45 + 'px';
+    document.body.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+  }
+  function bump(el) {
+    if (!el) return;
+    el.classList.remove('bump');
+    void el.offsetWidth;
+    el.classList.add('bump');
+  }
+
+  // Parallax: tilt the phone (or move the mouse) and the water scene shifts in layers.
+  let tiltFrame = 0;
+  function applyTilt(nx, ny) {
+    if (tiltFrame) return;
+    tiltFrame = requestAnimationFrame(() => {
+      tiltFrame = 0;
+      const cx = Math.max(-1, Math.min(1, nx));
+      const cy = Math.max(-1, Math.min(1, ny));
+      document.querySelectorAll('.screen.active .cat-wrap').forEach((w) => Meowie.tilt(w, cx, cy));
+    });
+  }
+  window.addEventListener('deviceorientation', (e) => {
+    if (e.gamma == null) return;
+    applyTilt(e.gamma / 25, (e.beta - 45) / 30);
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse') return;
+    applyTilt((e.clientX / innerWidth - .5) * 2, (e.clientY / innerHeight - .5) * 2);
+  });
+  // iOS asks permission for motion sensors; request it on the first touch.
+  window.addEventListener('pointerdown', function askMotion() {
+    window.removeEventListener('pointerdown', askMotion);
+    const D = window.DeviceOrientationEvent;
+    if (D && typeof D.requestPermission === 'function') D.requestPermission().catch(() => {});
+  });
+
+  // Water ripple on the main button where it was pressed.
+  document.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest('.cta, .add-more, .drink-chip');
+    if (!b) return;
+    const r = b.getBoundingClientRect();
+    const dot = document.createElement('span');
+    dot.className = 'press-ripple';
+    dot.style.left = e.clientX - r.left + 'px';
+    dot.style.top = e.clientY - r.top + 'px';
+    b.appendChild(dot);
+    dot.addEventListener('animationend', () => dot.remove());
+  });
 
   let toastTimer;
   function toast(msg) {

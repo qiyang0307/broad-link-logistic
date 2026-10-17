@@ -37,8 +37,8 @@
 
   function openEye(x) {
     return `<ellipse cx="${x}" cy="15" rx="11" ry="12" fill="#cfd36b"/>
-      <ellipse cx="${x}" cy="16" rx="8" ry="10" fill="#1d1f22"/>
-      <circle cx="${x + 3.6}" cy="11" r="3.6" fill="#fff"/><circle cx="${x - 3.4}" cy="20" r="1.7" fill="#fff"/>`;
+      <g class="mw-pupil"><ellipse cx="${x}" cy="16" rx="8" ry="10" fill="#1d1f22"/>
+      <circle cx="${x + 3.6}" cy="11" r="3.6" fill="#fff"/><circle cx="${x - 3.4}" cy="20" r="1.7" fill="#fff"/></g>`;
   }
   const heart = (x) => `<path d="M${x} 24 C${x - 15} 13 ${x - 10} 2 ${x} 9 C${x + 10} 2 ${x + 15} 13 ${x} 24 Z" fill="#ff6b8b" stroke="#d94f70" stroke-width="1.4"/>
       <circle cx="${x - 4}" cy="10" r="2" fill="#fff"/>`;
@@ -158,23 +158,29 @@
   </defs>
   <g mask="url(#${id}-mask)" clip-path="url(#${id}-box)">
     <ellipse cx="200" cy="${FLOOR + 6}" rx="190" ry="26" class="mw-glow"/>
-    <g class="mw-water mw-water-back"><g class="mw-wave mw-wave-back"><path d="${wave(9)}" fill="url(#${id}-wb)"/></g>
+    <g class="mw-water mw-water-back"><g class="mw-slosh"><g class="mw-wave mw-wave-back"><path d="${wave(9)}" fill="url(#${id}-wb)"/></g></g>
       <g class="mw-bubs" fill="#fff" opacity=".75">${bubbles}</g></g>
-    <g class="mw-rays"><path d="M90 0 L50 330 H86 L130 0 Z M220 0 L196 330 H240 L262 0 Z M320 0 L310 330 H338 L350 0 Z" fill="#fff"/></g>
-    ${weed(46, 120, '#3cb37a', 'mw-weed-1')}${weed(74, 84, '#2f9d6a', 'mw-weed-2')}${weed(352, 110, '#2f9d6a', 'mw-weed-3')}
-    <g class="mw-coral"><path d="M318 ${FLOOR} V258 M318 270 Q306 262 304 248 M318 264 Q330 256 332 242" stroke="#ff8fa3" stroke-width="7" stroke-linecap="round" fill="none"/></g>
+    <g class="mw-par1"><g class="mw-rays"><path d="M90 0 L50 330 H86 L130 0 Z M220 0 L196 330 H240 L262 0 Z M320 0 L310 330 H338 L350 0 Z" fill="#fff"/></g></g>
+    <g class="mw-fish" style="opacity:0">
+      <path d="M-14 0 L-26 -9 L-24 0 L-26 9 Z" fill="#ff8a3d" stroke="#c75d1f" stroke-width="1.5" stroke-linejoin="round" class="mw-fish-tail"/>
+      <ellipse cx="0" cy="0" rx="15" ry="9.5" fill="#ff9a3c" stroke="#c75d1f" stroke-width="1.5"/>
+      <path d="M-4 -9 Q-1 0 -4 9 M5 -8 Q8 0 5 8" stroke="#fff" stroke-width="3" fill="none"/>
+      <circle cx="9" cy="-2" r="2.4" fill="#1d1f22"/><circle cx="9.8" cy="-2.8" r=".8" fill="#fff"/>
+    </g>
+    <g class="mw-par2">${weed(46, 120, '#3cb37a', 'mw-weed-1')}${weed(74, 84, '#2f9d6a', 'mw-weed-2')}${weed(352, 110, '#2f9d6a', 'mw-weed-3')}
+    <g class="mw-coral"><path d="M318 ${FLOOR} V258 M318 270 Q306 262 304 248 M318 264 Q330 256 332 242" stroke="#ff8fa3" stroke-width="7" stroke-linecap="round" fill="none"/></g></g>
     <path d="M-20 ${FLOOR} Q90 276 200 288 T420 282 V330 H-20 Z" class="mw-sand"/>
     <g class="mw-pebbles"><circle cx="110" cy="298" r="5"/><circle cx="246" cy="300" r="6"/><circle cx="276" cy="295" r="3.5"/><circle cx="150" cy="303" r="3"/></g>
     <rect x="0" y="298" width="${W}" height="24" fill="url(#${id}-bfade)"/>
   </g>
-  <g class="mw-pos" style="transform: translate(200px, ${FLOOR + 4}px) scale(.8)">
+  <g class="mw-par3"><g class="mw-pos" style="transform: translate(200px, ${FLOOR + 4}px) scale(.8)">
     <g class="mw-drift"><g class="mw-actor">
       ${sitPose(id)}
       ${stretchPose(id)}
     </g></g>
-  </g>
+  </g></g>
   <g mask="url(#${id}-mask)" clip-path="url(#${id}-above)" pointer-events="none">
-    <g class="mw-water mw-water-front"><g class="mw-wave"><path d="${wave(6)}" fill="var(--water-2)" opacity=".2"/></g>
+    <g class="mw-water mw-water-front"><g class="mw-slosh"><g class="mw-wave"><path d="${wave(6)}" fill="var(--water-2)" opacity=".2"/></g></g>
       <path d="M-60 6 H900" stroke="#fff" stroke-width="2" opacity=".55"/></g>
   </g>
   <g class="mw-fx" pointer-events="none"></g>
@@ -222,6 +228,7 @@
   function setLevel(wrap, pct, opts = {}) {
     const p = Math.max(0, Math.min(1, pct));
     const first = !wrap._mw.placed;
+    if (!first && p > wrap._mw.level + .001) slosh(wrap);
     wrap._mw.level = p;
     wrap._mw.placed = true;
     place(wrap, p);
@@ -335,5 +342,201 @@
     }
   }
 
-  window.Meowie = { create, setLevel, act, moodFor };
+  // ---------- Interaction & idle life ----------
+
+  // The water surface wobbles when something lands in it.
+  function slosh(wrap, strength = 1) {
+    if (reduced()) return;
+    wrap.querySelectorAll('.mw-slosh').forEach((g) => g.animate([
+      { transform: 'scaleY(1)' },
+      { transform: `scaleY(${1 + 1.8 * strength})` },
+      { transform: `scaleY(${1 - .5 * strength})` },
+      { transform: `scaleY(${1 + .5 * strength})` },
+      { transform: 'scaleY(1)' },
+    ], { duration: 1500, easing: 'ease-out' }));
+  }
+
+  const toClient = (svg, x, y) => {
+    const m = svg.getScreenCTM();
+    return m ? new DOMPoint(x, y).matrixTransform(m) : { x, y };
+  };
+  const toSvg = (svg, cx, cy) => {
+    const m = svg.getScreenCTM();
+    return m ? new DOMPoint(cx, cy).matrixTransform(m.inverse()) : { x: cx, y: cy };
+  };
+
+  // Pupils follow a point on screen, then drift back to centre.
+  function lookAt(wrap, cx, cy) {
+    const st = wrap._mw;
+    wrap.querySelectorAll(st.mode === 'swim' ? '.mw-stretch .mw-head' : '.mw-sit .mw-head').forEach((h) => {
+      const r = h.getBoundingClientRect();
+      const vx = cx - (r.left + r.width / 2);
+      const vy = cy - (r.top + r.height * .55);
+      const d = Math.max(60, Math.hypot(vx, vy));
+      const tx = (vx / d) * 4;
+      const ty = (vy / d) * 3;
+      h.querySelectorAll('.mw-pupil').forEach((p) => { p.style.transform = `translate(${tx}px, ${ty}px)`; });
+    });
+    clearTimeout(st.lookTimer);
+    st.lookTimer = setTimeout(() => wrap.querySelectorAll('.mw-pupil').forEach((p) => { p.style.transform = ''; }), 1800);
+  }
+  const lookAtSvg = (wrap, x, y) => { const c = toClient(wrap.querySelector('svg'), x, y); lookAt(wrap, c.x, c.y); };
+
+  // Tap the water: ripple rings and bubbles where you touched.
+  function ripple(wrap, x, y) {
+    const fx = wrap.querySelector('.mw-fx');
+    const ns = 'http://www.w3.org/2000/svg';
+    const surface = levelY(wrap._mw.level);
+    if (y < surface - 6 || reduced()) return false;
+    for (let i = 0; i < 2; i++) {
+      const ring = document.createElementNS(ns, 'circle');
+      ring.setAttribute('cx', x); ring.setAttribute('cy', y); ring.setAttribute('r', 8);
+      ring.setAttribute('fill', 'none'); ring.setAttribute('stroke', '#fff'); ring.setAttribute('stroke-width', 2.5);
+      ring.style.transformOrigin = `${x}px ${y}px`;
+      fx.appendChild(ring);
+      ring.animate([{ transform: 'scale(.4)', opacity: .9 }, { transform: 'scale(4)', opacity: 0 }],
+        { duration: 900, delay: i * 180, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'backwards' }).onfinish = () => ring.remove();
+    }
+    for (let i = 0; i < 6; i++) {
+      const b = document.createElementNS(ns, 'circle');
+      b.setAttribute('cx', x + (Math.random() - .5) * 24); b.setAttribute('cy', y); b.setAttribute('r', 2 + Math.random() * 3);
+      b.setAttribute('fill', '#fff'); b.setAttribute('opacity', '.8');
+      fx.appendChild(b);
+      const rise = Math.min(y - surface, 120);
+      b.animate([{ transform: 'translateY(0)', opacity: .9 }, { transform: `translate(${(Math.random() - .5) * 20}px, ${-rise}px)`, opacity: 0 }],
+        { duration: 900 + Math.random() * 700, easing: 'ease-in', delay: i * 60, fill: 'backwards' }).onfinish = () => b.remove();
+    }
+    return true;
+  }
+
+  // Rub Meowie: happy squint, purr and hearts.
+  function pet(wrap) {
+    const st = wrap._mw;
+    const svg = wrap.querySelector('svg');
+    clearTimeout(st.petTimer);
+    svg.classList.add('mw--pet');
+    floatHearts(wrap, 4);
+    if (navigator.vibrate) navigator.vibrate([8, 50, 8, 50, 8]);
+    st.petTimer = setTimeout(() => svg.classList.remove('mw--pet'), 1800);
+  }
+
+  // A little fish swims by; Meowie watches it and lunges if he is swimming.
+  function fishPass(wrap) {
+    const st = wrap._mw;
+    const fish = wrap.querySelector('.mw-fish');
+    if (!fish || st.busy || reduced()) return;
+    const surface = levelY(st.level);
+    const y = surface + 22 + Math.random() * Math.max(10, FLOOR - surface - 60);
+    const ltr = Math.random() < .5;
+    const x0 = ltr ? -30 : W + 30;
+    const x1 = ltr ? W + 30 : -30;
+    const dur = 5200;
+    const flip = ltr ? 1 : -1;
+    fish.style.opacity = 1;
+    const anim = fish.animate([
+      { transform: `translate(${x0}px, ${y}px) scale(${flip}, 1)` },
+      { transform: `translate(${x0 + (x1 - x0) * .25}px, ${y - 10}px) scale(${flip}, 1)` },
+      { transform: `translate(${x0 + (x1 - x0) * .5}px, ${y + 6}px) scale(${flip}, 1)` },
+      { transform: `translate(${x0 + (x1 - x0) * .75}px, ${y - 8}px) scale(${flip}, 1)` },
+      { transform: `translate(${x1}px, ${y}px) scale(${flip}, 1)` },
+    ], { duration: dur, easing: 'linear' });
+    const t0 = performance.now();
+    let lunged = false;
+    (function track(now) {
+      const k = (now - t0) / dur;
+      if (k >= 1 || !wrap.isConnected) return;
+      lookAtSvg(wrap, x0 + (x1 - x0) * k, y);
+      if (!lunged && k > .42 && st.mode === 'swim' && !st.busy) {
+        lunged = true;
+        const actor = wrap.querySelector('.mw-actor');
+        actor.animate([
+          { transform: 'translate(0, 0) rotate(0deg)' },
+          { transform: `translate(${ltr ? 60 : -40}px, ${(y - 200) * .4}px) rotate(${ltr ? -6 : 6}deg)`, offset: .4 },
+          { transform: 'translate(0, 0) rotate(0deg)' },
+        ], { duration: 1100, easing: 'cubic-bezier(.22,1,.36,1)' });
+      }
+      requestAnimationFrame(track);
+    })(t0);
+    anim.onfinish = () => { fish.style.opacity = 0; };
+  }
+
+  function yawn(wrap) {
+    const svg = wrap.querySelector('svg');
+    if (wrap._mw.busy || reduced()) return;
+    svg.classList.add('mw--yawn');
+    setTimeout(() => svg.classList.remove('mw--yawn'), 1600);
+  }
+
+  function lookAround(wrap) {
+    const pts = [[60, 120], [340, 140], [200, 40]];
+    pts.forEach(([x, y], i) => setTimeout(() => wrap.isConnected && lookAtSvg(wrap, x, y), i * 700));
+  }
+
+  // Random idle moments so Meowie never feels frozen.
+  function startIdle(wrap) {
+    const st = wrap._mw;
+    if (st.idle) return;
+    st.idle = true;
+    (function next() {
+      setTimeout(() => {
+        if (!wrap.isConnected) { st.idle = false; return; }
+        if (!document.hidden && !st.busy) {
+          const r = Math.random();
+          if (st.level >= .2 && r < .5) fishPass(wrap);
+          else if (st.mode === 'sit' && r < .75) yawn(wrap);
+          else lookAround(wrap);
+        }
+        next();
+      }, 6000 + Math.random() * 5000);
+    })();
+  }
+
+  // Wire touch: eyes follow the finger, tap the cat, tap the water, rub to pet.
+  function interact(wrap, { onTap } = {}) {
+    const svg = wrap.querySelector('svg');
+    let down = null;
+    let rub = 0;
+    let last = null;
+    svg.addEventListener('pointerdown', (e) => {
+      down = { x: e.clientX, y: e.clientY, cat: !!e.target.closest('.mw-actor') };
+      last = { x: e.clientX, y: e.clientY };
+      rub = 0;
+      lookAt(wrap, e.clientX, e.clientY);
+    });
+    svg.addEventListener('pointermove', (e) => {
+      lookAt(wrap, e.clientX, e.clientY);
+      if (!down || !last) return;
+      const onCat = !!e.target.closest('.mw-actor') || down.cat;
+      if (onCat) rub += Math.hypot(e.clientX - last.x, e.clientY - last.y);
+      last = { x: e.clientX, y: e.clientY };
+      if (rub > 140) { rub = 0; pet(wrap); }
+    });
+    const end = (e) => {
+      if (!down) return;
+      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+      if (moved < 10) {
+        if (down.cat) { if (onTap) onTap(); }
+        else {
+          const p = toSvg(svg, e.clientX, e.clientY);
+          if (ripple(wrap, p.x, p.y) && navigator.vibrate) navigator.vibrate(6);
+        }
+      }
+      down = null;
+      last = null;
+    };
+    svg.addEventListener('pointerup', end);
+    svg.addEventListener('pointercancel', () => { down = null; });
+    svg.addEventListener('pointerleave', () => { down = null; });
+    startIdle(wrap);
+  }
+
+  // Parallax: nx, ny in -1..1 from phone tilt or pointer position.
+  function tilt(wrap, nx, ny) {
+    const set = (sel, k, ky) => { const g = wrap.querySelector(sel); if (g) g.style.transform = `translate(${nx * k}px, ${ny * ky}px)`; };
+    set('.mw-par1', 16, 6);
+    set('.mw-par2', 8, 3);
+    set('.mw-par3', -6, -3);
+  }
+
+  window.Meowie = { create, setLevel, act, moodFor, interact, tilt, slosh, lookAt, pet };
 })();
