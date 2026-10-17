@@ -1,6 +1,7 @@
-// Meowie: a grey tabby in a shark hood who lives in a fish tank that fills as you drink.
+// Meowie: a grey tabby in a shark hood swimming in open water that rises as you drink.
 // Three actions, all drawn and animated in code: drink (laps from a glass),
-// swim (paddles once the tank is half full) and jump (leaps out with a splash).
+// swim (paddles once the water is half way up) and jump (leaps out with a splash).
+// His face changes with the day's progress: thirsty → meh → content → happy → in love.
 (function () {
   let uid = 0;
   const LINE = '#4a5059';
@@ -10,12 +11,15 @@
   const HOOD = '#9ea8b3';
   const HOOD_DARK = '#87919c';
 
-  // Tank geometry (viewBox 0 0 300 320).
-  const TANK = 'M30 70 Q30 40 60 40 H240 Q270 40 270 70 V270 Q270 300 240 300 H60 Q30 300 30 270 Z';
-  const FLOOR = 288;
-  const levelY = (p) => 292 - p * 236; // water surface for 0..1
+  // Scene geometry (viewBox 0 0 400 320). No frame: the water fades out at the sides.
+  const W = 400;
+  const FLOOR = 290;
+  const levelY = (p) => 284 - p * 224;
 
   const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // 0 thirsty, 1 meh, 2 content, 3 happy, 4 over the moon
+  const moodFor = (p) => (p >= 1 ? 4 : p >= .75 ? 3 : p >= .45 ? 2 : p >= .2 ? 1 : 0);
 
   // Hood teeth around the face opening (ellipse rx 44, ry 40 centred at 0,14), leaving the chin clear.
   function teeth() {
@@ -25,24 +29,22 @@
       const p = (deg, k) => [(Math.cos(r(deg)) * 44 * k).toFixed(1), (14 + Math.sin(r(deg)) * 40 * k).toFixed(1)];
       const [x1, y1] = p(a - 7, 1);
       const [x2, y2] = p(a + 7, 1);
-      const [tx, ty] = p(a, .76);
+      const [tx, ty] = p(a, .78);
       out += `<path d="M${x1} ${y1} L${tx} ${ty} L${x2} ${y2} Z" fill="#fff" stroke="#cdd2d8" stroke-width="1.2" stroke-linejoin="round"/>`;
     }
     return out;
   }
 
-  function eye(x, flip) {
-    const s = flip ? -1 : 1;
-    return `<g class="mw-eye">
-      <ellipse cx="${x}" cy="14" rx="10" ry="10.5" fill="#d3cf6a"/>
-      <ellipse cx="${x}" cy="15" rx="6" ry="8" fill="#1d1f22"/>
-      <circle cx="${x + 3}" cy="10" r="2.6" fill="#fff"/>
-      <path d="M${x - 12 * s} 1 L${x + 12 * s} 4 L${x + 12 * s} 7 L${x - 12 * s} 3 Z" fill="${CREAM}"/>
-      <path d="M${x - 12 * s} 3.5 L${x + 11 * s} 7" stroke="${FUR_DARK}" stroke-width="2.4" stroke-linecap="round"/>
-    </g>`;
+  function openEye(x) {
+    return `<ellipse cx="${x}" cy="15" rx="11" ry="12" fill="#cfd36b"/>
+      <ellipse cx="${x}" cy="16" rx="8" ry="10" fill="#1d1f22"/>
+      <circle cx="${x + 3.6}" cy="11" r="3.6" fill="#fff"/><circle cx="${x - 3.4}" cy="20" r="1.7" fill="#fff"/>`;
   }
+  const heart = (x) => `<path d="M${x} 24 C${x - 15} 13 ${x - 10} 2 ${x} 9 C${x + 10} 2 ${x + 15} 13 ${x} 24 Z" fill="#ff6b8b" stroke="#d94f70" stroke-width="1.4"/>
+      <circle cx="${x - 4}" cy="10" r="2" fill="#fff"/>`;
+  const star = (x, y, s) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0 -10 L2.6 -2.6 L10 0 L2.6 2.6 L0 10 L-2.6 2.6 L-10 0 L-2.6 -2.6 Z" fill="#ffd54a"/>`;
 
-  // Head with hood, centred on (0,0). Same markup is used in both poses.
+  // Head with hood, centred on (0,0). Every expression is drawn; CSS shows the one for the mood.
   function head(id) {
     return `<g class="mw-head">
       <path d="M-56 22 Q-92 26 -98 52 Q-70 50 -48 38 Z" fill="${HOOD_DARK}" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>
@@ -55,19 +57,33 @@
       <clipPath id="${id}-face"><ellipse cx="0" cy="14" rx="44" ry="40"/></clipPath>
       <ellipse cx="0" cy="14" rx="44" ry="40" fill="${CREAM}"/>
       <g clip-path="url(#${id}-face)">
-        <path d="M-50 -30 H50 V2 Q24 -6 0 -2 Q-24 -6 -50 2 Z" fill="${FUR}"/>
-        <path d="M-12 -24 Q-10 -12 -13 -2 M0 -26 V-4 M12 -24 Q10 -12 13 -2 M-40 0 Q-30 -4 -24 4 M40 0 Q30 -4 24 4" stroke="${FUR_DARK}" stroke-width="3.6" stroke-linecap="round" fill="none"/>
+        <path d="M-50 -30 H50 V0 Q24 -8 0 -4 Q-24 -8 -50 0 Z" fill="${FUR}"/>
+        <path d="M-12 -24 Q-10 -14 -13 -5 M0 -26 V-7 M12 -24 Q10 -14 13 -5" stroke="${FUR_DARK}" stroke-width="3.6" stroke-linecap="round" fill="none"/>
       </g>
       <ellipse cx="0" cy="14" rx="44" ry="40" fill="none" stroke="${LINE}" stroke-width="3"/>
       ${teeth()}
-      <g class="mw-eyes">${eye(-18, false)}${eye(18, true)}</g>
+      <g class="mw-blush"><ellipse cx="-29" cy="32" rx="8.5" ry="5" fill="#ff9db4"/><ellipse cx="29" cy="32" rx="8.5" ry="5" fill="#ff9db4"/></g>
+      <g class="mw-x mw-eo">${openEye(-18)}${openEye(18)}
+        <g class="mw-lid">
+          <path d="M-31 2 H-5 V14 Q-18 10 -31 14 Z M31 2 H5 V14 Q18 10 31 14 Z" fill="${CREAM}"/>
+          <path d="M-30 14 Q-18 10 -6 14 M30 14 Q18 10 6 14" stroke="${LINE}" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+        </g>
+      </g>
+      <g class="mw-x mw-eh"><path d="M-27 18 Q-18 6 -9 18 M27 18 Q18 6 9 18" stroke="#33363d" stroke-width="3.6" stroke-linecap="round" fill="none"/></g>
+      <g class="mw-x mw-ek">${heart(-18)}${heart(18)}</g>
       <ellipse cx="-9" cy="36" rx="10.5" ry="7.5" fill="#fff"/><ellipse cx="9" cy="36" rx="10.5" ry="7.5" fill="#fff"/>
       <path class="mw-tongue" d="M-5.5 39 Q-6 51 0 52 Q6 51 5.5 39 Z" fill="#ef8296" stroke="#c75d72" stroke-width="1.2"/>
+      <g class="mw-x mw-mf"><path d="M-6 42.5 Q0 37.5 6 42.5" stroke="#6d5f60" stroke-width="2.4" stroke-linecap="round" fill="none"/></g>
+      <g class="mw-x mw-mw"><path d="M0 33.5 V37 M0 37 Q-5 42 -10 38.5 M0 37 Q5 42 10 38.5" fill="none" stroke="#6d5f60" stroke-width="2.4" stroke-linecap="round"/></g>
+      <g class="mw-x mw-ms"><path d="M0 33.5 V36 M-12 36 Q-6 45 0 37 Q6 45 12 36" fill="none" stroke="#6d5f60" stroke-width="2.6" stroke-linecap="round"/></g>
+      <g class="mw-x mw-mo"><path d="M-10 36 Q0 38 10 36 Q9 51 0 51 Q-9 51 -10 36 Z" fill="#7a2f3b" stroke="#5a2430" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M-6 46 Q0 41 6 46 Q5 51 0 51 Q-5 51 -6 46 Z" fill="#ef8296"/></g>
       <path d="M-5 28 L5 28 L0 33.5 Z" fill="#f0a1b0" stroke="#c97a8a" stroke-width="1.2" stroke-linejoin="round"/>
-      <path d="M0 33.5 V37 M0 37 Q-5 42 -10 38.5 M0 37 Q5 42 10 38.5" fill="none" stroke="#6d5f60" stroke-width="2.2" stroke-linecap="round"/>
-      <g stroke="#cfcac3" stroke-width="1.6" stroke-linecap="round" class="mw-whiskers">
+      <g stroke="#cfcac3" stroke-width="1.6" stroke-linecap="round">
         <path d="M-24 34 L-58 28 M-24 39 L-58 42"/><path d="M24 34 L58 28 M24 39 L58 42"/>
       </g>
+      <path class="mw-x mw-sweat" d="M50 -14 Q58 -2 54 4 Q49 8 45 3 Q43 -3 50 -14 Z" fill="#8fd3ff" stroke="#4fa8de" stroke-width="1.4"/>
+      <g class="mw-x mw-spark">${star(-74, -54, 1)}${star(78, -40, .8)}${star(-66, 48, .7)}${star(74, 58, 1)}</g>
     </g>`;
   }
 
@@ -82,13 +98,13 @@
       <ellipse cx="0" cy="-52" rx="58" ry="52" fill="${FUR}" stroke="${LINE}" stroke-width="3"/>
       <path d="M-50 -66 Q-40 -58 -44 -44 M-54 -40 Q-44 -32 -48 -20 M50 -66 Q40 -58 44 -44 M54 -40 Q44 -32 48 -20" stroke="${FUR_DARK}" stroke-width="4.5" stroke-linecap="round" fill="none"/>
       <ellipse cx="0" cy="-42" rx="31" ry="40" fill="${CREAM}"/>
-      <g class="mw-paws-sit"><ellipse cx="-21" cy="-6" rx="16" ry="10" fill="#fff" stroke="${LINE}" stroke-width="2.6"/>
+      <g><ellipse cx="-21" cy="-6" rx="16" ry="10" fill="#fff" stroke="${LINE}" stroke-width="2.6"/>
         <ellipse cx="21" cy="-6" rx="16" ry="10" fill="#fff" stroke="${LINE}" stroke-width="2.6"/></g>
       <g class="mw-glass">
-        <path d="M-82 -44 H-50 L-53 -2 Q-54 2 -58 2 H-74 Q-78 2 -79 -2 Z" fill="rgba(210,236,255,.55)" stroke="#8fb4cf" stroke-width="2.4" stroke-linejoin="round"/>
-        <clipPath id="${id}-gl"><path d="M-82 -44 H-50 L-53 -2 Q-54 2 -58 2 H-74 Q-78 2 -79 -2 Z"/></clipPath>
-        <g clip-path="url(#${id}-gl)"><rect class="mw-glass-water" x="-90" y="-30" width="50" height="40" fill="#7cc8f5"/></g>
-        <path d="M-76 -38 L-74 -8" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".8"/>
+        <path d="M-84 -46 H-50 L-53 -2 Q-54 2 -58 2 H-76 Q-80 2 -81 -2 Z" fill="rgba(210,236,255,.6)" stroke="#8fb4cf" stroke-width="2.4" stroke-linejoin="round"/>
+        <clipPath id="${id}-gl"><path d="M-84 -46 H-50 L-53 -2 Q-54 2 -58 2 H-76 Q-80 2 -81 -2 Z"/></clipPath>
+        <g clip-path="url(#${id}-gl)"><rect class="mw-glass-water" x="-90" y="-32" width="50" height="40" fill="#7cc8f5"/></g>
+        <path d="M-78 -40 L-76 -8" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".8"/>
       </g>
       <path d="M-34 -98 Q0 -84 34 -98" fill="none" stroke="#56606b" stroke-width="7" stroke-linecap="round"/>
       <circle cx="0" cy="-88" r="6" fill="#d7dbe0" stroke="${LINE}" stroke-width="2"/>
@@ -98,68 +114,75 @@
 
   // Stretched pose for swimming and jumping. Origin = middle of the body.
   function stretchPose(id) {
+    const leg = (cls, d) => `<g class="mw-leg ${cls}"><path d="${d}" stroke="${LINE}" stroke-width="20" stroke-linecap="round" fill="none"/><path d="${d}" stroke="#fff" stroke-width="14" stroke-linecap="round" fill="none"/></g>`;
     return `<g class="mw-stretch">
       <g class="mw-tail-s">
         <path d="M-88 -4 C-122 -16 -138 8 -176 -12" fill="none" stroke="${LINE}" stroke-width="19" stroke-linecap="round"/>
         <path d="M-88 -4 C-122 -16 -138 8 -176 -12" fill="none" stroke="${FUR}" stroke-width="13" stroke-linecap="round"/>
         <path d="M-88 -4 C-122 -16 -138 8 -176 -12" fill="none" stroke="${FUR_DARK}" stroke-width="13" stroke-dasharray="7 11"/>
       </g>
-      <g class="mw-leg mw-leg-b2"><path d="M-62 20 Q-82 40 -96 44" stroke="${LINE}" stroke-width="20" stroke-linecap="round" fill="none"/><path d="M-62 20 Q-82 40 -96 44" stroke="#fff" stroke-width="14" stroke-linecap="round" fill="none"/></g>
-      <g class="mw-leg mw-leg-f2"><path d="M30 22 Q50 42 66 46" stroke="${LINE}" stroke-width="20" stroke-linecap="round" fill="none"/><path d="M30 22 Q50 42 66 46" stroke="#fff" stroke-width="14" stroke-linecap="round" fill="none"/></g>
+      ${leg('mw-leg-b2', 'M-62 20 Q-82 40 -96 44')}
+      ${leg('mw-leg-f2', 'M30 22 Q50 42 66 46')}
       <ellipse cx="-16" cy="4" rx="82" ry="38" fill="${FUR}" stroke="${LINE}" stroke-width="3"/>
       <path d="M-16 30 Q-60 30 -84 16 Q-60 42 -16 42 Q30 42 54 20 Q30 30 -16 30 Z" fill="${CREAM}"/>
       <path d="M-70 -24 Q-62 -6 -68 10 M-46 -32 Q-38 -10 -44 8 M-22 -34 Q-14 -12 -20 6 M2 -32 Q10 -12 4 4" stroke="${FUR_DARK}" stroke-width="5" stroke-linecap="round" fill="none"/>
-      <g class="mw-leg mw-leg-b1"><path d="M-50 26 Q-66 48 -78 56" stroke="${LINE}" stroke-width="20" stroke-linecap="round" fill="none"/><path d="M-50 26 Q-66 48 -78 56" stroke="#fff" stroke-width="14" stroke-linecap="round" fill="none"/></g>
-      <g class="mw-leg mw-leg-f1"><path d="M40 24 Q58 48 76 54" stroke="${LINE}" stroke-width="20" stroke-linecap="round" fill="none"/><path d="M40 24 Q58 48 76 54" stroke="#fff" stroke-width="14" stroke-linecap="round" fill="none"/></g>
+      ${leg('mw-leg-b1', 'M-50 26 Q-66 48 -78 56')}
+      ${leg('mw-leg-f1', 'M40 24 Q58 48 76 54')}
       <path d="M40 -26 Q58 2 44 30" fill="none" stroke="#56606b" stroke-width="7" stroke-linecap="round"/>
       <g transform="translate(78 -14) scale(.92)">${head(id + 'w')}</g>
     </g>`;
   }
 
+  function wave(amp) {
+    let d = `M-60 ${amp}`;
+    for (let x = -60; x < 900; x += 60) d += ` Q${x + 15} 0 ${x + 30} ${amp} T${x + 60} ${amp}`;
+    return d + ' V420 H-60 Z';
+  }
+
   function create(opts = {}) {
     const id = 'mw' + (++uid);
-    const bubbles = [70, 120, 200, 236, 160].map((x, i) =>
-      `<circle class="mw-bub" cx="${x}" cy="250" r="${3 + (i % 3) * 1.5}" style="animation-delay:${i * .9}s;animation-duration:${3.4 + (i % 3) * .8}s"/>`).join('');
-    const wave = (amp) => {
-      let d = `M0 ${amp}`;
-      for (let x = 0; x < 720; x += 60) d += ` Q${x + 15} 0 ${x + 30} ${amp} T${x + 60} ${amp}`;
-      return d + ' V400 H0 Z';
-    };
+    const bubbles = [60, 110, 170, 250, 300, 345].map((x, i) =>
+      `<circle class="mw-bub" cx="${x}" cy="250" r="${2.5 + (i % 3) * 1.5}" style="animation-delay:${i * .8}s;animation-duration:${3.6 + (i % 3) * .9}s"/>`).join('');
+    const weed = (x, h, c, cls) => `<g class="mw-weed ${cls}"><path d="M${x} ${FLOOR + 2} C${x - 10} ${FLOOR - h * .3} ${x + 12} ${FLOOR - h * .5} ${x} ${FLOOR - h * .75} C${x - 8} ${FLOOR - h * .9} ${x + 6} ${FLOOR - h} ${x + 2} ${FLOOR - h}" fill="none" stroke="${c}" stroke-width="7" stroke-linecap="round"/></g>`;
     const svg = `
-<svg class="mw ${opts.intro ? 'mw--intro' : ''}" viewBox="0 0 300 320" role="img" aria-label="Meowie, a cat in a shark hood, in a water tank">
+<svg class="mw mw--m0 ${opts.intro ? 'mw--intro' : ''}" viewBox="0 0 ${W} 320" role="img" aria-label="Meowie, a cat in a shark hood, in the water">
   <defs>
-    <clipPath id="${id}-tank"><path d="${TANK}"/></clipPath>
-    <linearGradient id="${id}-wb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fd0ff"/><stop offset="1" stop-color="#1f8fe0"/></linearGradient>
-    <linearGradient id="${id}-glass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".3" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <linearGradient id="${id}-wb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--water-1)"/><stop offset="1" stop-color="var(--water-2)"/></linearGradient>
+    <linearGradient id="${id}-fade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".12" stop-color="#fff"/><stop offset=".88" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="${id}-mask" maskUnits="userSpaceOnUse" x="0" y="-400" width="${W}" height="760"><rect x="0" y="-400" width="${W}" height="760" fill="url(#${id}-fade)"/></mask>
+    <clipPath id="${id}-box"><rect x="0" y="-400" width="${W}" height="${320 + 400}"/></clipPath>
+    <linearGradient id="${id}-bfade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--bg)" stop-opacity="0"/><stop offset="1" stop-color="var(--bg)"/></linearGradient>
+    <clipPath id="${id}-above"><path d="M0 -400 H${W} V283 Q310 293 200 288 Q90 276 0 289 Z"/></clipPath>
   </defs>
-  <path d="${TANK}" class="mw-tank-bg"/>
-  <g clip-path="url(#${id}-tank)">
-    <g class="mw-water mw-water-back"><g class="mw-wave mw-wave-back"><path d="${wave(8)}" fill="url(#${id}-wb)"/></g>
+  <g mask="url(#${id}-mask)" clip-path="url(#${id}-box)">
+    <ellipse cx="200" cy="${FLOOR + 6}" rx="190" ry="26" class="mw-glow"/>
+    <g class="mw-water mw-water-back"><g class="mw-wave mw-wave-back"><path d="${wave(9)}" fill="url(#${id}-wb)"/></g>
       <g class="mw-bubs" fill="#fff" opacity=".75">${bubbles}</g></g>
-    <g class="mw-rays" opacity=".18"><path d="M70 40 L40 300 H70 L110 40 Z M150 40 L130 300 H170 L190 40 Z" fill="#fff"/></g>
-    <g class="mw-weed mw-weed-1"><path d="M58 ${FLOOR} C48 260 70 246 58 218 C50 198 66 188 60 170" fill="none" stroke="#3cb37a" stroke-width="7" stroke-linecap="round"/></g>
-    <g class="mw-weed mw-weed-2"><path d="M246 ${FLOOR} C256 262 236 248 248 224 C256 206 242 198 248 184" fill="none" stroke="#2f9d6a" stroke-width="7" stroke-linecap="round"/></g>
-    <path d="M30 ${FLOOR} Q90 278 150 286 T270 282 V310 H30 Z" fill="#f0d9a8"/>
-    <g fill="#e2c48c"><circle cx="92" cy="294" r="4"/><circle cx="196" cy="296" r="5"/><circle cx="226" cy="292" r="3"/></g>
+    <g class="mw-rays"><path d="M90 0 L50 330 H86 L130 0 Z M220 0 L196 330 H240 L262 0 Z M320 0 L310 330 H338 L350 0 Z" fill="#fff"/></g>
+    ${weed(46, 120, '#3cb37a', 'mw-weed-1')}${weed(74, 84, '#2f9d6a', 'mw-weed-2')}${weed(352, 110, '#2f9d6a', 'mw-weed-3')}
+    <g class="mw-coral"><path d="M318 ${FLOOR} V258 M318 270 Q306 262 304 248 M318 264 Q330 256 332 242" stroke="#ff8fa3" stroke-width="7" stroke-linecap="round" fill="none"/></g>
+    <path d="M-20 ${FLOOR} Q90 276 200 288 T420 282 V330 H-20 Z" class="mw-sand"/>
+    <g class="mw-pebbles"><circle cx="110" cy="298" r="5"/><circle cx="246" cy="300" r="6"/><circle cx="276" cy="295" r="3.5"/><circle cx="150" cy="303" r="3"/></g>
+    <rect x="0" y="298" width="${W}" height="24" fill="url(#${id}-bfade)"/>
   </g>
-  <g class="mw-pos" style="transform: translate(150px, ${FLOOR + 4}px) scale(.78)">
+  <g class="mw-pos" style="transform: translate(200px, ${FLOOR + 4}px) scale(.8)">
     <g class="mw-drift"><g class="mw-actor">
       ${sitPose(id)}
       ${stretchPose(id)}
     </g></g>
   </g>
-  <g clip-path="url(#${id}-tank)" pointer-events="none">
-    <g class="mw-water mw-water-front"><g class="mw-wave"><path d="${wave(6)}" fill="#3aa6ee" opacity=".28"/></g></g>
+  <g mask="url(#${id}-mask)" clip-path="url(#${id}-above)" pointer-events="none">
+    <g class="mw-water mw-water-front"><g class="mw-wave"><path d="${wave(6)}" fill="var(--water-2)" opacity=".2"/></g>
+      <path d="M-60 6 H900" stroke="#fff" stroke-width="2" opacity=".55"/></g>
   </g>
   <g class="mw-fx" pointer-events="none"></g>
-  <path d="${TANK}" fill="url(#${id}-glass)" pointer-events="none"/>
-  <path d="${TANK}" fill="none" class="mw-tank-line" pointer-events="none"/>
-  <path d="M44 84 Q44 58 64 54" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".7" pointer-events="none"/>
 </svg>`;
     const wrap = document.createElement('div');
     wrap.className = 'cat-wrap';
     wrap.innerHTML = svg;
-    wrap._mw = { level: 0, mode: 'sit', busy: false };
+    wrap._mw = { level: 0, mode: 'sit', mood: 0, busy: false };
     place(wrap, 0, true);
     return wrap;
   }
@@ -168,21 +191,41 @@
     const st = wrap._mw;
     const svg = wrap.querySelector('svg');
     const y = levelY(pct);
+    const moving = wrap.querySelectorAll('.mw-water, .mw-pos');
+    if (instant) moving.forEach((g) => { g.style.transition = 'none'; });
     wrap.querySelectorAll('.mw-water').forEach((g) => { g.style.transform = `translateY(${y}px)`; });
-    if (instant) wrap.querySelectorAll('.mw-water, .mw-pos').forEach((g) => { g.style.transition = 'none'; });
     const swim = st.forceSwim || pct >= .45;
     st.mode = swim ? 'swim' : 'sit';
     svg.classList.toggle('mw--swim', swim);
-    const pos = wrap.querySelector('.mw-pos');
-    pos.style.transform = swim
-      ? `translate(166px, ${Math.min(240, Math.max((y + FLOOR) / 2 + 6, 120))}px) scale(.64)`
-      : `translate(150px, ${FLOOR + 4}px) scale(.78)`;
-    if (instant) requestAnimationFrame(() => wrap.querySelectorAll('.mw-water, .mw-pos').forEach((g) => { g.style.transition = ''; }));
+    wrap.querySelector('.mw-pos').style.transform = swim
+      ? `translate(206px, ${Math.min(236, Math.max((y + FLOOR) / 2 + 6, 118))}px) scale(.66)`
+      : `translate(200px, ${FLOOR + 4}px) scale(.8)`;
+    if (instant) {
+      svg.getBoundingClientRect();
+      requestAnimationFrame(() => moving.forEach((g) => { g.style.transition = ''; }));
+    }
   }
 
-  function setLevel(wrap, pct) {
-    wrap._mw.level = Math.max(0, Math.min(1, pct));
-    place(wrap, wrap._mw.level);
+  function setMood(wrap, mood, instant) {
+    const st = wrap._mw;
+    const svg = wrap.querySelector('svg');
+    if (mood === st.mood && svg.classList.contains('mw--m' + mood)) return;
+    for (let i = 0; i <= 4; i++) svg.classList.toggle('mw--m' + i, i === mood);
+    if (!instant && mood !== st.mood) {
+      svg.classList.remove('mw--moodpop');
+      svg.getBoundingClientRect();
+      svg.classList.add('mw--moodpop');
+    }
+    st.mood = mood;
+  }
+
+  function setLevel(wrap, pct, opts = {}) {
+    const p = Math.max(0, Math.min(1, pct));
+    const first = !wrap._mw.placed;
+    wrap._mw.level = p;
+    wrap._mw.placed = true;
+    place(wrap, p);
+    setMood(wrap, moodFor(pct), opts.instant || first);
   }
 
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -193,32 +236,53 @@
     const y = levelY(wrap._mw.level);
     const ns = 'http://www.w3.org/2000/svg';
     const ring = document.createElementNS(ns, 'ellipse');
-    ring.setAttribute('cx', x); ring.setAttribute('cy', y); ring.setAttribute('rx', 10); ring.setAttribute('ry', 3);
+    ring.setAttribute('cx', x); ring.setAttribute('cy', y); ring.setAttribute('rx', 12); ring.setAttribute('ry', 3.5);
     ring.setAttribute('fill', 'none'); ring.setAttribute('stroke', '#fff'); ring.setAttribute('stroke-width', 3);
+    ring.style.transformOrigin = `${x}px ${y}px`;
     fx.appendChild(ring);
     ring.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(5)', opacity: 0 }],
-      { duration: 700, easing: 'ease-out' }).onfinish = () => ring.remove();
-    ring.style.transformOrigin = `${x}px ${y}px`;
-    for (let i = 0; i < 9; i++) {
+      { duration: 800, easing: 'cubic-bezier(.22,1,.36,1)' }).onfinish = () => ring.remove();
+    for (let i = 0; i < 11; i++) {
       const d = document.createElementNS(ns, 'circle');
-      d.setAttribute('cx', x); d.setAttribute('cy', y); d.setAttribute('r', 3 + Math.random() * 3);
+      d.setAttribute('cx', x); d.setAttribute('cy', y); d.setAttribute('r', 2.5 + Math.random() * 3.5);
       d.setAttribute('fill', i % 2 ? '#bfe6ff' : '#fff');
       fx.appendChild(d);
-      const dx = (Math.random() - .5) * 90;
+      const dx = (Math.random() - .5) * 110;
       d.animate([
         { transform: 'translate(0,0)', opacity: 1 },
-        { transform: `translate(${dx * .6}px, ${-40 - Math.random() * 40}px)`, opacity: 1, offset: .45 },
-        { transform: `translate(${dx}px, 10px)`, opacity: 0 },
-      ], { duration: 650 + Math.random() * 250, easing: 'cubic-bezier(.2,.7,.4,1)' }).onfinish = () => d.remove();
+        { transform: `translate(${dx * .6}px, ${-44 - Math.random() * 46}px)`, opacity: 1, offset: .45 },
+        { transform: `translate(${dx}px, 12px)`, opacity: 0 },
+      ], { duration: 700 + Math.random() * 300, easing: 'cubic-bezier(.2,.7,.4,1)' }).onfinish = () => d.remove();
     }
   }
 
-  // Lap from a glass (sitting) or gulp at the surface (swimming).
+  // Lap from a glass (sitting) or gulp at the surface (swimming). Hearts float up while drinking.
   async function drink(wrap) {
     const svg = wrap.querySelector('svg');
     svg.classList.add('mw--drink');
+    if (!reduced()) floatHearts(wrap, 3);
     await wait(reduced() ? 50 : 1500);
     svg.classList.remove('mw--drink');
+  }
+
+  function floatHearts(wrap, n) {
+    const fx = wrap.querySelector('.mw-fx');
+    const ns = 'http://www.w3.org/2000/svg';
+    const swim = wrap._mw.mode === 'swim';
+    const x0 = swim ? 250 : 200;
+    const y0 = swim ? levelY(wrap._mw.level) + 10 : 150;
+    for (let i = 0; i < n; i++) {
+      const h = document.createElementNS(ns, 'path');
+      h.setAttribute('d', 'M0 6 C-9 0 -6 -7 0 -3 C6 -7 9 0 0 6 Z');
+      h.setAttribute('fill', '#ff7a98');
+      fx.appendChild(h);
+      const dx = (i - (n - 1) / 2) * 26;
+      h.animate([
+        { transform: `translate(${x0}px, ${y0}px) scale(.2)`, opacity: 0 },
+        { transform: `translate(${x0 + dx * .5}px, ${y0 - 30}px) scale(1.2)`, opacity: 1, offset: .3 },
+        { transform: `translate(${x0 + dx}px, ${y0 - 80}px) scale(.9)`, opacity: 0 },
+      ], { duration: 1300, delay: 250 + i * 220, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'backwards' }).onfinish = () => h.remove();
+    }
   }
 
   // Leap out of the water in an arc and splash back down.
@@ -226,30 +290,29 @@
     const svg = wrap.querySelector('svg');
     const actor = wrap.querySelector('.mw-actor');
     if (reduced()) return;
-    const wasSwim = wrap._mw.mode === 'swim';
+    const x = wrap._mw.mode === 'swim' ? 206 : 200;
     svg.classList.add('mw--jump');
-    const posX = wasSwim ? 166 : 150;
     const anim = actor.animate([
       { transform: 'translate(0px, 0px) rotate(0deg) scale(1, 1)' },
-      { transform: 'translate(0px, 14px) rotate(0deg) scale(1.08, .86)', offset: .14 },
-      { transform: 'translate(30px, -330px) rotate(-28deg) scale(1, 1)', offset: .5 },
-      { transform: 'translate(10px, -370px) rotate(-4deg) scale(1, 1)', offset: .62 },
-      { transform: 'translate(-10px, -20px) rotate(24deg) scale(1, 1)', offset: .9 },
+      { transform: 'translate(0px, 16px) rotate(0deg) scale(1.08, .86)', offset: .14 },
+      { transform: 'translate(34px, -320px) rotate(-26deg) scale(1, 1)', offset: .48 },
+      { transform: 'translate(12px, -360px) rotate(-4deg) scale(1, 1)', offset: .6 },
+      { transform: 'translate(-10px, -24px) rotate(22deg) scale(1, 1)', offset: .9 },
       { transform: 'translate(0px, 0px) rotate(0deg) scale(1, 1)' },
-    ], { duration: 1300, easing: 'cubic-bezier(.35,.1,.3,1)' });
-    setTimeout(() => splash(wrap, posX), 240);
-    setTimeout(() => splash(wrap, posX - 10), 1120);
+    ], { duration: 1400, easing: 'cubic-bezier(.33,.1,.3,1)' });
+    setTimeout(() => splash(wrap, x), 260);
+    setTimeout(() => splash(wrap, x - 8), 1220);
     await anim.finished.catch(() => {});
     svg.classList.remove('mw--jump');
   }
 
-  // Swim a lap even when the tank is low.
+  // Swim a lap even when the water is low.
   async function swim(wrap) {
     const st = wrap._mw;
+    const svg = wrap.querySelector('svg');
     if (st.mode === 'swim') {
-      const svg = wrap.querySelector('svg');
       svg.classList.add('mw--zoom');
-      await wait(reduced() ? 50 : 1600);
+      await wait(reduced() ? 50 : 1400);
       svg.classList.remove('mw--zoom');
       return;
     }
@@ -272,5 +335,5 @@
     }
   }
 
-  window.Meowie = { create, setLevel, act };
+  window.Meowie = { create, setLevel, act, moodFor };
 })();

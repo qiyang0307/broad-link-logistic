@@ -187,7 +187,7 @@
     return `<div class="ob-hero" style="flex-direction:column;align-items:center;gap:12px">
       ${say ? `<div class="bubble-say">${say}</div>` : ''}<div class="hero-cat" data-intro="${opts.intro ? 1 : ''}"></div></div>`;
   }
-  function mountCat(el, { size = 150, level = 0, intro = false } = {}) {
+  function mountCat(el, { size = 240, level = 0, intro = false } = {}) {
     const holder = $('.hero-cat', el);
     if (!holder) return null;
     const cat = Meowie.create({ intro: intro || holder.dataset.intro === '1' });
@@ -216,7 +216,7 @@
         </div>
         <div class="ob-foot"><button class="cta" data-act="next">${t('welcomeStart')}</button>
         <button class="cta ghost" data-act="demo">${t('welcomeDemo')}</button></div>`;
-        mount = (el) => mountCat(el, { size: 170, level: .25 });
+        mount = (el) => mountCat(el, { size: 320, level: .25 });
         break;
 
       case 'name':
@@ -307,7 +307,7 @@
           </ul></div>`;
         mount = (el) => {
           el.classList.add('calc');
-          const cat = mountCat(el, { size: 190, level: 0 });
+          const cat = mountCat(el, { size: 330, level: 0 });
           fetchWeather();
           const items = el.querySelectorAll('#checks li');
           const t0 = performance.now();
@@ -424,7 +424,7 @@
     show('splash', `<div class="drops">${drops}</div>${hero('', { intro: true })}<h1>Minum Air</h1><p>${t('splashSub')}</p>`, {
       onMount: (el) => {
         el.classList.add('splash');
-        const cat = mountCat(el, { size: 220, level: .3 });
+        const cat = mountCat(el, { size: 340, level: .3 });
         setTimeout(() => Meowie.act(cat, 'drink'), 1200);
         el.addEventListener('click', () => leave());
         let left = false;
@@ -457,6 +457,7 @@
 
   let homeCat = null;
   let tapCount = 0;
+  let lastAddedT = 0;
   let shownPct = 0;
   let tab = 'home';
 
@@ -475,17 +476,18 @@
         <span class="pill fire" title="Streak">🔥 ${streakCount()}</span></div>
       <span class="pill weather-chip">${w ? (w.feels >= HEAT_START ? '☀️' : '⛅') : '🌤️'} ${esc(state.profile.city || 'Malaysia')} ·
         ${w ? `${t('feels', { f: Math.round(w.feels) })}${bonus ? ` · ${t('goalPlus', { b: bonus })}` : ''}` : t('loadingWeather')}</span>
-      <div class="stage"><div class="ring"></div><div class="bubble-say" id="say" data-bracket="${bracket(pct)}">${lines[0]}</div><div class="hero-cat"></div></div>
+      <div class="stage"><div class="bubble-say" id="say" data-bracket="${bracket(pct)}">${lines[0]}</div><div class="hero-cat"></div></div>
       <div class="stats-row"><div class="pct"><span id="pctNum">${Math.round(shownPct * 100)}</span>%</div>
         <div class="ml"><b id="mlNum">${fmt(drunk)}</b> / ${fmt(d.goal)} ml</div></div>
       <div class="add-main"><button class="cta" id="quickAdd">${cupSvg(DRINKS[0]).replace('<svg', '<svg style="width:26px;height:32px"')} ${t('addWater', { ml: state.lastSize })}</button>
         <button class="add-more" id="moreBtn" aria-label="${t('otherDrinks')}">+</button></div>
+      <p class="hold-hint">${t('holdHint')}</p>
       <div class="drinks" id="drinkRow">${DRINKS.slice(1).map((x) =>
         `<button class="drink-chip" data-drink="${x.id}">${cupSvg(x)}<b>${drinkName(x)}</b></button>`).join('')}</div>
       <div class="section-title">${t('today')} <small>${t('drinksCount', { n: d.log.length })}</small></div>
       <ul class="log">${d.log.length ? d.log.slice().reverse().map((x) => {
         const dr = DRINKS.find((k) => k.id === x.drink) || DRINKS[0];
-        return `<li>${cupSvg(dr)}<div class="t"><b>${drinkName(dr)} · ${x.ml} ml</b><small>${timeStr(x.t)}${x.eff !== x.ml ? ` · ${t('countsAs', { ml: x.eff })}` : ''}</small></div>
+        return `<li class="${x.t === lastAddedT ? 'new' : ''}">${cupSvg(dr)}<div class="t"><b>${drinkName(dr)} · ${x.ml} ml</b><small>${timeStr(x.t)}${x.eff !== x.ml ? ` · ${t('countsAs', { ml: x.eff })}` : ''}</small></div>
           <button class="del" data-del="${x.t}" aria-label="${t('del')}">✕</button></li>`;
       }).join('') : `<li class="empty">${t('empty')}</li>`}</ul>`;
 
@@ -514,6 +516,7 @@
         },
       });
     }
+    lastAddedT = 0;
     setTab('home');
   }
 
@@ -521,7 +524,17 @@
     Meowie.setLevel(homeCat, pct);
     animateNumber($('#pctNum', el), shownPct * 100, Math.min(999, pct * 100), 900);
     shownPct = pct;
-    $('#quickAdd', el).addEventListener('click', (e) => addDrink(DRINKS[0], state.lastSize, e.currentTarget));
+    // Tap adds a glass; press and hold opens the pour sheet to change the amount.
+    const quick = $('#quickAdd', el);
+    let holdTimer;
+    let held = false;
+    quick.addEventListener('pointerdown', () => {
+      held = false;
+      holdTimer = setTimeout(() => { held = true; if (navigator.vibrate) navigator.vibrate(15); openSheet('air'); }, 450);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => quick.addEventListener(ev, () => clearTimeout(holdTimer)));
+    quick.addEventListener('contextmenu', (e) => e.preventDefault());
+    quick.addEventListener('click', (e) => { if (held) { held = false; return; } addDrink(DRINKS[0], state.lastSize, e.currentTarget); });
     $('#moreBtn', el).addEventListener('click', () => openSheet());
     el.querySelectorAll('[data-drink]').forEach((b) => b.addEventListener('click', () => openSheet(b.dataset.drink)));
     el.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => removeDrink(Number(b.dataset.del))));
@@ -539,7 +552,8 @@
     const d = today();
     const before = total(d);
     const eff = Math.round(ml * drink.hyd);
-    d.log.push({ drink: drink.id, ml, eff, t: Date.now() });
+    lastAddedT = Date.now();
+    d.log.push({ drink: drink.id, ml, eff, t: lastAddedT });
     if (drink.id === 'air') state.lastSize = ml;
     save();
     if (navigator.vibrate) navigator.vibrate(20);
@@ -564,6 +578,35 @@
   // ---------- bottom sheet ----------
   const sheet = $('#sheet');
   const sheetBg = $('#sheetBg');
+  const POUR_MAX = 1000;
+  const POUR_MIN = 50;
+  const GLASS = 'M12 8 H108 L98 186 Q97 194 88 194 H32 Q23 194 22 186 Z';
+  const pourY = (ml) => 194 - (ml / POUR_MAX) * 184;
+  const sizeName = (ml) => t('sizes')[ml <= 175 ? 0 : ml <= 325 ? 1 : ml <= 500 ? 2 : 3];
+
+  function pourSvg(d, ml) {
+    let wave = 'M-120 5';
+    for (let x = -120; x < 240; x += 40) wave += ` Q${x + 10} 0 ${x + 20} 5 T${x + 40} 5`;
+    wave += ' V240 H-120 Z';
+    const ticks = [250, 500, 750].map((v) => `<path d="M82 ${pourY(v)} H96" stroke="var(--cup-line)" stroke-width="2" opacity=".5"/>
+      <text x="78" y="${pourY(v) + 4}" text-anchor="end" class="pour-tick">${v}</text>`).join('');
+    return `<svg viewBox="0 0 132 200" aria-hidden="true">
+      <clipPath id="pourClip"><path d="${GLASS}"/></clipPath>
+      <path d="${GLASS}" fill="var(--bg)"/>
+      <g clip-path="url(#pourClip)"><g class="pour-liquid" style="transform: translateY(${pourY(ml)}px)">
+        <g class="pour-wave"><path d="${wave}" fill="${d.color}"/></g>
+        <circle class="pour-bub" cx="44" cy="60" r="3" fill="#fff" opacity=".6"/><circle class="pour-bub b2" cx="70" cy="90" r="2.4" fill="#fff" opacity=".6"/>
+      </g></g>
+      ${ticks}
+      <path d="${GLASS}" fill="none" stroke="var(--cup-line)" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M24 22 L32 170" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".55"/>
+      <g class="pour-handle" style="transform: translateY(${pourY(ml)}px)">
+        <rect x="100" y="-15" width="30" height="30" rx="15" fill="var(--brand)"/>
+        <path d="M115 -8 L110 -3 H120 Z M115 8 L110 3 H120 Z" fill="var(--brand-ink)"/>
+      </g>
+    </svg>`;
+  }
+
   function openSheet(drinkId) {
     let drink = DRINKS.find((x) => x.id === drinkId);
     let size = state.lastSize;
@@ -575,24 +618,85 @@
         return;
       }
       sheet.innerHTML = `<div class="grab"></div>
-        <div class="sheet-head">${cupSvg(drink, .3 + Math.max(0, SIZES.indexOf(size)) * .18)}<div><h3>${drinkName(drink)}</h3>
+        <div class="sheet-head">${cupSvg(drink)}<div><h3>${drinkName(drink)}</h3>
           <p>${drink.hyd === 1 ? t('full') : t('partial', { p: Math.round(drink.hyd * 100) })}</p></div></div>
-        <div class="sizes">${SIZES.map((ml, i) => `<button class="${ml === size ? 'sel' : ''}" data-size="${ml}">${ml}<small>${t('sizes')[i]}</small></button>`).join('')}</div>
+        <div class="pour">
+          <div class="pour-glass" id="pour" role="slider" tabindex="0" aria-label="${t('amount')}" aria-valuemin="${POUR_MIN}" aria-valuemax="${POUR_MAX}" aria-valuenow="${size}">${pourSvg(drink, size)}</div>
+          <div class="pour-read"><div class="pour-ml"><span id="pourMl">${size}</span><small>ml</small></div>
+            <div class="pour-name" id="pourName">${sizeName(size)}</div>
+            <div class="pour-hint"><span>↕</span> ${t('dragHint')}</div></div>
+        </div>
+        <div class="sizes">${SIZES.map((ml) => `<button class="${ml === size ? 'sel' : ''}" data-size="${ml}">${ml}<small>${sizeName(ml)}</small></button>`).join('')}</div>
         <button class="cta" id="sheetAdd">${t('add', { ml: size })}</button>`;
-      sheet.querySelectorAll('[data-size]').forEach((b) => b.addEventListener('click', () => { size = Number(b.dataset.size); draw(); }));
+
+      const pour = $('#pour', sheet);
+      const svgEl = $('svg', pour);
+      function update() {
+        const y = pourY(size);
+        $('.pour-liquid', pour).style.transform = `translateY(${y}px)`;
+        $('.pour-handle', pour).style.transform = `translateY(${y}px)`;
+        $('#pourMl', sheet).textContent = size;
+        $('#pourName', sheet).textContent = sizeName(size);
+        pour.setAttribute('aria-valuenow', size);
+        sheet.querySelectorAll('[data-size]').forEach((b) => b.classList.toggle('sel', Number(b.dataset.size) === size));
+        $('#sheetAdd', sheet).textContent = t('add', { ml: size });
+      }
+      function setSize(ml, haptic) {
+        const v = Math.max(POUR_MIN, Math.min(POUR_MAX, Math.round(ml / 50) * 50));
+        if (v === size) return;
+        size = v;
+        update();
+        if (haptic && navigator.vibrate) navigator.vibrate(4);
+      }
+      function fromPointer(e) {
+        const r = svgEl.getBoundingClientRect();
+        const ly = ((e.clientY - r.top) / r.height) * 200;
+        setSize(((194 - ly) / 184) * POUR_MAX, true);
+      }
+      pour.addEventListener('pointerdown', (e) => { pour.setPointerCapture(e.pointerId); pour.classList.add('dragging'); fromPointer(e); });
+      pour.addEventListener('pointermove', (e) => { if (pour.classList.contains('dragging')) fromPointer(e); });
+      ['pointerup', 'pointercancel'].forEach((ev) => pour.addEventListener(ev, () => pour.classList.remove('dragging')));
+      pour.addEventListener('keydown', (e) => {
+        const step = { ArrowUp: 50, ArrowRight: 50, ArrowDown: -50, ArrowLeft: -50 }[e.key];
+        if (step) { e.preventDefault(); setSize(size + step); }
+      });
+      sheet.querySelectorAll('[data-size]').forEach((b) => b.addEventListener('click', () => setSize(Number(b.dataset.size))));
       $('#sheetAdd', sheet).addEventListener('click', (e) => { const btn = e.currentTarget; closeSheet(); addDrink(drink, size, btn); });
     }
     draw();
+    openSheetEl();
+  }
+
+  // Swipe the sheet down by its handle to close it.
+  function openSheetEl() {
+    sheet.style.transform = '';
     sheet.classList.add('open');
     sheetBg.classList.add('open');
+    const grab = $('.grab', sheet);
+    if (!grab) return;
+    let y0 = null;
+    grab.addEventListener('pointerdown', (e) => { y0 = e.clientY; grab.setPointerCapture(e.pointerId); sheet.classList.add('dragging'); });
+    grab.addEventListener('pointermove', (e) => {
+      if (y0 == null) return;
+      sheet.style.transform = `translate(-50%, ${Math.max(0, e.clientY - y0)}px)`;
+    });
+    const end = (e) => {
+      if (y0 == null) return;
+      const dy = e.clientY - y0;
+      y0 = null;
+      sheet.classList.remove('dragging');
+      sheet.style.transform = '';
+      if (dy > 80) closeSheet();
+    };
+    grab.addEventListener('pointerup', end);
+    grab.addEventListener('pointercancel', end);
   }
   function openLangSheet() {
     sheet.innerHTML = `<div class="grab"></div><h3 style="font-size:22px">🌐 ${t('chooseLang')}</h3>
       <div style="display:grid;gap:10px;margin-top:14px">${LANGS.map((k) =>
         `<button class="option ${k === state.lang ? 'sel' : ''}" data-lang="${k}"><b>${I18N[k]._label}</b></button>`).join('')}</div>`;
     sheet.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => { closeSheet(); setLang(b.dataset.lang); }));
-    sheet.classList.add('open');
-    sheetBg.classList.add('open');
+    openSheetEl();
   }
   function setLang(lang) {
     if (!I18N[lang] || lang === state.lang) return;
@@ -678,7 +782,7 @@
       <button class="danger" id="pReset">${t('reset')}</button>`, {
       onMount: (el) => {
         el.classList.add('home');
-        mountCat(el, { size: 120, level: Math.min(1, total(today()) / today().goal) });
+        mountCat(el, { size: 220, level: Math.min(1, total(today()) / today().goal) });
         const bind = (id, key, num) => $(id, el).addEventListener('change', (e) => {
           const v = num ? Math.max(30, Math.min(150, Number(e.target.value) || p[key])) : e.target.value;
           if (key === 'city' && v !== p.city) { state.weather = null; }
