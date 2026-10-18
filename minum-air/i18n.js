@@ -48,7 +48,7 @@ window.MA_I18N = {
     histTitle: 'History 📊', last7: 'Last 7 days', pctGoal: '% of goal',
     streakNow: 'Current streak', streakBest: 'Best streak', avg: 'Avg ml / day (7 days)', daysHit: 'Days goal reached',
     logged: 'Drinks logged', baseGoal: 'Base goal (ml)',
-    profTitle: 'Profile 😺', profSay: 'Change anything you like, then tap Save.',
+    profTitle: 'Profile 😺', profSay: ({ name }) => `Hi ${name}! Tweak anything you like below, just remember to tap <b>Save</b> when you're done 💾`,
     pName: 'Name', pGender: 'Gender', pWeight: 'Weight (kg)', pActivity: 'Activity', pCity: 'City',
     pTimes: 'Wake / Sleep', pBase: 'Base goal', pLang: 'Language', pSound: 'Sound', sndMusic: 'Music', sndSfx: 'Meowie',
 
@@ -145,7 +145,7 @@ window.MA_I18N = {
     histTitle: 'Sejarah 📊', last7: '7 hari lepas', pctGoal: '% target',
     streakNow: 'Streak sekarang', streakBest: 'Streak terbaik', avg: 'Purata ml / hari (7 hari)', daysHit: 'Hari capai target',
     logged: 'Jumlah minuman dicatat', baseGoal: 'Target asas (ml)',
-    profTitle: 'Profil 😺', profSay: 'Ubah apa-apa, kemudian tekan Simpan.',
+    profTitle: 'Profil 😺', profSay: ({ name }) => `Hai ${name}! Ubah apa sahaja di bawah, jangan lupa tekan <b>Simpan</b> bila siap 💾`,
     pName: 'Nama', pGender: 'Jantina', pWeight: 'Berat (kg)', pActivity: 'Aktiviti', pCity: 'Bandar',
     pTimes: 'Bangun / Tidur', pBase: 'Target asas', pLang: 'Bahasa', pSound: 'Bunyi', sndMusic: 'Muzik', sndSfx: 'Meowie',
 
@@ -242,7 +242,7 @@ window.MA_I18N = {
     histTitle: '记录 📊', last7: '过去 7 天', pctGoal: '目标 %',
     streakNow: '目前连续天数', streakBest: '最长连续天数', avg: '平均毫升 / 天（7 天）', daysHit: '达标天数',
     logged: '记录的饮料', baseGoal: '基本目标（毫升）',
-    profTitle: '我的 😺', profSay: '改好之后，记得点保存。',
+    profTitle: '我的 😺', profSay: ({ name }) => `嗨 ${name}！下面的设置随你改，改完记得点<b>保存</b>哦 💾`,
     pName: '名字', pGender: '性别', pWeight: '体重（公斤）', pActivity: '活动量', pCity: '城市',
     pTimes: '起床 / 睡觉', pBase: '基本目标', pLang: '语言', pSound: '声音', sndMusic: '音乐', sndSfx: 'Meowie',
 

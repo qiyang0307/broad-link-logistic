@@ -25,7 +25,7 @@
   const PX = 1.1;
   const COLS = 8;
   const SHEETS = {
-    idle: { n: 61, w: 360, x: 180, cols: 8 }, pet: { n: 35, w: 520, x: 180, cols: 7 },
+    idle: { n: 61, w: 360, x: 180, cols: 8 }, pet: { n: 18, w: 520, x: 180, cols: 7 },
     happy: { n: 26, w: 360, x: 180, cols: 8 },
     swim: { n: 40, w: 360, x: 180, cols: 8 }, peek: { n: 57, w: 360, x: 180, cols: 8 },
     turn: { n: 15, w: 360, x: 180, cols: 8 },
@@ -34,7 +34,9 @@
   const range = (a, b) => Array.from({ length: Math.abs(b - a) + 1 }, (_, i) => (a < b ? a + i : a - i));
   const on = (sheet, frames) => frames.map((i) => [sheet, i]);
   const CLIPS = {
-    pet: on('pet', range(0, 34)),
+    // The hand comes in and pats his head, rubs back and forth while he squints, then goes back
+    // out the way it came (the arrival played in reverse) as he opens his eyes again.
+    pet: on('pet', range(0, 17).concat(range(16, 10), range(11, 17), range(16, 10), range(11, 17), range(16, 0))),
     happy: on('happy', range(0, 25)),
     // In the water (his full shark suit): a seamless 40-frame swim loop, turning round from
     // facing right to facing left, and stopping to look at you with a little "oh!".
@@ -252,7 +254,7 @@
 <svg class="mw-top mw-front" viewBox="0 0 ${W} 320" aria-hidden="true">
   <defs><clipPath id="${id}-above"><path d="M0 -400 H${W} V283 Q310 293 200 288 Q90 276 0 289 Z"/></clipPath></defs>
   <g clip-path="url(#${id}-above)" pointer-events="none">
-    <g class="mw-water mw-water-front"><g class="mw-slosh"><g class="mw-wave"><path d="${wave(6)}" fill="var(--water-2)" opacity=".2"/></g></g></g>
+    <g class="mw-water mw-water-front"><g class="mw-slosh"><g class="mw-wave"><path d="${wave(6)}" fill="var(--water-2)" opacity=".12"/></g></g></g>
   </g>
 </svg>
 <svg class="mw-top" viewBox="0 0 ${W} 320" aria-hidden="true">
@@ -431,7 +433,52 @@
   // Drinking plays his real drinking video over the tank: the water is poured into his glass, he
   // laps it up, licks his lips and blows a bubble. It fades in and back out to the tank, with its
   // own sound when Meowie's sounds are on.
-  async function drink(wrap) {
+  // The water in the drinking video (jug, stream and glass) takes on the colour of the drink:
+  // a per-frame mask (124 frames, 240 x 157, 8 per row) marks where the water is, and the colour
+  // is blended into those pixels on a canvas, keeping the water's own light and sparkle.
+  const PLAIN = '#9fdcff';
+  const MASK = { w: 240, h: 157, cols: 8, n: 124, fps: 24 };
+  let maskSheet = null;
+  function tinter(v, box, color) {
+    if (!color || color.toLowerCase() === PLAIN) return null;
+    if (!maskSheet) { maskSheet = new Image(); maskSheet.src = 'meowie-drink-mask.webp'; }
+    const cv = document.createElement('canvas');
+    box.appendChild(cv);
+    const ctx = cv.getContext('2d');
+    const tint = document.createElement('canvas');
+    tint.width = MASK.w; tint.height = MASK.h;
+    const tc = tint.getContext('2d');
+    let on = true;
+    const draw = () => {
+      if (!on) return;
+      if (v.videoWidth && maskSheet.complete && maskSheet.naturalWidth) {
+        if (cv.width !== v.videoWidth) { cv.width = v.videoWidth; cv.height = v.videoHeight; }
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+        ctx.drawImage(v, 0, 0, cv.width, cv.height);
+        const i = Math.min(MASK.n - 1, Math.floor(v.currentTime * MASK.fps));
+        tc.globalCompositeOperation = 'source-over';
+        tc.clearRect(0, 0, MASK.w, MASK.h);
+        tc.drawImage(maskSheet, (i % MASK.cols) * MASK.w, Math.floor(i / MASK.cols) * MASK.h, MASK.w, MASK.h, 0, 0, MASK.w, MASK.h);
+        tc.globalCompositeOperation = 'source-in';
+        tc.fillStyle = color;
+        tc.fillRect(0, 0, MASK.w, MASK.h);
+        // Hue and colour from the drink, light and highlights from the water; a touch of
+        // multiply so dark drinks like kopi read as dark.
+        ctx.globalCompositeOperation = 'color';
+        ctx.drawImage(tint, 0, 0, cv.width, cv.height);
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.globalAlpha = .45;
+        ctx.drawImage(tint, 0, 0, cv.width, cv.height);
+        box.classList.add('mw-tinted');
+      }
+      if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(draw); else requestAnimationFrame(draw);
+    };
+    draw();
+    return () => { on = false; };
+  }
+
+  async function drink(wrap, color) {
     if (reduced()) return;
     const box = document.createElement('div');
     box.className = 'mw-film';
@@ -440,10 +487,11 @@
     const v = box.firstElementChild;
     const withSound = !window.MASound || window.MASound.sfx;
     v.muted = !withSound;
-    wrap.insertBefore(box, wrap.querySelector('.mw-front'));
+    wrap.insertBefore(box, wrap.querySelector('.mw-top:not(.mw-front)'));
     if (withSound && window.MASound) window.MASound.duck(true);
     const started = await v.play().then(() => true, () => { v.muted = true; return v.play().then(() => true, () => false); });
     if (!started) { box.remove(); if (window.MASound) window.MASound.duck(false); return; }
+    const stopTint = tinter(v, box, color);
     box.classList.add('mw-on');
     await new Promise((done) => {
       const end = () => { v.removeEventListener('timeupdate', near); done(); };
@@ -455,6 +503,7 @@
     });
     box.classList.remove('mw-on');
     floatHearts(wrap, 3);
+    setTimeout(() => stopTint && stopTint(), 500);
     if (window.MASound) window.MASound.duck(false);
     setTimeout(() => box.remove(), 500);
   }
@@ -602,7 +651,12 @@
         await play(wrap, 'peek', { fps: 24 });
       } else {
         sfx('purr');
-        setTimeout(() => floatHearts(wrap, 4), 900);
+        // A happy little squish each time the hand rubs his head.
+        const squish = wrap.querySelector('.mw-squish');
+        [1100, 1900, 2700].forEach((ms, i) => setTimeout(() => {
+          squish.animate([{ transform: 'scale(1, 1)' }, { transform: 'scale(1.035, .965)' }, { transform: 'scale(1, 1)' }], { duration: 420, easing: 'ease-in-out' });
+          floatHearts(wrap, i === 1 ? 3 : 1);
+        }, ms));
         await play(wrap, 'pet');
       }
     } finally { st.busy = false; }
@@ -900,7 +954,7 @@
     if (reduced()) { slosh(wrap, .6); return; }
     if (st.busy) { slosh(wrap, .8); await wait(600); return; }
     st.busy = true;
-    try { await drink(wrap); } finally { st.busy = false; }
+    try { await drink(wrap, color); } finally { st.busy = false; }
   }
 
   window.Meowie = { create, setLevel, setLayers, pourPoint, act, moodFor, interact, tilt, slosh, lookAt, pet, pour, pourAndDrink, pourTarget, skyNow, setBuild, setVibe };

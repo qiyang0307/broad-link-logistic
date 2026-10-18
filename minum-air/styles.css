@@ -652,10 +652,12 @@ button.pill.fire:active { transform: scale(.94); }
 @keyframes relaxBreath { 0%, 100% { transform: scale(1, 1) rotate(-2deg); } 50% { transform: scale(1.03, .98) rotate(2deg); } }
 
 /* Meowie's drinking video plays over the tank when you pour him a drink */
-.mw-film { position: absolute; inset: 0; z-index: 1; overflow: hidden; border-radius: 22px; opacity: 0; transform: scale(.96); pointer-events: none;
+.mw-film { position: absolute; inset: 0; z-index: 3; overflow: hidden; border-radius: 22px; opacity: 0; transform: scale(.96); pointer-events: none;
   transition: opacity .45s ease, transform .5s cubic-bezier(.22, 1, .36, 1); }
 .mw-film.mw-on { opacity: 1; transform: none; }
-.mw-film video { width: 100%; height: 100%; object-fit: cover; object-position: 62% 40%; display: block; }
+.mw-film video, .mw-film canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 62% 40%; display: block; }
+.mw-film.mw-tinted video { opacity: 0; }
+.cat-wrap .mw-top:not(.mw-front) { z-index: 4; }
 .cat-wrap .mw-top { z-index: 2; }
 
 /* Profile header photo and tab avatar */
