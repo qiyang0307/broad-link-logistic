@@ -50,7 +50,7 @@ window.MA_I18N = {
     logged: 'Drinks logged', baseGoal: 'Base goal (ml)',
     profTitle: 'Profile 😺', profSay: 'Change anything you like, then tap Save.',
     pName: 'Name', pGender: 'Gender', pWeight: 'Weight (kg)', pActivity: 'Activity', pCity: 'City',
-    pTimes: 'Wake / Sleep', pBase: 'Base goal', pLang: 'Language',
+    pTimes: 'Wake / Sleep', pBase: 'Base goal', pLang: 'Language', pSound: 'Sound', sndMusic: 'Music', sndSfx: 'Meowie',
 
     reviewTitle: 'Today’s review', reviewDay: 'Day review', gradeNone: 'No drinks yet',
     grades: ['Excellent 🌟', 'Good 👍', 'Okay lah 🙂', 'Needs work 💧'],
@@ -147,7 +147,7 @@ window.MA_I18N = {
     logged: 'Jumlah minuman dicatat', baseGoal: 'Target asas (ml)',
     profTitle: 'Profil 😺', profSay: 'Ubah apa-apa, kemudian tekan Simpan.',
     pName: 'Nama', pGender: 'Jantina', pWeight: 'Berat (kg)', pActivity: 'Aktiviti', pCity: 'Bandar',
-    pTimes: 'Bangun / Tidur', pBase: 'Target asas', pLang: 'Bahasa',
+    pTimes: 'Bangun / Tidur', pBase: 'Target asas', pLang: 'Bahasa', pSound: 'Bunyi', sndMusic: 'Muzik', sndSfx: 'Meowie',
 
     reviewTitle: 'Ulasan hari ini', reviewDay: 'Ulasan hari', gradeNone: 'Belum minum lagi',
     grades: ['Cemerlang 🌟', 'Bagus 👍', 'Boleh lah 🙂', 'Perlu usaha 💧'],
@@ -244,7 +244,7 @@ window.MA_I18N = {
     logged: '记录的饮料', baseGoal: '基本目标（毫升）',
     profTitle: '我的 😺', profSay: '改好之后，记得点保存。',
     pName: '名字', pGender: '性别', pWeight: '体重（公斤）', pActivity: '活动量', pCity: '城市',
-    pTimes: '起床 / 睡觉', pBase: '基本目标', pLang: '语言',
+    pTimes: '起床 / 睡觉', pBase: '基本目标', pLang: '语言', pSound: '声音', sndMusic: '音乐', sndSfx: 'Meowie',
 
     reviewTitle: '今日回顾', reviewDay: '当天回顾', gradeNone: '还没喝',
     grades: ['非常好 🌟', '不错 👍', '还可以 🙂', '要加油 💧'],

@@ -203,7 +203,7 @@
     const cat = Meowie.create({ intro: intro || holder.dataset.intro === '1' });
     cat.style.width = size + 'px';
     holder.appendChild(cat);
-    Meowie.interact(cat, { onTap: () => Meowie.act(cat, 'jump') });
+    Meowie.interact(cat);
     requestAnimationFrame(() => Meowie.setLevel(cat, level));
     return cat;
   }
@@ -633,8 +633,8 @@
   }
 
   function onCatTap() {
+    // Meowie.interact already brings in the petting hand; he answers with a line.
     tapCount++;
-    Meowie.act(homeCat, tapCount % 2 ? 'jump' : 'swim');
     const lines = catLine(today(), shownPct);
     sayLine(lines[Math.floor(Math.random() * lines.length)]);
   }
@@ -1023,6 +1023,9 @@
       ${hero(t('profSay'))}
       <div class="card">
         <div class="prof-row"><label for="pLang">${t('pLang')}</label><select id="pLang">${LANGS.map((k) => `<option value="${k}" ${k === state.lang ? 'selected' : ''}>${I18N[k]._label}</option>`).join('')}</select></div>
+        <div class="prof-row"><span>${t('pSound')}</span><span class="snd-toggles">
+          <button type="button" class="snd" id="sMusic" aria-pressed="${MASound.music}">🎵 ${t('sndMusic')}</button>
+          <button type="button" class="snd" id="sSfx" aria-pressed="${MASound.sfx}">🔊 ${t('sndSfx')}</button></span></div>
         <div class="prof-row"><label for="pName">${t('pName')}</label><input id="pName" value="${esc(p.name)}" maxlength="20"></div>
         <div class="prof-row"><label for="pGender">${t('pGender')}</label><select id="pGender">${opt(L().gender, p.gender)}</select></div>
         <div class="prof-row"><label for="pWeight">${t('pWeight')}</label><input id="pWeight" type="number" min="30" max="150" value="${p.weight}" style="width:90px"></div>
@@ -1073,6 +1076,13 @@
           toast(t('saved'));
         });
         $('#pReset', el).addEventListener('click', openDeleteSheet);
+        // Sound switches apply straight away; they are device settings, not part of the profile draft.
+        const toggle = (id, get, set) => $(id, el).addEventListener('click', (e) => {
+          set(!get());
+          e.currentTarget.setAttribute('aria-pressed', get());
+        });
+        toggle('#sMusic', () => MASound.music, MASound.setMusic);
+        toggle('#sSfx', () => MASound.sfx, MASound.setSfx);
       },
     });
   }

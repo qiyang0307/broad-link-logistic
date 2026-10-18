@@ -1,144 +1,36 @@
-// Meowie: a grey tabby in a shark hood swimming in open water that rises as you drink.
-// Three actions, all drawn and animated in code: drink (laps from a glass),
-// swim (paddles once the water is half way up) and jump (leaps out with a splash).
-// His face changes with the day's progress: thirsty → meh → content → happy → in love.
+// Meowie: the shark-hood cat, played from his own video clips (background and all).
+// Each action is a short clip: idling, looking around, drinking, being petted, celebrating,
+// wading in and swimming. A base loop plays all the time; actions cross-fade in on top of it
+// and fade back out, so he never pops. A translucent tint over the video rises with the day's
+// water and takes on the colour of what you drank.
 (function () {
   let uid = 0;
-  const LINE = '#454b54';
 
-  // Scene geometry (viewBox 0 0 400 320). No frame: the water fades out at the sides.
+  // Overlay geometry (viewBox 0 0 400 286, the stage's 1.4 aspect).
   const W = 400;
-  const FLOOR = 290;
-  const levelY = (p) => 284 - p * 224;
+  const H = 286;
+  const levelY = (p) => 282 - p * 236;
+  const FADE = 320;
 
   const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // 0 thirsty, 1 meh, 2 content, 3 happy, 4 over the moon
   const moodFor = (p) => (p >= 1 ? 4 : p >= .75 ? 3 : p >= .45 ? 2 : p >= .2 ? 1 : 0);
 
-  // Meowie is cut out frame by frame from his reference video and packed into sprite sheets,
-  // one per scene of the clip: sitting and looking around, lapping from his glass, hopping up,
-  // swimming, and turning to look at you under water. 5 frames per row; each cell is 380 x 300
-  // pose units at 1.25 px per unit, with his feet (or his middle, for swimming) at a fixed point.
-  const CELL_W = 380;
-  const CELL_H = 300;
-  const PX = 1.25;
-  const COLS = 5;
-  const SHEETS = { sit: 10, drink: 14, hop: 18, swim: 20, turn: 13 };
-  const sheetUrl = (name) => `meowie-${name}.webp`;
-  const range = (a, b) => Array.from({ length: Math.abs(b - a) + 1 }, (_, i) => (a < b ? a + i : a - i));
-  const on = (sheet, frames) => frames.map((i) => [sheet, i]);
+  // Clips. Loops were cut so their last frame dissolves into their first.
+  // pos is the object-position that keeps the action in view when the sides are cropped.
   const CLIPS = {
-    look: on('sit', range(0, 9).concat([9, 9, 9, 9, 9, 9], range(9, 0))),
-    drink: on('drink', range(0, 13).concat(range(13, 0), range(0, 13))),
-    sulk: on('drink', range(10, 13).concat([13, 13, 13, 13, 13, 13, 13, 13], range(13, 10))),
-    hop: on('hop', [0, 1].concat(range(6, 11), range(11, 6), [1, 0])),
-    leap: on('hop', [0, 1].concat(range(6, 17), [17, 17, 17, 17, 17, 17])),
-    peek: on('turn', range(0, 6).concat([6, 6, 6, 6, 6, 6, 6, 6], range(6, 0))),
+    idle: { loop: true },
+    calm: { loop: true },
+    look: {},
+    happy: {},
+    drink: { pos: '62% 50%' },
+    pet: { pos: '60% 50%' },
+    swimin: {},
+    swim: {},
   };
-  // Resting pose per mood when sitting: sulking at his glass when thirsty, then sitting up and alert.
-  const REST = [['drink', 13], ['sit', 0], ['sit', 0], ['sit', 3], ['sit', 3]];
-  const FPS = 14;
-  const SWIM_FPS = 18;
+  const src = (name) => `meowie-${name}.mp4`;
 
-  const star = (x, y, s) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0 -10 L2.6 -2.6 L10 0 L2.6 2.6 L0 10 L-2.6 2.6 L-10 0 L-2.6 -2.6 Z" fill="#ffd54a"/>`;
-
-  // Meowie. Origin = between his feet when sitting.
-  function sitPose(id) {
-    return `<g class="mw-sit">
-      <g class="mw-bodyfit"><g class="mw-look"><g class="mw-squish">
-        <clipPath id="${id}-spr"><rect width="${CELL_W * PX}" height="${CELL_H * PX}"/></clipPath>
-        <g transform="translate(${-CELL_W / 2} -290) scale(${1 / PX})" clip-path="url(#${id}-spr)">
-          ${Object.keys(SHEETS).map((n) => `<image class="mw-sheet" data-sheet="${n}" href="${sheetUrl(n)}" width="${CELL_W * PX * COLS}" height="${CELL_H * PX * Math.ceil(SHEETS[n] / COLS)}" style="display:none"/>`).join('')}
-          <rect class="mw-sprite" width="${CELL_W * PX}" height="${CELL_H * PX}" fill="none"/></g>
-        <rect class="mw-glass-tint" x="-30" y="-72" width="66" height="64" rx="6" fill="#7cc8f5"/>
-        <circle class="mw-mouth-pt" cx="0" cy="-150" r="1" fill="none"/>
-        <circle class="mw-head-pt" cx="10" cy="-175" r="1" fill="none"/>
-      </g></g></g>
-      <path class="mw-x mw-sweat" d="M72 -206 Q80 -194 76 -188 Q71 -184 67 -189 Q65 -195 72 -206 Z" fill="#8fd3ff" stroke="#4fa8de" stroke-width="1.4"/>
-      <g class="mw-x mw-spark">${star(-100, -220, 1)}${star(110, -200, .8)}${star(-120, -110, .7)}${star(120, -90, 1)}</g>
-      <g class="mw-ball" transform="translate(-30 -270)"><g class="mw-ball-in">
-        <circle r="17" fill="#fff" stroke="${LINE}" stroke-width="2.6"/>
-        <path d="M-17 0 A17 17 0 0 1 0 -17 L0 0 Z" fill="#e8453c"/><path d="M17 0 A17 17 0 0 1 0 17 L0 0 Z" fill="#e8453c"/>
-        <path d="M0 -17 A17 17 0 0 1 17 0 L0 0 Z" fill="#ffc93c"/><path d="M0 17 A17 17 0 0 1 -17 0 L0 0 Z" fill="#2f7fe0"/>
-        <circle r="17" fill="none" stroke="${LINE}" stroke-width="2.6"/><circle cx="-6" cy="-7" r="4" fill="#fff" opacity=".7"/></g></g>
-    </g>`;
-  }
-
-  // Show one frame: [sheet, index].
-  function frame(wrap, [sheet, i]) {
-    const st = wrap._mw;
-    const key = sheet + i;
-    if (st.frame === key) return;
-    st.frame = key;
-    // Every sheet has its own image element so switching clips is instant.
-    const im = wrap.querySelector(`.mw-sheet[data-sheet="${sheet}"]`);
-    if (!im) return;
-    if (st.sheet !== sheet) {
-      wrap.querySelectorAll('.mw-sheet').forEach((el) => { el.style.display = el === im ? '' : 'none'; });
-      st.sheet = sheet;
-    }
-    im.setAttribute('x', -(i % COLS) * CELL_W * PX);
-    im.setAttribute('y', -Math.floor(i / COLS) * CELL_H * PX);
-  }
-
-  // What he shows when no clip is playing: a swim cycle in the water, a resting pose on the sand.
-  function idleFrame(wrap, now) {
-    const st = wrap._mw;
-    if (st.hold) return st.hold;
-    if (st.mode === 'swim' && !reduced()) {
-      const n = SHEETS.swim;
-      let k = Math.floor((now / 1000) * SWIM_FPS * (st.paddle || 1)) % n;
-      if (st.rev) k = n - 1 - k;
-      return ['swim', k];
-    }
-    if (st.mode === 'swim') return ['swim', 0];
-    const relax = wrap.querySelector('svg').classList.contains('mw--relax');
-    return relax && st.mood < 3 ? ['drink', 13] : REST[st.mood] || REST[1];
-  }
-
-  // One animation loop per Meowie steps whatever is playing.
-  function run(wrap) {
-    const st = wrap._mw;
-    if (st.running) return;
-    st.running = true;
-    (function tick(now) {
-      // Keep waiting until he is first put on the page; stop once he has been taken off it.
-      if (!wrap.isConnected) {
-        if (st.shown) { st.running = false; return; }
-        requestAnimationFrame(tick);
-        return;
-      }
-      st.shown = true;
-      const c = st.clip;
-      if (c) {
-        const k = Math.max(0, Math.floor(((now - c.t0) / 1000) * c.fps));
-        if (k >= c.frames.length) { st.clip = null; c.done(); frame(wrap, idleFrame(wrap, now)); }
-        else frame(wrap, c.frames[k]);
-      } else frame(wrap, idleFrame(wrap, now));
-      requestAnimationFrame(tick);
-    })(performance.now());
-  }
-
-  // Play a clip; resolves when done. A new clip cuts off the one playing.
-  function play(wrap, name, o = {}) {
-    const st = wrap._mw;
-    if (st.clip) st.clip.done();
-    if (reduced()) { st.clip = null; return Promise.resolve(); }
-    return new Promise((done) => {
-      st.clip = { frames: CLIPS[name], fps: o.fps || FPS, t0: performance.now(), done };
-      if (!st.running) run(wrap);
-    });
-  }
-  const restFrame = (wrap) => { if (!wrap._mw.clip) frame(wrap, idleFrame(wrap, performance.now())); };
-
-  function wave(amp) {
-    let d = `M-60 ${amp}`;
-    for (let x = -60; x < 900; x += 60) d += ` Q${x + 15} 0 ${x + 30} ${amp} T${x + 60} ${amp}`;
-    return d + ' V420 H-60 Z';
-  }
-
-  // Time of day in Malaysia picks the sky: sun, sunset or moon and stars.
   function skyNow() {
     const forced = (location.hash || '').slice(1);
     if (['day', 'dusk', 'night'].includes(forced)) return forced;
@@ -146,120 +38,169 @@
     return h >= 7 && h < 18 ? 'day' : h >= 18 && h < 20 ? 'dusk' : 'night';
   }
 
-  function skyMarkup(id, sky) {
-    if (sky === 'night') {
-      const stars = [[40, 30], [96, 14], [150, 44], [214, 18], [262, 52], [300, 22], [372, 70], [70, 72], [190, 60], [240, 86]]
-        .map(([x, y], i) => `<path class="mw-star" style="animation-delay:${(i * .37).toFixed(2)}s" transform="translate(${x} ${y}) scale(${.35 + (i % 3) * .15})" d="M0 -10 L2.6 -2.6 L10 0 L2.6 2.6 L0 10 L-2.6 2.6 L-10 0 L-2.6 -2.6 Z"/>`).join('');
-      return `<g class="mw-sky">
-        <rect x="0" y="-120" width="${W}" height="280" fill="url(#${id}-night)"/>
-        <defs><linearGradient id="${id}-night" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2a5a" stop-opacity="0"/><stop offset=".45" stop-color="#1b2a5a" stop-opacity=".45"/><stop offset="1" stop-color="#1b2a5a" stop-opacity="0"/></linearGradient>
-          <mask id="${id}-moon"><rect x="280" y="0" width="100" height="100" fill="#fff"/><circle cx="345" cy="36" r="16" fill="#000"/></mask></defs>
-        <g fill="#ffd54a">${stars}</g>
-        <g class="mw-moon"><circle cx="336" cy="44" r="26" fill="#ffe7a0" opacity=".18"/><circle cx="336" cy="44" r="18" fill="#ffe7a0" mask="url(#${id}-moon)"/></g>
-      </g>`;
-    }
-    const dusk = sky === 'dusk';
-    const sx = 334;
-    const sy = dusk ? 92 : 44;
-    const rays = Array.from({ length: 10 }, (_, i) => {
-      const a = (i / 10) * Math.PI * 2;
-      return `M${(sx + Math.cos(a) * 24).toFixed(1)} ${(sy + Math.sin(a) * 24).toFixed(1)} L${(sx + Math.cos(a) * 33).toFixed(1)} ${(sy + Math.sin(a) * 33).toFixed(1)}`;
-    }).join(' ');
-    const cloud = (x, y, s, cls) => `<g class="mw-cloud ${cls}" transform="translate(${x} ${y}) scale(${s})"><path d="M0 14 Q0 0 14 2 Q20 -10 34 -4 Q48 -8 50 6 Q62 8 58 18 Z" fill="#fff" opacity=".9"/></g>`;
-    return `<g class="mw-sky">
-      ${dusk ? `<rect x="0" y="-120" width="${W}" height="280" fill="url(#${id}-dusk)"/><defs><linearGradient id="${id}-dusk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9a5a" stop-opacity="0"/><stop offset=".45" stop-color="#ff9a5a" stop-opacity=".3"/><stop offset="1" stop-color="#ff9a5a" stop-opacity="0"/></linearGradient></defs>` : ''}
-      <g class="mw-sun"><circle cx="${sx}" cy="${sy}" r="34" fill="${dusk ? '#ff8a4c' : '#ffd54a'}" opacity=".2"/>
-        <path class="mw-sunrays" d="${rays}" stroke="${dusk ? '#ff9a5a' : '#ffc93c'}" stroke-width="4" stroke-linecap="round" style="transform-origin:${sx}px ${sy}px"/>
-        <circle cx="${sx}" cy="${sy}" r="18" fill="${dusk ? '#ff9a5a' : '#ffd54a'}"/></g>
-      ${cloud(40, 30, .9, 'mw-cloud-1')}${cloud(190, 12, .7, 'mw-cloud-2')}
-    </g>`;
+  function wave(amp) {
+    let d = `M-60 ${amp}`;
+    for (let x = -60; x < 900; x += 60) d += ` Q${x + 15} 0 ${x + 30} ${amp} T${x + 60} ${amp}`;
+    return d + ' V420 H-60 Z';
+  }
+
+  const sfxOn = () => !window.MASound || window.MASound.sfx;
+
+  function video(cls) {
+    return `<video class="mw-vid ${cls}" muted playsinline preload="auto" disablepictureinpicture></video>`;
   }
 
   function create(opts = {}) {
     const id = 'mw' + (++uid);
-    const sky = opts.sky || skyNow();
-    const bubbles = [60, 110, 170, 250, 300, 345].map((x, i) =>
-      `<circle class="mw-bub" cx="${x}" cy="250" r="${2.5 + (i % 3) * 1.5}" style="animation-delay:${i * .8}s;animation-duration:${3.6 + (i % 3) * .9}s"/>`).join('');
-    const weed = (x, h, c, cls) => `<g class="mw-weed ${cls}"><path d="M${x} ${FLOOR + 2} C${x - 10} ${FLOOR - h * .3} ${x + 12} ${FLOOR - h * .5} ${x} ${FLOOR - h * .75} C${x - 8} ${FLOOR - h * .9} ${x + 6} ${FLOOR - h} ${x + 2} ${FLOOR - h}" fill="none" stroke="${c}" stroke-width="7" stroke-linecap="round"/></g>`;
-    const svg = `
-<svg class="mw mw--m0 mw--${sky} ${opts.intro ? 'mw--intro' : ''}" viewBox="0 0 ${W} 320" role="img" aria-label="Meowie, a cat in a shark hood, in the water">
-  <defs>
-    <linearGradient id="${id}-wb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--water-1)"/><stop offset="1" stop-color="var(--water-2)"/></linearGradient>
-    <linearGradient id="${id}-mix" class="mw-mix" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color: var(--water-1)"/><stop offset="1" style="stop-color: var(--water-2)"/></linearGradient>
-    <linearGradient id="${id}-fade" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".12" stop-color="#fff"/><stop offset=".88" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
-    </linearGradient>
-    <mask id="${id}-mask" maskUnits="userSpaceOnUse" x="0" y="-400" width="${W}" height="760"><rect x="0" y="-400" width="${W}" height="760" fill="url(#${id}-fade)"/></mask>
-    <clipPath id="${id}-box"><rect x="0" y="-400" width="${W}" height="${320 + 400}"/></clipPath>
-    <linearGradient id="${id}-bfade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--bg)" stop-opacity="0"/><stop offset="1" stop-color="var(--bg)"/></linearGradient>
-    <clipPath id="${id}-above"><path d="M0 -400 H${W} V283 Q310 293 200 288 Q90 276 0 289 Z"/></clipPath>
-  </defs>
-  ${skyMarkup(id, sky)}
-  <g mask="url(#${id}-mask)" clip-path="url(#${id}-box)">
-    <ellipse cx="200" cy="${FLOOR + 6}" rx="190" ry="26" class="mw-glow"/>
-    <g class="mw-water mw-water-back"><g class="mw-slosh"><g class="mw-layers"><g class="mw-wave mw-wave-back"><path d="${wave(9)}" fill="url(#${id}-mix)"/></g></g></g>
-      <g class="mw-bubs" fill="#fff" opacity=".75">${bubbles}</g></g>
-    <g class="mw-par1"><g class="mw-rays"><path d="M90 0 L50 330 H86 L130 0 Z M220 0 L196 330 H240 L262 0 Z M320 0 L310 330 H338 L350 0 Z" fill="#fff"/></g></g>
-    <g class="mw-fish" style="opacity:0">
-      <path d="M-14 0 L-26 -9 L-24 0 L-26 9 Z" fill="#ff8a3d" stroke="#c75d1f" stroke-width="1.5" stroke-linejoin="round" class="mw-fish-tail"/>
-      <ellipse cx="0" cy="0" rx="15" ry="9.5" fill="#ff9a3c" stroke="#c75d1f" stroke-width="1.5"/>
-      <path d="M-4 -9 Q-1 0 -4 9 M5 -8 Q8 0 5 8" stroke="#fff" stroke-width="3" fill="none"/>
-      <circle cx="9" cy="-2" r="2.4" fill="#1d1f22"/><circle cx="9.8" cy="-2.8" r=".8" fill="#fff"/>
-    </g>
-    <g class="mw-par2">${weed(46, 120, '#3cb37a', 'mw-weed-1')}${weed(74, 84, '#2f9d6a', 'mw-weed-2')}${weed(352, 110, '#2f9d6a', 'mw-weed-3')}
-    <g class="mw-coral"><path d="M318 ${FLOOR} V258 M318 270 Q306 262 304 248 M318 264 Q330 256 332 242" stroke="#ff8fa3" stroke-width="7" stroke-linecap="round" fill="none"/></g></g>
-    <path d="M-20 ${FLOOR} Q90 276 200 288 T420 282 V330 H-20 Z" class="mw-sand"/>
-    <g class="mw-pebbles"><circle cx="110" cy="298" r="5"/><circle cx="246" cy="300" r="6"/><circle cx="276" cy="295" r="3.5"/><circle cx="150" cy="303" r="3"/></g>
-    <rect x="0" y="298" width="${W}" height="24" fill="url(#${id}-bfade)"/>
-  </g>
-  <g class="mw-par3"><g class="mw-pos" style="transform: translate(200px, ${FLOOR + 4}px) scale(.8)">
-    <g class="mw-drift"><g class="mw-actor">
-      ${sitPose(id)}
-    </g></g>
-  </g></g>
-  <g mask="url(#${id}-mask)" clip-path="url(#${id}-above)" pointer-events="none">
-    <g class="mw-water mw-water-front"><g class="mw-slosh"><g class="mw-wave"><path d="${wave(6)}" fill="var(--water-2)" opacity=".2"/></g></g>
-</g>
-  </g>
-  <g class="mw-fx" pointer-events="none"></g>
-</svg>`;
     const wrap = document.createElement('div');
-    wrap.className = 'cat-wrap';
-    wrap.innerHTML = svg;
-    wrap._mw = { id, level: 0, mode: 'sit', mood: 0, busy: false, layers: [], sx: 0, sy: 0, face: 1, frame: -1 };
-    place(wrap, 0, true);
-    run(wrap);
+    wrap.className = 'cat-wrap mw-v' + (opts.intro ? ' mw--intro' : '');
+    wrap.innerHTML = `<div class="mw-screen" role="img" aria-label="Meowie, a cat in a shark hood">
+      <div class="mw-film">${video('mw-base mw-on')}${video('mw-base')}${video('mw-act')}</div>
+      <svg class="mw-over mw mw--m0" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+        <defs><linearGradient id="${id}-mix" class="mw-mix" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" style="stop-color: var(--water-1)"/><stop offset="1" style="stop-color: var(--water-2)"/></linearGradient></defs>
+        <g class="mw-water"><g class="mw-slosh"><g class="mw-wave">
+          <path d="${wave(7)}" fill="url(#${id}-mix)" class="mw-tint"/>
+          <path d="${wave(7).replace(/ V420 H-60 Z$/, '')}" fill="none" stroke="#fff" stroke-width="2.5" stroke-opacity=".75"/></g></g></g>
+        <g class="mw-fx"></g>
+      </svg>
+    </div>`;
+    wrap._mw = { id, level: 0, mode: 'sit', mood: 0, busy: false, layers: [], base: 'idle', vibe: null, act: null };
+    const [b1, b2, act] = wrap.querySelectorAll('video');
+    wrap._mw.vids = { bases: [b1, b2], act };
+    setBase(wrap, 'idle', true);
+    watchVisible(wrap);
+    place(wrap, 0);
     return wrap;
   }
 
-  function place(wrap, pct, instant) {
+  // Play the videos only while Meowie is on screen: in the page, on the active screen, in view.
+  function onScreen(wrap) {
+    if (!wrap.isConnected || document.hidden) return false;
+    const scr = wrap.closest('.screen');
+    if (scr && !scr.classList.contains('active')) return false;
+    const r = wrap.getBoundingClientRect();
+    return r.width > 0 && r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
+  }
+  function watchVisible(wrap) {
     const st = wrap._mw;
-    const svg = wrap.querySelector('svg');
-    const y = levelY(pct);
-    const moving = wrap.querySelectorAll('.mw-water, .mw-pos');
-    if (instant) moving.forEach((g) => { g.style.transition = 'none'; });
-    wrap.querySelectorAll('.mw-water').forEach((g) => { g.style.transform = `translateY(${y}px)`; });
-    renderLayers(wrap);
-    const swim = st.forceSwim || pct >= .45;
-    if (!swim && st.mode === 'swim') stopSwim(wrap);
-    st.mode = swim ? 'swim' : 'sit';
-    const mark = (sel, x, y) => { const m = wrap.querySelector(sel); m.setAttribute('cx', x); m.setAttribute('cy', y); };
-    mark('.mw-mouth-pt', swim ? 74 : 0, swim ? -118 : -150);
-    mark('.mw-head-pt', swim ? 60 : 10, swim ? -140 : -175);
-    svg.classList.toggle('mw--swim', swim);
-    // Once swimming, Meowie keeps his depth when more water pours in; he only
-    // moves down if the surface drops too close to him.
-    if (swim) {
-      if (st.swimY == null) st.swimY = Math.min(236, Math.max((y + FLOOR) / 2 + 6, 118));
-      st.swimY = Math.min(236, Math.max(st.swimY, y + 52));
-    } else st.swimY = null;
-    wrap.querySelector('.mw-pos').style.transform = swim
-      ? `translate(206px, ${st.swimY}px) scale(.66)`
-      : `translate(200px, ${FLOOR + 4}px) scale(.8)`;
-    if (instant) {
-      svg.getBoundingClientRect();
-      requestAnimationFrame(() => moving.forEach((g) => { g.style.transition = ''; }));
+    (function check() {
+      const vis = onScreen(wrap);
+      if (vis !== st.visible) {
+        st.visible = vis;
+        const base = st.vids.bases.find((v) => v.classList.contains('mw-on'));
+        if (vis) { safePlay(base); if (st.act) safePlay(st.vids.act, !st.vids.act.muted); }
+        else wrap.querySelectorAll('video').forEach((v) => v.pause());
+      }
+      // Keep checking while he exists; stop once he has been removed for good.
+      if (wrap.isConnected || !st.everShown) setTimeout(check, 500);
+      if (wrap.isConnected) st.everShown = true;
+    })();
+  }
+
+  function safePlay(v, withSound) {
+    if (!v) return Promise.resolve();
+    v.muted = !withSound;
+    const p = v.play();
+    if (!p || !p.catch) return Promise.resolve();
+    // If the browser won't play with sound yet, play muted instead.
+    return p.catch(() => { if (!v.muted) { v.muted = true; return v.play().catch(() => {}); } });
+  }
+
+  function load(v, name) {
+    if (v.dataset.clip !== name) {
+      v.dataset.clip = name;
+      v.src = src(name);
+      v.style.objectPosition = CLIPS[name].pos || '50% 50%';
+      v.loop = !!CLIPS[name].loop;
     }
+  }
+
+  // Cross-fade the base loop to another clip.
+  function setBase(wrap, name, instant) {
+    const st = wrap._mw;
+    const [a, b] = st.vids.bases;
+    const cur = a.classList.contains('mw-on') ? a : b;
+    const next = cur === a ? b : a;
+    if (cur.dataset.clip === name) return;
+    st.base = name;
+    if (instant || !cur.dataset.clip) {
+      load(cur, name);
+      cur.currentTime = 0;
+      if (st.visible !== false) safePlay(cur);
+      return;
+    }
+    load(next, name);
+    next.currentTime = 0;
+    const go = () => {
+      next.classList.add('mw-on');
+      cur.classList.remove('mw-on');
+      setTimeout(() => { if (!cur.classList.contains('mw-on')) cur.pause(); }, FADE + 60);
+    };
+    if (next.readyState >= 2) { safePlay(next); go(); }
+    else { next.addEventListener('loadeddata', go, { once: true }); safePlay(next); }
+  }
+
+  const baseFor = (st) => (st.mode === 'swim' || st.vibe === 'relax' ? 'calm' : 'idle');
+
+  // Play an action clip over the base loop; resolves once it has faded back out.
+  function play(wrap, name, o = {}) {
+    const st = wrap._mw;
+    const v = st.vids.act;
+    if (reduced() || st.visible === false) return Promise.resolve();
+    if (st.act) st.act.cancel();
+    return new Promise((done) => {
+      let over = false;
+      let raf = 0;
+      const finish = () => {
+        if (over) return;
+        over = true;
+        cancelAnimationFrame(raf);
+        v.classList.remove('mw-on');
+        if (window.MASound) window.MASound.duck(false);
+        setTimeout(() => { if (st.act === token) { st.act = null; v.pause(); } done(); }, FADE);
+      };
+      const token = { cancel: finish };
+      st.act = token;
+      load(v, name);
+      v.playbackRate = o.rate || 1;
+      try { v.currentTime = 0; } catch {}
+      const sound = sfxOn() && o.sound !== false;
+      v.volume = .8;
+      const start = () => {
+        if (over) return;
+        v.classList.add('mw-on');
+        if (sound && window.MASound) window.MASound.duck(true);
+        // Fade back to the base loop just before the clip ends.
+        (function watch() {
+          if (over) return;
+          if (v.duration && v.currentTime >= v.duration - (FADE / 1000) * v.playbackRate - .05) return finish();
+          if (v.ended) return finish();
+          raf = requestAnimationFrame(watch);
+        })();
+      };
+      safePlay(v, sound).then(() => { if (v.readyState >= 2) start(); else v.addEventListener('playing', start, { once: true }); });
+      setTimeout(finish, 9000);
+    });
+  }
+
+  function place(wrap, pct) {
+    const st = wrap._mw;
+    wrap.querySelectorAll('.mw-water').forEach((g) => { g.style.transform = `translateY(${levelY(pct)}px)`; });
+    const swim = st.forceSwim || pct >= .45;
+    const was = st.mode;
+    st.mode = swim ? 'swim' : 'sit';
+    wrap.querySelector('svg').classList.toggle('mw--swim', swim);
+    if (was !== st.mode && st.placed && swim) {
+      // Wading in: the tank fills up around him, then he swims. Waits for a drink to finish first.
+      (async () => {
+        while (st.busy) await wait(200);
+        if (st.mode !== 'swim') return;
+        st.busy = true;
+        setTimeout(() => setBase(wrap, baseFor(st)), 1800);
+        try { await play(wrap, 'swimin'); if (st.mode === 'swim') await play(wrap, 'swim'); } finally { st.busy = false; }
+      })();
+    } else setBase(wrap, baseFor(st), !st.placed);
   }
 
   // The drinks blend into one colour: a weighted mix of everything poured in, kept bright and watery.
@@ -286,11 +227,8 @@
   function renderLayers(wrap) {
     const st = wrap._mw;
     const stops = wrap.querySelectorAll('.mw-mix stop');
-    if (stops.length < 2) return;
     const layers = (st.layers || []).filter((l) => l.w > 0);
-    const coloured = layers.some((l) => l.color);
-    if (!coloured) {
-      // Plain water keeps the theme's blues (and their night tint).
+    if (!layers.some((l) => l.color)) {
       stops[0].style.stopColor = 'var(--water-1)';
       stops[1].style.stopColor = 'var(--water-2)';
       return;
@@ -310,42 +248,27 @@
     renderLayers(wrap);
   }
 
-  // Where a pour stream starts, in screen coordinates.
-  function pourPoint(wrap) {
-    const st = wrap._mw;
-    const x = st.mode === 'swim' ? 112 : 108;
-    const top = Math.max(-30, levelY(st.level) - 230);
-    return toClient(wrap.querySelector('svg'), x, top);
-  }
-
-  // Body build from thin (-1) to chubby (1): the body widens, the head drops to sit on it and puffs a little.
+  // Body build from thin (-1) to chubby (1): the picture widens a touch.
   function setBuild(wrap, k) {
     const b = Math.max(-1, Math.min(1, k));
-    const sx = 1 + b * (b > 0 ? .24 : .14);
-    const sy = 1 - b * .04;
-    const body = wrap.querySelector('.mw-sit .mw-bodyfit');
-    if (body) body.style.transform = `scale(${sx.toFixed(3)}, ${sy.toFixed(3)})`;
+    wrap.querySelector('.mw-film').style.setProperty('--build', (1 + b * .1).toFixed(3));
   }
 
-  // Activity moods: relax (eyes shut, slow breathing), walk (strolls about), hyper (hops and juggles a ball).
+  // Activity moods: relax (calm underwater loop), walk (looks around often), hyper (celebrates).
   function setVibe(wrap, vibe) {
-    const svg = wrap.querySelector('svg');
-    ['relax', 'walk', 'hyper'].forEach((v) => svg.classList.toggle('mw--' + v, v === vibe));
-    restFrame(wrap);
+    const st = wrap._mw;
+    st.vibe = vibe;
+    setBase(wrap, baseFor(st));
+    if (vibe === 'walk') play(wrap, 'look');
+    else if (vibe === 'hyper') play(wrap, 'happy', { rate: 1.15 });
   }
 
   function setMood(wrap, mood, instant) {
     const st = wrap._mw;
     const svg = wrap.querySelector('svg');
-    if (mood === st.mood && svg.classList.contains('mw--m' + mood)) return;
     for (let i = 0; i <= 4; i++) svg.classList.toggle('mw--m' + i, i === mood);
-    if (!instant && mood !== st.mood) {
-      svg.classList.remove('mw--moodpop');
-      svg.getBoundingClientRect();
-      svg.classList.add('mw--moodpop');
-    }
+    if (!instant && mood > st.mood && mood >= 3 && !st.busy) play(wrap, 'happy');
     st.mood = mood;
-    restFrame(wrap);
   }
 
   function setLevel(wrap, pct, opts = {}) {
@@ -353,140 +276,14 @@
     const first = !wrap._mw.placed;
     if (!first && p > wrap._mw.level + .001) slosh(wrap);
     wrap._mw.level = p;
-    wrap._mw.placed = true;
-    if (!wrap._mw.running) run(wrap);
     place(wrap, p);
+    wrap._mw.placed = true;
     setMood(wrap, moodFor(pct), opts.instant || first);
   }
 
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  function splash(wrap, x) {
-    if (reduced()) return;
-    const fx = wrap.querySelector('.mw-fx');
-    const y = levelY(wrap._mw.level);
-    const ns = 'http://www.w3.org/2000/svg';
-    const ring = document.createElementNS(ns, 'ellipse');
-    ring.setAttribute('cx', x); ring.setAttribute('cy', y); ring.setAttribute('rx', 12); ring.setAttribute('ry', 3.5);
-    ring.setAttribute('fill', 'none'); ring.setAttribute('stroke', '#fff'); ring.setAttribute('stroke-width', 3);
-    ring.style.transformOrigin = `${x}px ${y}px`;
-    fx.appendChild(ring);
-    ring.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(5)', opacity: 0 }],
-      { duration: 800, easing: 'cubic-bezier(.22,1,.36,1)' }).onfinish = () => ring.remove();
-    for (let i = 0; i < 11; i++) {
-      const d = document.createElementNS(ns, 'circle');
-      d.setAttribute('cx', x); d.setAttribute('cy', y); d.setAttribute('r', 2.5 + Math.random() * 3.5);
-      d.setAttribute('fill', i % 2 ? '#bfe6ff' : '#fff');
-      fx.appendChild(d);
-      const dx = (Math.random() - .5) * 110;
-      d.animate([
-        { transform: 'translate(0,0)', opacity: 1 },
-        { transform: `translate(${dx * .6}px, ${-44 - Math.random() * 46}px)`, opacity: 1, offset: .45 },
-        { transform: `translate(${dx}px, 12px)`, opacity: 0 },
-      ], { duration: 700 + Math.random() * 300, easing: 'cubic-bezier(.2,.7,.4,1)' }).onfinish = () => d.remove();
-    }
-  }
-
-  // Sitting: he laps from his glass. In the water: he turns to look at you and gulps happily.
-  async function drink(wrap) {
-    if (reduced()) return;
-    if (wrap._mw.mode === 'swim') {
-      setTimeout(() => mouthBubbles(wrap, 5), 300);
-      setTimeout(() => floatHearts(wrap, 3), 600);
-      await play(wrap, 'peek');
-      return;
-    }
-    setTimeout(() => floatHearts(wrap, 3), 1600);
-    await play(wrap, 'drink');
-  }
-
-  // A happy hop on the spot: crouch, spring up with paws tucked, land with a squish.
-  async function hop(wrap) {
-    const st = wrap._mw;
-    if (st.clip || st.mode !== 'sit' || reduced()) return;
-    const actor = wrap.querySelector('.mw-actor');
-    actor.animate([
-      { transform: 'translateY(0) scale(1, 1)' },
-      { transform: 'translateY(4px) scale(1.06, .92)', offset: .12 },
-      { transform: 'translateY(-22px) scale(.97, 1.04)', offset: .5 },
-      { transform: 'translateY(2px) scale(1.06, .93)', offset: .88 },
-      { transform: 'translateY(0) scale(1, 1)' },
-    ], { duration: CLIPS.hop.length / FPS * 1000, easing: 'ease-in-out' });
-    await play(wrap, 'hop');
-  }
-
-  function floatHearts(wrap, n) {
-    const fx = wrap.querySelector('.mw-fx');
-    const ns = 'http://www.w3.org/2000/svg';
-    const { x: x0, y: y0 } = markPoint(wrap, '.mw-head-pt', { x: 200, y: 120 });
-    for (let i = 0; i < n; i++) {
-      const h = document.createElementNS(ns, 'path');
-      h.setAttribute('d', 'M0 6 C-9 0 -6 -7 0 -3 C6 -7 9 0 0 6 Z');
-      h.setAttribute('fill', '#ff7a98');
-      fx.appendChild(h);
-      const dx = (i - (n - 1) / 2) * 26;
-      h.animate([
-        { transform: `translate(${x0}px, ${y0}px) scale(.2)`, opacity: 0 },
-        { transform: `translate(${x0 + dx * .5}px, ${y0 - 30}px) scale(1.2)`, opacity: 1, offset: .3 },
-        { transform: `translate(${x0 + dx}px, ${y0 - 80}px) scale(.9)`, opacity: 0 },
-      ], { duration: 1300, delay: 250 + i * 220, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'backwards' }).onfinish = () => h.remove();
-    }
-  }
-
-  // Leap out of the water in an arc and splash back down.
-  async function jump(wrap) {
-    const svg = wrap.querySelector('svg');
-    const actor = wrap.querySelector('.mw-actor');
-    if (reduced()) return;
-    const x = wrap._mw.mode === 'swim' ? 206 : 200;
-    svg.classList.add('mw--jump');
-    play(wrap, 'leap', { fps: 16 });
-    const anim = actor.animate([
-      { transform: 'translate(0px, 0px) rotate(0deg) scale(1, 1)' },
-      { transform: 'translate(0px, 16px) rotate(0deg) scale(1.08, .86)', offset: .14 },
-      { transform: 'translate(34px, -320px) rotate(-26deg) scale(1, 1)', offset: .48 },
-      { transform: 'translate(12px, -360px) rotate(-4deg) scale(1, 1)', offset: .6 },
-      { transform: 'translate(-10px, -24px) rotate(22deg) scale(1, 1)', offset: .9 },
-      { transform: 'translate(0px, 0px) rotate(0deg) scale(1, 1)' },
-    ], { duration: 1400, easing: 'cubic-bezier(.33,.1,.3,1)' });
-    setTimeout(() => splash(wrap, x), 260);
-    setTimeout(() => splash(wrap, x - 8), 1220);
-    await anim.finished.catch(() => {});
-    svg.classList.remove('mw--jump');
-  }
-
-  // Swim a lap even when the water is low.
-  async function swim(wrap) {
-    const st = wrap._mw;
-    const svg = wrap.querySelector('svg');
-    if (st.mode === 'swim') {
-      svg.classList.add('mw--zoom');
-      await wait(reduced() ? 50 : 1400);
-      svg.classList.remove('mw--zoom');
-      return;
-    }
-    st.forceSwim = true;
-    place(wrap, st.level);
-    await wait(reduced() ? 50 : 2600);
-    st.forceSwim = false;
-    place(wrap, st.level);
-  }
-
-  async function act(wrap, name) {
-    if (!wrap || !wrap._mw || wrap._mw.busy) return;
-    wrap._mw.busy = true;
-    try {
-      if (name === 'drink') await drink(wrap);
-      else if (name === 'jump') await jump(wrap);
-      else if (name === 'swim') await swim(wrap);
-    } finally {
-      wrap._mw.busy = false;
-    }
-  }
-
-  // ---------- Interaction & idle life ----------
-
-  // The water surface wobbles when something lands in it.
+  // The water tint wobbles when something lands in it.
   function slosh(wrap, strength = 1) {
     if (reduced()) return;
     wrap.querySelectorAll('.mw-slosh').forEach((g) => g.animate([
@@ -498,126 +295,47 @@
     ], { duration: 1500, easing: 'ease-out' }));
   }
 
-  const toClient = (svg, x, y) => {
-    const m = svg.getScreenCTM();
-    return m ? new DOMPoint(x, y).matrixTransform(m) : { x, y };
-  };
-  const toSvg = (svg, cx, cy) => {
-    const m = svg.getScreenCTM();
-    return m ? new DOMPoint(cx, cy).matrixTransform(m.inverse()) : { x: cx, y: cy };
-  };
-
-  // Pupils follow a point on screen, then drift back to centre.
-  // He leans a little towards where you touch or what he is watching.
-  function lookAt(wrap, cx, cy) {
-    const st = wrap._mw;
-    const look = wrap.querySelector('.mw-look');
-    const r = wrap.querySelector('.mw-sprite').getBoundingClientRect();
-    const vx = cx - (r.left + r.width / 2);
-    const k = Math.max(-1, Math.min(1, vx / Math.max(80, r.width)));
-    look.style.transform = `rotate(${(k * 5).toFixed(2)}deg)`;
-    clearTimeout(st.lookTimer);
-    st.lookTimer = setTimeout(() => { look.style.transform = ''; }, 1800);
-  }
-  const lookAtSvg = (wrap, x, y) => { const c = toClient(wrap.querySelector('svg'), x, y); lookAt(wrap, c.x, c.y); };
-
-  // Tap the water: ripple rings and bubbles where you touched.
-  function ripple(wrap, x, y) {
+  function floatHearts(wrap, n) {
     const fx = wrap.querySelector('.mw-fx');
     const ns = 'http://www.w3.org/2000/svg';
-    const surface = levelY(wrap._mw.level);
-    if (y < surface - 6 || reduced()) return false;
-    for (let i = 0; i < 2; i++) {
-      const ring = document.createElementNS(ns, 'circle');
-      ring.setAttribute('cx', x); ring.setAttribute('cy', y); ring.setAttribute('r', 8);
-      ring.setAttribute('fill', 'none'); ring.setAttribute('stroke', '#fff'); ring.setAttribute('stroke-width', 2.5);
-      ring.style.transformOrigin = `${x}px ${y}px`;
-      fx.appendChild(ring);
-      ring.animate([{ transform: 'scale(.4)', opacity: .9 }, { transform: 'scale(4)', opacity: 0 }],
-        { duration: 900, delay: i * 180, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'backwards' }).onfinish = () => ring.remove();
+    for (let i = 0; i < n; i++) {
+      const h = document.createElementNS(ns, 'path');
+      h.setAttribute('d', 'M0 6 C-9 0 -6 -7 0 -3 C6 -7 9 0 0 6 Z');
+      h.setAttribute('fill', '#ff7a98');
+      fx.appendChild(h);
+      const x0 = 200 + (i - (n - 1) / 2) * 30;
+      h.animate([
+        { transform: `translate(${x0}px, 120px) scale(.2)`, opacity: 0 },
+        { transform: `translate(${x0 + (i % 2 ? 8 : -8)}px, 90px) scale(1.3)`, opacity: 1, offset: .3 },
+        { transform: `translate(${x0}px, 30px) scale(.9)`, opacity: 0 },
+      ], { duration: 1400, delay: 200 + i * 200, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'backwards' }).onfinish = () => h.remove();
     }
-    for (let i = 0; i < 6; i++) {
-      const b = document.createElementNS(ns, 'circle');
-      b.setAttribute('cx', x + (Math.random() - .5) * 24); b.setAttribute('cy', y); b.setAttribute('r', 2 + Math.random() * 3);
-      b.setAttribute('fill', '#fff'); b.setAttribute('opacity', '.8');
-      fx.appendChild(b);
-      const rise = Math.min(y - surface, 120);
-      b.animate([{ transform: 'translateY(0)', opacity: .9 }, { transform: `translate(${(Math.random() - .5) * 20}px, ${-rise}px)`, opacity: 0 }],
-        { duration: 900 + Math.random() * 700, easing: 'ease-in', delay: i * 60, fill: 'backwards' }).onfinish = () => b.remove();
-    }
-    return true;
   }
 
-  // Rub Meowie: happy squint, purr and hearts.
-  function pet(wrap) {
+  // Actions the app asks for by name.
+  async function act(wrap, name) {
+    const st = wrap && wrap._mw;
+    if (!st || st.busy) return;
+    st.busy = true;
+    try {
+      if (name === 'drink') await play(wrap, 'drink');
+      else if (name === 'jump') await play(wrap, 'happy');
+      else if (name === 'swim') await play(wrap, st.mode === 'swim' ? 'swim' : 'look');
+    } finally {
+      st.busy = false;
+    }
+  }
+
+  // Tap to pet: a hand comes in and gives him a rub.
+  async function pet(wrap) {
     const st = wrap._mw;
-    const svg = wrap.querySelector('svg');
-    clearTimeout(st.petTimer);
-    svg.classList.add('mw--pet');
-    floatHearts(wrap, 4);
-    if (!st.busy) { if (st.mode === 'sit') hop(wrap); else play(wrap, 'peek'); }
+    if (st.busy) return;
+    st.busy = true;
     if (navigator.vibrate) navigator.vibrate([8, 50, 8, 50, 8]);
-    st.petTimer = setTimeout(() => svg.classList.remove('mw--pet'), 1800);
+    try { await play(wrap, 'pet'); } finally { st.busy = false; }
   }
 
-  // A little fish swims by; Meowie watches it and lunges if he is swimming.
-  function fishPass(wrap) {
-    const st = wrap._mw;
-    const fish = wrap.querySelector('.mw-fish');
-    if (!fish || st.busy || reduced()) return;
-    const surface = levelY(st.level);
-    const y = surface + 22 + Math.random() * Math.max(10, FLOOR - surface - 60);
-    const ltr = Math.random() < .5;
-    const x0 = ltr ? -30 : W + 30;
-    const x1 = ltr ? W + 30 : -30;
-    const dur = 5200;
-    const flip = ltr ? 1 : -1;
-    fish.style.opacity = 1;
-    const anim = fish.animate([
-      { transform: `translate(${x0}px, ${y}px) scale(${flip}, 1)` },
-      { transform: `translate(${x0 + (x1 - x0) * .25}px, ${y - 10}px) scale(${flip}, 1)` },
-      { transform: `translate(${x0 + (x1 - x0) * .5}px, ${y + 6}px) scale(${flip}, 1)` },
-      { transform: `translate(${x0 + (x1 - x0) * .75}px, ${y - 8}px) scale(${flip}, 1)` },
-      { transform: `translate(${x1}px, ${y}px) scale(${flip}, 1)` },
-    ], { duration: dur, easing: 'linear' });
-    const t0 = performance.now();
-    let lunged = false;
-    (function track(now) {
-      const k = (now - t0) / dur;
-      if (k >= 1 || !wrap.isConnected) return;
-      lookAtSvg(wrap, x0 + (x1 - x0) * k, y);
-      if (!lunged && k > .42 && st.mode === 'swim' && !st.busy) {
-        lunged = true;
-        const actor = wrap.querySelector('.mw-actor');
-        actor.animate([
-          { transform: 'translate(0, 0) rotate(0deg)' },
-          { transform: `translate(${ltr ? 60 : -40}px, ${(y - 200) * .4}px) rotate(${ltr ? -6 : 6}deg)`, offset: .4 },
-          { transform: 'translate(0, 0) rotate(0deg)' },
-        ], { duration: 1100, easing: 'cubic-bezier(.22,1,.36,1)' });
-      }
-      requestAnimationFrame(track);
-    })(t0);
-    anim.onfinish = () => { fish.style.opacity = 0; };
-  }
-
-  // Idle moments: look around, sulk at his glass when thirsty, peek at you from the water.
-  function idleMove(wrap) {
-    const st = wrap._mw;
-    if (st.busy || st.clip || reduced()) return;
-    if (st.mode === 'swim') { if (Math.random() < .5) play(wrap, 'peek'); return; }
-    const r = Math.random();
-    if (st.mood === 0 && r < .5) play(wrap, 'sulk', { fps: 8 });
-    else if (st.mood >= 3 && r < .55) hop(wrap);
-    else if (r < .8) play(wrap, 'look', { fps: 10 });
-    else hop(wrap);
-  }
-
-  function lookAround(wrap) {
-    const pts = [[60, 120], [340, 140], [200, 40]];
-    pts.forEach(([x, y], i) => setTimeout(() => wrap.isConnected && lookAtSvg(wrap, x, y), i * 700));
-  }
-
-  // Random idle moments so Meowie never feels frozen.
+  // Idle life: look around, celebrate when the day is going well, swim about in the water.
   function startIdle(wrap) {
     const st = wrap._mw;
     if (st.idle) return;
@@ -625,325 +343,63 @@
     (function next() {
       setTimeout(() => {
         if (!wrap.isConnected) { st.idle = false; return; }
-        if (!document.hidden && !st.busy) {
+        if (!document.hidden && !st.busy && !st.act && st.visible !== false) {
           const r = Math.random();
-          if (st.level >= .2 && r < .5) fishPass(wrap);
-          else if (r < .88) idleMove(wrap);
-          else lookAround(wrap);
+          if (st.mode === 'swim') play(wrap, r < .6 ? 'swim' : 'look');
+          else if (st.vibe === 'hyper' || (st.mood >= 3 && r < .45)) play(wrap, 'happy');
+          else play(wrap, 'look');
         }
         next();
-      }, 4500 + Math.random() * 4500);
+      }, 7000 + Math.random() * 6000);
     })();
   }
 
-  // Wire touch: eyes follow the finger, tap the cat, tap the water, rub to pet.
   function interact(wrap, { onTap } = {}) {
-    const svg = wrap.querySelector('svg');
+    const screen = wrap.querySelector('.mw-screen');
     let down = null;
-    let rub = 0;
-    let last = null;
-    svg.addEventListener('pointerdown', (e) => {
-      down = { x: e.clientX, y: e.clientY, cat: !!e.target.closest('.mw-actor') };
-      last = { x: e.clientX, y: e.clientY };
-      rub = 0;
-      lookAt(wrap, e.clientX, e.clientY);
+    screen.addEventListener('pointerdown', (e) => {
+      down = { x: e.clientX, y: e.clientY };
+      if (window.MASound) window.MASound.unlock();
     });
-    svg.addEventListener('pointermove', (e) => {
-      lookAt(wrap, e.clientX, e.clientY);
-      if (!down || !last) return;
-      const onCat = !!e.target.closest('.mw-actor') || down.cat;
-      if (onCat) rub += Math.hypot(e.clientX - last.x, e.clientY - last.y);
-      last = { x: e.clientX, y: e.clientY };
-      if (rub > 140) { rub = 0; pet(wrap); }
-    });
-    const end = (e) => {
+    screen.addEventListener('pointerup', (e) => {
       if (!down) return;
-      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
-      if (moved < 10) {
-        if (down.cat) { if (onTap) onTap(); }
-        else {
-          const p = toSvg(svg, e.clientX, e.clientY);
-          if (ripple(wrap, p.x, p.y) && navigator.vibrate) navigator.vibrate(6);
-        }
+      if (Math.hypot(e.clientX - down.x, e.clientY - down.y) < 12) {
+        pet(wrap);
+        if (onTap) onTap();
       }
       down = null;
-      last = null;
-    };
-    svg.addEventListener('pointerup', end);
-    svg.addEventListener('pointercancel', () => { down = null; });
-    svg.addEventListener('pointerleave', () => { down = null; });
+    });
+    screen.addEventListener('pointercancel', () => { down = null; });
     startIdle(wrap);
-    startSwimLoop(wrap);
   }
 
-  // Parallax: nx, ny in -1..1 from phone tilt or pointer position.
+  // Parallax: the picture drifts a little with phone tilt or pointer position.
   function tilt(wrap, nx, ny) {
-    const set = (sel, k, ky) => { const g = wrap.querySelector(sel); if (g) g.style.transform = `translate(${nx * k}px, ${ny * ky}px)`; };
-    set('.mw-par1', 16, 6);
-    set('.mw-par2', 8, 3);
-    set('.mw-par3', -6, -3);
+    const f = wrap.querySelector('.mw-film');
+    if (f) f.style.setProperty('--tx', `${(nx * 6).toFixed(1)}px`), f.style.setProperty('--ty', `${(ny * 4).toFixed(1)}px`);
   }
 
-  // A stream of the drink pours down into the water, then the tail falls in with splashes.
-  // A little cup tips over above (x, end) and pours a stream of the drink down to it.
-  function pour(wrap, color = '#7cc8f5', o = {}) {
-    const st = wrap._mw;
-    const x = o.x != null ? o.x : (st.mode === 'swim' ? 112 : 108);
-    const end = o.end != null ? o.end : levelY(st.level);
-    const toWater = o.surface !== false;
-    if (reduced()) { if (toWater) slosh(wrap, .6); return Promise.resolve(); }
-    const fx = wrap.querySelector('.mw-fx');
-    // o.tilt swings the cup and stream round the landing point so it can pour in from the side.
-    const box = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    if (o.tilt) box.setAttribute('transform', `rotate(${o.tilt} ${x} ${end})`);
-    fx.appendChild(box);
-    setTimeout(() => box.remove(), 2600);
-    const ns = 'http://www.w3.org/2000/svg';
-    const top = Math.max(-40, end - (o.drop || 190));
-    const len = end - top + 4;
-    const lead = o.cup === false ? 0 : 260;
-    if (o.cup !== false) {
-      // Cup drawn with its pouring lip at (0,0) so it tips around the lip.
-      const cup = document.createElementNS(ns, 'g');
-      cup.setAttribute('transform', `translate(${x + 2} ${top - 2}) scale(1.35)`);
-      cup.innerHTML = `<g class="mw-cup">
-        <clipPath id="${st.id}-cupc"><path d="M0 0 H30 L27 36 Q26.5 38 24 38 H6 Q3.5 38 3 36 Z"/></clipPath>
-        <path d="M0 0 H30 L27 36 Q26.5 38 24 38 H6 Q3.5 38 3 36 Z" fill="#fff"/>
-        <g clip-path="url(#${st.id}-cupc)"><rect class="mw-cup-liquid" x="-10" y="10" width="50" height="40" fill="${color}"/></g>
-        <path d="M0 0 H30 L27 36 Q26.5 38 24 38 H6 Q3.5 38 3 36 Z" fill="none" stroke="#3b4048" stroke-width="2.8" stroke-linejoin="round"/>
-        <path d="M6 6 L8 30" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".8"/></g>`;
-      cup.style.filter = 'drop-shadow(0 3px 4px rgba(0,0,0,.18))';
-      box.appendChild(cup);
-      const inner = cup.firstElementChild;
-      inner.style.transformOrigin = '0px 0px';
-      inner.animate([
-        { transform: 'translate(10px, -30px) rotate(0deg)', opacity: 0 },
-        { transform: 'translate(0, 0) rotate(0deg)', opacity: 1, offset: .14 },
-        { transform: 'rotate(-112deg)', offset: .3 },
-        { transform: 'rotate(-112deg)', offset: .8 },
-        { transform: 'translate(8px, -16px) rotate(-20deg)', opacity: 0 },
-      ], { duration: 1500, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = () => cup.remove();
-      cup.querySelector('.mw-cup-liquid').animate([{ transform: 'translateY(0)' }, { transform: 'translateY(0)', offset: .3 }, { transform: 'translateY(32px)' }],
-        { duration: 1200, fill: 'forwards' });
-    }
-    const g = document.createElementNS(ns, 'g');
-    g.innerHTML = `<g class="mw-stream"><rect x="${x - 6}" y="${top}" width="12" height="${len}" rx="6" fill="${color}" opacity=".92"/>
-      <rect x="${x - 3}" y="${top}" width="3.5" height="${len}" rx="2" fill="#fff" opacity=".55"/></g>`;
-    g.style.transformOrigin = `${x}px ${top}px`;
-    g.style.opacity = 0;
-    box.appendChild(g);
-    setTimeout(() => {
-      g.style.opacity = 1;
-      g.animate([{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { duration: 320, easing: 'cubic-bezier(.55,0,.8,.3)', fill: 'forwards' });
-    }, lead);
-    setTimeout(() => {
-      g.animate([{ transform: 'translateY(0) scaleY(1)' }, { transform: `translateY(${len}px) scaleY(0)` }],
-        { duration: 320, easing: 'cubic-bezier(.55,0,.8,.3)', fill: 'forwards' }).onfinish = () => g.remove();
-    }, lead + 820);
-    if (toWater) {
-      setTimeout(() => ripple(wrap, x, end + 6), lead + 560);
-      setTimeout(() => ripple(wrap, x, end + 6), lead + 900);
-    } else {
-      setTimeout(() => dropsAt(wrap, x, end, 5), lead + 420);
-      setTimeout(() => dropsAt(wrap, x, end, 4), lead + 760);
-    }
-    lookAtSvg(wrap, x, end);
-    return new Promise((r) => setTimeout(() => {
-      if (toWater) { splash(wrap, x); slosh(wrap, .8); } else dropsAt(wrap, x, end, 6);
-      r();
-    }, lead + 320));
-  }
-
-  // Tiny droplets that hop out of a glass rim.
-  function dropsAt(wrap, x, y, n) {
-    const fx = wrap.querySelector('.mw-fx');
-    const ns = 'http://www.w3.org/2000/svg';
-    for (let i = 0; i < n; i++) {
-      const d = document.createElementNS(ns, 'circle');
-      d.setAttribute('cx', x); d.setAttribute('cy', y); d.setAttribute('r', 1.8 + Math.random() * 1.8);
-      d.setAttribute('fill', '#bfe6ff');
-      fx.appendChild(d);
-      const dx = (Math.random() - .5) * 40;
-      d.animate([{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${dx * .6}px, ${-12 - Math.random() * 16}px)`, offset: .45 }, { transform: `translate(${dx}px, 8px)`, opacity: 0 }],
-        { duration: 600, easing: 'ease-out' }).onfinish = () => d.remove();
-    }
-  }
-
-  // A marker inside the sprite in scene coordinates, measured so every CSS animation and transform is included.
-  function markPoint(wrap, sel, fallback) {
-    const svg = wrap.querySelector('svg');
-    const r = wrap.querySelector(sel).getBoundingClientRect();
-    if (!r.width && !r.height && !r.left) return fallback;
-    return toSvg(svg, r.left + r.width / 2, r.top + r.height / 2);
-  }
-  const mouthPoint = (wrap) => markPoint(wrap, '.mw-mouth-pt', { x: 200, y: levelY(wrap._mw.level) + 20 });
-
-  // Where the pouring cup will appear, in screen coordinates (for hand-off animations).
+  // Where to aim things at Meowie's glass, in screen coordinates.
   function pourTarget(wrap) {
-    const st = wrap._mw;
-    const svg = wrap.querySelector('svg');
-    if (st.mode === 'sit') {
-      const t = (GLASS_TILT * Math.PI) / 180;
-      return toClient(svg, GLASS_X + GLASS_DROP * Math.sin(t), GLASS_RIM - GLASS_DROP * Math.cos(t));
-    }
-    const mouth = mouthPoint(wrap);
-    return toClient(svg, mouth.x + 2, Math.max(-40, levelY(st.level) - 196) - 2);
+    const r = wrap.querySelector('.mw-screen').getBoundingClientRect();
+    return { x: r.left + r.width * .74, y: r.top + r.height * .62 };
   }
+  const pourPoint = pourTarget;
 
-  function mouthBubbles(wrap, n) {
-    const fx = wrap.querySelector('.mw-fx');
-    const ns = 'http://www.w3.org/2000/svg';
-    const m = mouthPoint(wrap);
-    const surf = levelY(wrap._mw.level);
-    for (let i = 0; i < n; i++) {
-      const b = document.createElementNS(ns, 'circle');
-      b.setAttribute('cx', m.x); b.setAttribute('cy', m.y); b.setAttribute('r', 2 + Math.random() * 2.5);
-      b.setAttribute('fill', 'none'); b.setAttribute('stroke', '#fff'); b.setAttribute('stroke-width', 1.5);
-      fx.appendChild(b);
-      const rise = Math.max(20, m.y - surf - 4);
-      b.animate([{ transform: 'translate(0,0)', opacity: 0 }, { transform: `translate(${(Math.random() - .5) * 10}px, -10px)`, opacity: 1, offset: .15 },
-        { transform: `translate(${(Math.random() - .5) * 24}px, ${-rise}px)`, opacity: 0 }],
-        { duration: 1100 + Math.random() * 600, delay: i * 110, easing: 'ease-in', fill: 'backwards' }).onfinish = () => b.remove();
-    }
-  }
-
-  // ---------- Swim choreography ----------
-  // While in the water Meowie strings together different moves: cruising, turning round,
-  // swimming backwards, a loop-the-loop, a dive, and a backstroke on his back.
-  const SX_MIN = -110;
-  const SX_MAX = 90;
-  const rand = (a, b) => a + Math.random() * (b - a);
-  const tf = (x, y, face, rot = 0, fy = 1) => `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${rot}deg) scale(${face}, ${fy})`;
-
-  function stopSwim(wrap) {
-    const st = wrap._mw;
-    if (st.swimAnim) { st.swimAnim.cancel(); st.swimAnim = null; }
-    st.sx = 0; st.sy = 0; st.face = 1;
-    const d = wrap.querySelector('.mw-drift');
-    if (d) d.style.transform = '';
-    wrap.querySelector('svg').classList.remove('mw--rev');
-    st.rev = false;
-  }
-
-  async function swimMove(wrap) {
-    const st = wrap._mw;
-    const drift = wrap.querySelector('.mw-drift');
-    const svg = wrap.querySelector('svg');
-    const { sx, sy, face } = st;
-    const ahead = face > 0 ? SX_MAX - sx : sx - SX_MIN;
-    const behind = face > 0 ? sx - SX_MIN : SX_MAX - sx;
-    let move = Math.random();
-    // Pick a move that fits the space in front of him.
-    if (ahead < 50) move = behind > 70 && Math.random() < .35 ? .45 : .2; // reverse or turn round
-    let frames, dur, ex = sx, ey = 0, ef = face, easing = 'cubic-bezier(.45,.05,.35,1)';
-    if (move < .3) {
-      if (ahead < 50) { // turn round
-        frames = [tf(sx, sy, face), tf(sx, sy - 8, face * .15), tf(sx, sy, -face)];
-        ef = -face; dur = 800;
-      } else { // cruise forward with a gentle wave
-        ex = sx + face * rand(50, Math.min(ahead, 140));
-        frames = [tf(sx, sy, face), tf((sx + ex) / 2, sy - 10, face), tf(ex, 0, face)];
-        dur = Math.max(1500, Math.abs(ex - sx) * 20);
-      }
-    } else if (move < .45 && behind > 70) { // swim backwards, tail first
-      ex = sx - face * rand(60, Math.min(behind, 110));
-      frames = [tf(sx, sy, face, 0), tf((sx + ex) / 2, sy + 6, face, 4), tf(ex, 0, face, 0)];
-      dur = 2400;
-      svg.classList.add('mw--rev');
-      st.rev = true;
-    } else if (move < .6 && ahead >= 70) { // loop-the-loop
-      ex = sx + face * 60;
-      frames = [tf(sx, sy, face, 0), tf(sx + face * 20, sy - 28, face, -120), tf(sx + face * 40, sy - 20, face, -240), tf(ex, 0, face, -360)];
-      dur = 1700;
-    } else if (move < .78 && ahead >= 60) { // dive down and come back up
-      ex = sx + face * rand(60, Math.min(ahead, 110));
-      frames = [tf(sx, sy, face, 0), tf(sx + (ex - sx) * .45, sy + 32, face, 14), tf(ex, 0, face, -6)];
-      dur = 1900;
-    } else if (ahead >= 60) { // waddle: rock side to side as he paddles along
-      ex = sx + face * rand(55, Math.min(ahead, 100));
-      const st8 = (k, rot) => tf(sx + (ex - sx) * k, sy - (k * 100 % 25 > 12 ? 6 : 0), face, rot);
-      frames = [st8(0, 0), st8(.2, -9), st8(.4, 9), st8(.6, -9), st8(.8, 9), tf(ex, 0, face, 0)];
-      dur = 2400;
-      easing = 'ease-in-out';
-    } else {
-      frames = [tf(sx, sy, face), tf(sx, sy - 8, face * .15), tf(sx, sy, -face)];
-      ef = -face; dur = 800;
-    }
-    const anim = drift.animate(frames.map((transform) => ({ transform })), { duration: dur, easing, fill: 'forwards' });
-    st.swimAnim = anim;
-    try { await anim.finished; } catch { return; }
-    if (st.swimAnim !== anim) return;
-    st.sx = ex; st.sy = ey; st.face = ef;
-    drift.style.transform = tf(ex, ey, ef);
-    anim.cancel();
-    st.swimAnim = null;
-    st.rev = false;
-    svg.classList.remove('mw--rev');
-  }
-
-  function startSwimLoop(wrap) {
-    const st = wrap._mw;
-    if (st.swimLoop) return;
-    st.swimLoop = true;
-    if (st.face == null) { st.sx = 0; st.sy = 0; st.face = 1; }
-    (async function loop() {
-      while (wrap.isConnected) {
-        if (st.mode === 'swim' && !document.hidden && !reduced()) {
-          await swimMove(wrap);
-          await wait(rand(350, 1300));
-        } else await wait(700);
-      }
-      st.swimLoop = false;
-    })();
-  }
-
-  // His glass in scene coordinates (sit pose at (200, FLOOR + 4) scaled .8, rim at (3, -90) in pose
-  // space). The cup pours from just above its right side so the stream stays clear of his face.
-  const GLASS_X = 200 + 8 * .8;
-  const GLASS_RIM = FLOOR + 4 - 88 * .8;
-  const GLASS_DROP = 92;
-  const GLASS_TILT = 40;
-
-  // Tint the water in his glass with the drink, then let it fade as he laps it up.
-  function tintGlass(wrap, color) {
-    const tint = wrap.querySelector('.mw-glass-tint');
-    tint.setAttribute('fill', color);
-    tint.animate([{ opacity: 0 }, { opacity: .5 }], { duration: 500, delay: 400, fill: 'forwards' });
-    return () => tint.animate([{ opacity: .5 }, { opacity: 0 }], { duration: 1800, fill: 'forwards' });
-  }
-
-  // Pour a drink for Meowie and let him enjoy it. Sitting: his glass appears, the cup fills it and
-  // he laps it up. In the water: the stream lands by his mouth and he turns to you, gulping happily.
-  async function pourAndDrink(wrap, color, o = {}) {
+  // A drink for Meowie: the drinking clip pours his glass and he laps it up.
+  async function pourAndDrink(wrap) {
     const st = wrap._mw;
     if (reduced()) { slosh(wrap, .6); return; }
-    if (st.busy) { pour(wrap, color, { cup: o.cup }); await wait(1300); return; }
+    if (st.busy) { slosh(wrap, .6); await wait(600); return; }
     st.busy = true;
     try {
-      if (st.mode === 'sit') {
-        if (st.clip) st.clip.done();
-        st.clip = null;
-        st.hold = ['drink', 0];
-        wrap.querySelector('.mw-actor').animate([{ transform: 'scale(.92, 1.06)' }, { transform: 'scale(1.04, .96)' }, { transform: 'none' }],
-          { duration: 380, easing: 'cubic-bezier(.3, 1.4, .5, 1)' });
-        const fade = tintGlass(wrap, color);
-        await pour(wrap, color, { x: GLASS_X, end: GLASS_RIM, drop: GLASS_DROP, tilt: GLASS_TILT, cup: o.cup, surface: false });
-        await wait(700);
-        st.hold = null;
-        setTimeout(fade, 900);
-        await drink(wrap);
-      } else {
-        const mouth = mouthPoint(wrap);
-        const surf = levelY(st.level);
-        pour(wrap, color, { x: Math.max(40, Math.min(360, mouth.x)), end: surf, cup: o.cup });
-        await wait(600);
-        await drink(wrap);
-      }
+      setTimeout(() => floatHearts(wrap, 3), 3200);
+      await play(wrap, 'drink');
     } finally {
       st.busy = false;
-      st.hold = null;
     }
   }
 
-  window.Meowie = { create, setLevel, setLayers, pourPoint, act, moodFor, interact, tilt, slosh, lookAt, pet, pour, pourAndDrink, pourTarget, skyNow, setBuild, setVibe };
+  const noop = () => {};
+  window.Meowie = { create, setLevel, setLayers, pourPoint, act, moodFor, interact, tilt, slosh, lookAt: noop, pet, pour: () => Promise.resolve(), pourAndDrink, pourTarget, skyNow, setBuild, setVibe };
 })();

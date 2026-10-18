@@ -1,6 +1,6 @@
 // Offline shell for Minum Air. Weather calls go straight to the network.
-const CACHE = 'minum-air-v16';
-const SHELL = ['/', '/styles.css', '/meowie.js', '/i18n.js', '/app.js', '/manifest.webmanifest', '/icon.svg', '/meowie-sit.webp', '/meowie-drink.webp', '/meowie-hop.webp', '/meowie-swim.webp', '/meowie-turn.webp'];
+const CACHE = 'minum-air-v17';
+const SHELL = ['/', '/styles.css', '/meowie.js', '/i18n.js', '/app.js', '/manifest.webmanifest', '/icon.svg', '/sound.js'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -17,6 +17,8 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  // Meowie's video clips stream with range requests; leave them to the browser's own cache.
+  if (url.pathname.endsWith('.mp4') || e.request.headers.has('range')) return;
   // Network first so updates land quickly; cache as offline fallback.
   e.respondWith(
     fetch(e.request)
