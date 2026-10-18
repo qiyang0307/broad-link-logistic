@@ -27,7 +27,7 @@
   const SHEETS = {
     idle: { n: 61, w: 360, x: 180, cols: 8 }, pet: { n: 18, w: 520, x: 180, cols: 7 },
     happy: { n: 26, w: 360, x: 180, cols: 8 },
-    swim: { n: 40, w: 360, x: 180, cols: 8 }, peek: { n: 57, w: 360, x: 180, cols: 8 },
+    swim: { n: 27, w: 360, x: 180, cols: 8 }, peek: { n: 57, w: 360, x: 180, cols: 8 },
     turn: { n: 15, w: 360, x: 180, cols: 8 },
   };
   const sheetUrl = (name) => `meowie-${name}.webp`;
@@ -38,7 +38,7 @@
     // out the way it came (the arrival played in reverse) as he opens his eyes again.
     pet: on('pet', range(0, 17).concat(range(16, 10), range(11, 17), range(16, 10), range(11, 17), range(16, 0))),
     happy: on('happy', range(0, 25)),
-    // In the water (his full shark suit): a seamless 40-frame swim loop, turning round from
+    // In the water (his full shark suit): a seamless 27-frame swim loop, turning round from
     // facing right to facing left, and stopping to look at you with a little "oh!".
     peek: on('peek', range(0, 56)),
     turn: on('turn', range(0, 14)),

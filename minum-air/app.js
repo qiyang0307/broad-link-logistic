@@ -510,8 +510,6 @@
   }
 
   // ---------- home ----------
-  // Five steps through the day for the little status pill.
-  const bracket5 = (p) => (p >= 1 ? 4 : p >= .75 ? 3 : p >= .45 ? 2 : p >= .2 ? 1 : 0);
   // When the next glass is due: the waking day split evenly into 250 ml glasses, counted
   // from the last drink (or from waking up).
   function nextSip(d) {
@@ -569,10 +567,8 @@
       <div class="top-bar">
         <span class="pill weather-chip">${Meowie.skyNow() === 'night' ? '🌙' : w ? (w.feels >= HEAT_START ? '☀️' : '⛅') : '🌤️'} ${w ? `${Math.round(w.feels)}°C ${esc(state.profile.city || '')}` : esc(state.profile.city || 'Malaysia')}</span>
         <button type="button" class="pill fire" id="streakBtn" aria-label="${t('streakTitle')}">🔥 ${t('streakPill', { n: streakCount() })}</button>
-        <button type="button" class="me-btn" id="meBtn" aria-label="${t('tabs').profile}"><img src="meowie-avatar.jpg" alt=""></button>
       </div>
-      <div class="home-head"><div><p class="date">${dateStr} 🌸</p><h2>${greeting()}${t('comma')}${name}!</h2></div>
-        <span class="track-pill">${t('track')[bracket5(pct)]}</span></div>
+      <div class="home-head"><div><p class="date">${dateStr} 🌸</p><h2>${greeting()}${t('comma')}${name}!</h2></div></div>
       <div class="stage"><div class="bubble-say" id="say" data-bracket="${bracket(pct)}">${lines[0]}</div><div class="hero-cat"></div></div>
       <div class="goal-card stats-row">
         <p class="gc-label"><i></i>${t('hydGoal')} 💧</p>
@@ -666,7 +662,6 @@
     $('#moreBtn', el).addEventListener('click', () => openSheet());
     el.querySelectorAll('[data-drink]').forEach((b) => b.addEventListener('click', () => openSheet(b.dataset.drink, b)));
     $('#streakBtn', el).addEventListener('click', openStreakSheet);
-    $('#meBtn', el).addEventListener('click', () => { const b = $('#tabbar [data-tab="profile"]'); if (b) b.click(); });
     const bar = $('.gc-bar span', el);
     if (bar) requestAnimationFrame(() => { bar.style.width = Math.min(100, pct * 100) + '%'; });
     const toggleLog = () => { logOpen = !logOpen; renderHome(false); };
