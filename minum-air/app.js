@@ -70,6 +70,7 @@
   // Built-in drinks plus the ones the user made.
   const allDrinks = () => DRINKS.concat(state.customDrinks || []);
   const findDrink = (id) => allDrinks().find((k) => k.id === id) || DRINKS[0];
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const friend = () => state.profile.name || t('friend');
   function applyLang() {
     document.documentElement.lang = L()._html;
@@ -331,25 +332,22 @@
 
       case 'calc':
         html = `<div class="screen-inner calc" style="flex:1;display:flex;flex-direction:column">
-          <div class="orbit-wrap">${hero('')}<div class="orbit" aria-hidden="true">${orbitDots()}</div></div><div class="pct" id="calcPct">0%</div>
+          <div class="orbit-wrap"><div class="clip-card"><video class="clip-vid" muted playsinline autoplay preload="auto" disablepictureinpicture loop><source src="meowie-look.mp4" type="video/mp4"><source src="meowie-look.webm" type="video/webm"></video></div><div class="orbit" aria-hidden="true">${orbitDots()}</div></div><div class="pct" id="calcPct">0%</div>
           <ul class="checks" id="checks">
             ${L().calc.map((f) => `<li>${f({ w: p.weight, city: esc(p.city) })}</li>`).join('')}
           </ul></div>`;
         mount = (el) => {
           el.classList.add('calc');
-          const cat = mountCat(el, { size: 330, level: 0 });
           fetchWeather();
           const items = el.querySelectorAll('#checks li');
           const t0 = performance.now();
-          const dur = 2800;
+          const dur = 4200;
           (function tick(now) {
             const k = Math.min(1, (now - t0) / dur);
             $('#calcPct', el).textContent = Math.round(k * 100) + '%';
-            Meowie.setLayers(cat, ['#3fb4f0', '#8fd14f', '#c98b4e', '#ffb02e', '#f39bb7', '#4a2c1a'].slice(0, 1 + Math.floor(k * 5)).map((c) => ({ color: c, w: 1 })));
-            Meowie.setLevel(cat, k);
             items.forEach((li, i) => li.classList.toggle('done', k >= (i + 1) / items.length - .02));
             if (k < 1) requestAnimationFrame(tick);
-            else { Meowie.act(cat, 'jump'); setTimeout(() => current === 'ob-calc' && next(), 1400); }
+            else setTimeout(() => current === 'ob-calc' && next(), 1600);
           })(t0);
         };
         break;
@@ -469,15 +467,18 @@
   function splash() {
     const drops = Array.from({ length: 14 }, (_, i) =>
       `<span style="left:${(i * 7.3 + 3) % 100}%;animation-duration:${1.6 + (i % 5) * .35}s;animation-delay:${(i % 7) * .25}s"></span>`).join('');
-    show('splash', `<div class="drops">${drops}</div>${hero('', { intro: true })}<h1>Minum Air</h1><p>${t('splashSub')}</p>`, {
+    // Opening scene: Meowie's intro film full screen with the title over it. Tap to skip.
+    show('splash', `<video class="clip-vid" muted playsinline autoplay preload="auto" disablepictureinpicture><source src="meowie-intro.mp4" type="video/mp4"><source src="meowie-intro.webm" type="video/webm"></video><div class="splash-shade"></div><div class="drops">${drops}</div>
+      <div class="splash-title"><h1>Meowie</h1><p class="splash-app">Minum Air</p><p>${t('splashSub')}</p></div>`, {
       onMount: (el) => {
         el.classList.add('splash');
-        const cat = mountCat(el, { size: 340, level: .3 });
-        setTimeout(() => Meowie.act(cat, 'drink'), 1200);
+        const v = $('video', el);
         el.addEventListener('click', () => leave());
         let left = false;
         function leave() { if (left) return; left = true; state.onboarded ? enterHome() : goStep(0); }
-        setTimeout(leave, 3000);
+        v.addEventListener('ended', leave);
+        v.play().catch(() => {});
+        setTimeout(leave, 5200);
       },
     });
   }
@@ -1020,7 +1021,7 @@
     const draft = { ...p, lang: state.lang };
     const opt = (labels, v) => Object.entries(labels).map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${Array.isArray(l) ? l[0] : l}</option>`).join('');
     show('profile', `<h2 style="font-size:28px;margin-top:6px">${t('profTitle')}</h2>
-      <div class="prof-hero"><div class="bubble-say">${t('profSay', { name: esc(p.name || t('friend')) })}</div><img src="meowie-photo.jpg" alt="Meowie" width="720" height="720"></div>
+      <div class="prof-hero"><div class="bubble-say">${pick(L().profSay || I18N.en.profSay)({ name: esc(p.name || t('friend')) })}</div><img src="meowie-photo.jpg" alt="Meowie" width="720" height="720"></div>
       <div class="card">
         <div class="prof-row"><label for="pLang">${t('pLang')}</label><select id="pLang">${LANGS.map((k) => `<option value="${k}" ${k === state.lang ? 'selected' : ''}>${I18N[k]._label}</option>`).join('')}</select></div>
         <div class="prof-row"><span>${t('pSound')}</span><span class="snd-toggles">

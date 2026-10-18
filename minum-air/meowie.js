@@ -114,7 +114,9 @@
       const im = main.querySelector(`.mw-cell[data-sheet="${f[0]}"] img`);
       if (!im.complete || !im.naturalWidth) return;
     }
-    if (st.sheet && st.sheet !== f[0] && !reduced()) {
+    // The water clips (swim, turn, peek) already line up frame to frame; dissolving between them
+    // would flash a double image, so only clips on the sand cross-fade.
+    if (st.sheet && st.sheet !== f[0] && !reduced() && !(WATER_SHEETS.has(st.sheet) && WATER_SHEETS.has(f[0]))) {
       const ghost = wrap.querySelector('.mw-ghost');
       show(ghost, st.last);
       ghost.getAnimations().forEach((a) => a.cancel());
@@ -463,13 +465,14 @@
         tc.globalCompositeOperation = 'source-in';
         tc.fillStyle = color;
         tc.fillRect(0, 0, MASK.w, MASK.h);
-        // Hue and colour from the drink, light and highlights from the water; a touch of
-        // multiply so dark drinks like kopi read as dark.
+        // The whole liquid takes the drink's colour: recolour it, then lay the colour on solidly,
+        // leaving just enough of the video through for the water's shine and ripples.
         ctx.globalCompositeOperation = 'color';
         ctx.drawImage(tint, 0, 0, cv.width, cv.height);
-        ctx.globalCompositeOperation = 'multiply';
-        ctx.globalAlpha = .45;
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = .72;
         ctx.drawImage(tint, 0, 0, cv.width, cv.height);
+        ctx.globalAlpha = 1;
         box.classList.add('mw-tinted');
       }
       if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(draw); else requestAnimationFrame(draw);
