@@ -16,49 +16,48 @@
   // 0 thirsty, 1 meh, 2 content, 3 happy, 4 over the moon
   const moodFor = (p) => (p >= 1 ? 4 : p >= .75 ? 3 : p >= .45 ? 2 : p >= .2 ? 1 : 0);
 
-  // Meowie is cut out frame by frame from his reference clip and packed into one sprite sheet:
-  // 49 frames at 12 fps, 7 per row. Frames 0–29 bow into the glass and lap, 30–42 come up and
-  // lick the lips, 43–48 settle back.
-  const SHEET = 'meowie-sheet.webp';
-  const FW = 300;
-  const FH = 484;
-  const COLS = 7;
-  const FPS = 12;
+  // Meowie is cut out frame by frame from his reference video and packed into sprite sheets,
+  // one per scene of the clip: sitting and looking around, lapping from his glass, hopping up,
+  // swimming, and turning to look at you under water. 5 frames per row; each cell is 380 x 300
+  // pose units at 1.25 px per unit, with his feet (or his middle, for swimming) at a fixed point.
+  const CELL_W = 380;
+  const CELL_H = 300;
+  const PX = 1.25;
+  const COLS = 5;
+  const SHEETS = { sit: 10, drink: 14, hop: 18, swim: 20, turn: 13 };
+  const sheetUrl = (name) => `meowie-${name}.webp`;
   const range = (a, b) => Array.from({ length: Math.abs(b - a) + 1 }, (_, i) => (a < b ? a + i : a - i));
+  const on = (sheet, frames) => frames.map((i) => [sheet, i]);
   const CLIPS = {
-    drink: range(0, 48),
-    lick: range(30, 48),
-    nod: range(0, 5).concat(range(5, 0)),
-    blep: range(31, 33).concat([33, 33, 33, 33], range(33, 31)),
+    look: on('sit', range(0, 9).concat([9, 9, 9, 9, 9, 9], range(9, 0))),
+    drink: on('drink', range(0, 13).concat(range(13, 0), range(0, 13))),
+    sulk: on('drink', range(10, 13).concat([13, 13, 13, 13, 13, 13, 13, 13], range(13, 10))),
+    hop: on('hop', [0, 1].concat(range(6, 11), range(11, 6), [1, 0])),
+    leap: on('hop', [0, 1].concat(range(6, 17), [17, 17, 17, 17, 17, 17])),
+    peek: on('turn', range(0, 6).concat([6, 6, 6, 6, 6, 6, 6, 6], range(6, 0))),
   };
-  // Resting frame per mood: sleepy when thirsty, alert in the middle, a happy blep at the top.
-  const REST = [3, 0, 0, 31, 32];
-  const REST_RELAX = 4;
+  // Resting pose per mood when sitting: sulking at his glass when thirsty, then sitting up and alert.
+  const REST = [['drink', 13], ['sit', 0], ['sit', 0], ['sit', 3], ['sit', 3]];
+  const FPS = 14;
+  const SWIM_FPS = 18;
 
-  // In pose space the sprite is 198 wide with his feet at y 0. Sheet pixel → pose: x*.66 - 99, y*.66 - 308.
-  const SPR = { x: -99, y: -308, w: 198, h: FH * .66 };
-  const at = (x, y) => [(x * .66 + SPR.x).toFixed(1), (y * .66 + SPR.y).toFixed(1)];
   const star = (x, y, s) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0 -10 L2.6 -2.6 L10 0 L2.6 2.6 L0 10 L-2.6 2.6 L-10 0 L-2.6 -2.6 Z" fill="#ffd54a"/>`;
 
-  // Meowie, sitting with his glass. Origin = between the feet.
+  // Meowie. Origin = between his feet when sitting.
   function sitPose(id) {
-    const [mx, my] = at(150, 192);
-    const [hx, hy] = at(150, 155);
-    const [gx, gy] = at(103, 386);
-    const [gx2, gy2] = at(195, 458);
     return `<g class="mw-sit">
       <g class="mw-bodyfit"><g class="mw-look"><g class="mw-squish">
-        <clipPath id="${id}-spr"><rect width="${FW}" height="${FH}"/></clipPath>
-        <g transform="translate(${SPR.x} ${SPR.y}) scale(.66)" clip-path="url(#${id}-spr)">
-          <image class="mw-sheet" href="${SHEET}" width="${FW * COLS}" height="${FH * 7}"/>
-          <rect class="mw-sprite" width="${FW}" height="${FH}" fill="none"/></g>
-        <rect class="mw-glass-tint" x="${gx}" y="${gy}" width="${(gx2 - gx).toFixed(1)}" height="${(gy2 - gy).toFixed(1)}" rx="4" fill="#7cc8f5"/>
-        <circle class="mw-mouth-pt" cx="${mx}" cy="${my}" r="1" fill="none"/>
-        <circle class="mw-head-pt" cx="${hx}" cy="${hy}" r="1" fill="none"/>
+        <clipPath id="${id}-spr"><rect width="${CELL_W * PX}" height="${CELL_H * PX}"/></clipPath>
+        <g transform="translate(${-CELL_W / 2} -290) scale(${1 / PX})" clip-path="url(#${id}-spr)">
+          ${Object.keys(SHEETS).map((n) => `<image class="mw-sheet" data-sheet="${n}" href="${sheetUrl(n)}" width="${CELL_W * PX * COLS}" height="${CELL_H * PX * Math.ceil(SHEETS[n] / COLS)}" style="display:none"/>`).join('')}
+          <rect class="mw-sprite" width="${CELL_W * PX}" height="${CELL_H * PX}" fill="none"/></g>
+        <rect class="mw-glass-tint" x="-30" y="-72" width="66" height="64" rx="6" fill="#7cc8f5"/>
+        <circle class="mw-mouth-pt" cx="0" cy="-150" r="1" fill="none"/>
+        <circle class="mw-head-pt" cx="10" cy="-175" r="1" fill="none"/>
       </g></g></g>
-      <path class="mw-x mw-sweat" d="M72 -236 Q80 -224 76 -218 Q71 -214 67 -219 Q65 -225 72 -236 Z" fill="#8fd3ff" stroke="#4fa8de" stroke-width="1.4"/>
-      <g class="mw-x mw-spark">${star(-92, -262, 1)}${star(96, -246, .8)}${star(-104, -150, .7)}${star(104, -140, 1)}</g>
-      <g class="mw-ball" transform="translate(-40 -290)"><g class="mw-ball-in">
+      <path class="mw-x mw-sweat" d="M72 -206 Q80 -194 76 -188 Q71 -184 67 -189 Q65 -195 72 -206 Z" fill="#8fd3ff" stroke="#4fa8de" stroke-width="1.4"/>
+      <g class="mw-x mw-spark">${star(-100, -220, 1)}${star(110, -200, .8)}${star(-120, -110, .7)}${star(120, -90, 1)}</g>
+      <g class="mw-ball" transform="translate(-30 -270)"><g class="mw-ball-in">
         <circle r="17" fill="#fff" stroke="${LINE}" stroke-width="2.6"/>
         <path d="M-17 0 A17 17 0 0 1 0 -17 L0 0 Z" fill="#e8453c"/><path d="M17 0 A17 17 0 0 1 0 17 L0 0 Z" fill="#e8453c"/>
         <path d="M0 -17 A17 17 0 0 1 17 0 L0 0 Z" fill="#ffc93c"/><path d="M0 17 A17 17 0 0 1 -17 0 L0 0 Z" fill="#2f7fe0"/>
@@ -66,48 +65,72 @@
     </g>`;
   }
 
-  // Show one frame of the sprite sheet.
-  function frame(wrap, i) {
+  // Show one frame: [sheet, index].
+  function frame(wrap, [sheet, i]) {
     const st = wrap._mw;
-    if (st.frame === i) return;
-    st.frame = i;
-    const s = wrap.querySelector('.mw-sheet');
-    if (!s) return;
-    s.setAttribute('x', -(i % COLS) * FW);
-    s.setAttribute('y', -Math.floor(i / COLS) * FH);
+    const key = sheet + i;
+    if (st.frame === key) return;
+    st.frame = key;
+    // Every sheet has its own image element so switching clips is instant.
+    const im = wrap.querySelector(`.mw-sheet[data-sheet="${sheet}"]`);
+    if (!im) return;
+    if (st.sheet !== sheet) {
+      wrap.querySelectorAll('.mw-sheet').forEach((el) => { el.style.display = el === im ? '' : 'none'; });
+      st.sheet = sheet;
+    }
+    im.setAttribute('x', -(i % COLS) * CELL_W * PX);
+    im.setAttribute('y', -Math.floor(i / COLS) * CELL_H * PX);
   }
 
-  function restFrame(wrap) {
+  // What he shows when no clip is playing: a swim cycle in the water, a resting pose on the sand.
+  function idleFrame(wrap, now) {
     const st = wrap._mw;
-    if (st.clip) return;
+    if (st.hold) return st.hold;
+    if (st.mode === 'swim' && !reduced()) {
+      const n = SHEETS.swim;
+      let k = Math.floor((now / 1000) * SWIM_FPS * (st.paddle || 1)) % n;
+      if (st.rev) k = n - 1 - k;
+      return ['swim', k];
+    }
+    if (st.mode === 'swim') return ['swim', 0];
     const relax = wrap.querySelector('svg').classList.contains('mw--relax');
-    frame(wrap, relax && st.mood < 3 ? REST_RELAX : REST[st.mood] || 0);
+    return relax && st.mood < 3 ? ['drink', 13] : REST[st.mood] || REST[1];
   }
 
-  // Play a clip of frames; resolves when done. A new clip cuts off the one playing.
+  // One animation loop per Meowie steps whatever is playing.
+  function run(wrap) {
+    const st = wrap._mw;
+    if (st.running) return;
+    st.running = true;
+    (function tick(now) {
+      // Keep waiting until he is first put on the page; stop once he has been taken off it.
+      if (!wrap.isConnected) {
+        if (st.shown) { st.running = false; return; }
+        requestAnimationFrame(tick);
+        return;
+      }
+      st.shown = true;
+      const c = st.clip;
+      if (c) {
+        const k = Math.max(0, Math.floor(((now - c.t0) / 1000) * c.fps));
+        if (k >= c.frames.length) { st.clip = null; c.done(); frame(wrap, idleFrame(wrap, now)); }
+        else frame(wrap, c.frames[k]);
+      } else frame(wrap, idleFrame(wrap, now));
+      requestAnimationFrame(tick);
+    })(performance.now());
+  }
+
+  // Play a clip; resolves when done. A new clip cuts off the one playing.
   function play(wrap, name, o = {}) {
     const st = wrap._mw;
-    const frames = CLIPS[name];
-    const token = {};
-    st.clip = token;
-    if (reduced()) { st.clip = null; restFrame(wrap); return Promise.resolve(); }
-    const fps = o.fps || FPS;
+    if (st.clip) st.clip.done();
+    if (reduced()) { st.clip = null; return Promise.resolve(); }
     return new Promise((done) => {
-      const t0 = performance.now();
-      (function tick(now) {
-        if (st.clip !== token) return done();
-        const k = Math.floor(((now - t0) / 1000) * fps);
-        if (k >= frames.length || !wrap.isConnected) {
-          st.clip = null;
-          restFrame(wrap);
-          return done();
-        }
-        frame(wrap, frames[k]);
-        if (o.onFrame) o.onFrame(frames[k]);
-        requestAnimationFrame(tick);
-      })(t0);
+      st.clip = { frames: CLIPS[name], fps: o.fps || FPS, t0: performance.now(), done };
+      if (!st.running) run(wrap);
     });
   }
+  const restFrame = (wrap) => { if (!wrap._mw.clip) frame(wrap, idleFrame(wrap, performance.now())); };
 
   function wave(amp) {
     let d = `M-60 ${amp}`;
@@ -205,7 +228,7 @@
     wrap.innerHTML = svg;
     wrap._mw = { id, level: 0, mode: 'sit', mood: 0, busy: false, layers: [], sx: 0, sy: 0, face: 1, frame: -1 };
     place(wrap, 0, true);
-    restFrame(wrap);
+    run(wrap);
     return wrap;
   }
 
@@ -220,6 +243,9 @@
     const swim = st.forceSwim || pct >= .45;
     if (!swim && st.mode === 'swim') stopSwim(wrap);
     st.mode = swim ? 'swim' : 'sit';
+    const mark = (sel, x, y) => { const m = wrap.querySelector(sel); m.setAttribute('cx', x); m.setAttribute('cy', y); };
+    mark('.mw-mouth-pt', swim ? 74 : 0, swim ? -118 : -150);
+    mark('.mw-head-pt', swim ? 60 : 10, swim ? -140 : -175);
     svg.classList.toggle('mw--swim', swim);
     // Once swimming, Meowie keeps his depth when more water pours in; he only
     // moves down if the surface drops too close to him.
@@ -328,6 +354,7 @@
     if (!first && p > wrap._mw.level + .001) slosh(wrap);
     wrap._mw.level = p;
     wrap._mw.placed = true;
+    if (!wrap._mw.running) run(wrap);
     place(wrap, p);
     setMood(wrap, moodFor(pct), opts.instant || first);
   }
@@ -360,17 +387,32 @@
     }
   }
 
-  // He bows his hood into the glass, laps it up, comes up and licks his lips. Hearts float up.
+  // Sitting: he laps from his glass. In the water: he turns to look at you and gulps happily.
   async function drink(wrap) {
     if (reduced()) return;
-    setTimeout(() => floatHearts(wrap, 3), 2700);
+    if (wrap._mw.mode === 'swim') {
+      setTimeout(() => mouthBubbles(wrap, 5), 300);
+      setTimeout(() => floatHearts(wrap, 3), 600);
+      await play(wrap, 'peek');
+      return;
+    }
+    setTimeout(() => floatHearts(wrap, 3), 1600);
     await play(wrap, 'drink');
   }
 
-  // Lick the lips with a happy squint.
-  async function lick(wrap) {
-    if (wrap._mw.clip) return;
-    await play(wrap, 'lick');
+  // A happy hop on the spot: crouch, spring up with paws tucked, land with a squish.
+  async function hop(wrap) {
+    const st = wrap._mw;
+    if (st.clip || st.mode !== 'sit' || reduced()) return;
+    const actor = wrap.querySelector('.mw-actor');
+    actor.animate([
+      { transform: 'translateY(0) scale(1, 1)' },
+      { transform: 'translateY(4px) scale(1.06, .92)', offset: .12 },
+      { transform: 'translateY(-22px) scale(.97, 1.04)', offset: .5 },
+      { transform: 'translateY(2px) scale(1.06, .93)', offset: .88 },
+      { transform: 'translateY(0) scale(1, 1)' },
+    ], { duration: CLIPS.hop.length / FPS * 1000, easing: 'ease-in-out' });
+    await play(wrap, 'hop');
   }
 
   function floatHearts(wrap, n) {
@@ -398,6 +440,7 @@
     if (reduced()) return;
     const x = wrap._mw.mode === 'swim' ? 206 : 200;
     svg.classList.add('mw--jump');
+    play(wrap, 'leap', { fps: 16 });
     const anim = actor.animate([
       { transform: 'translate(0px, 0px) rotate(0deg) scale(1, 1)' },
       { transform: 'translate(0px, 16px) rotate(0deg) scale(1.08, .86)', offset: .14 },
@@ -512,7 +555,7 @@
     clearTimeout(st.petTimer);
     svg.classList.add('mw--pet');
     floatHearts(wrap, 4);
-    if (!st.busy) lick(wrap);
+    if (!st.busy) { if (st.mode === 'sit') hop(wrap); else play(wrap, 'peek'); }
     if (navigator.vibrate) navigator.vibrate([8, 50, 8, 50, 8]);
     st.petTimer = setTimeout(() => svg.classList.remove('mw--pet'), 1800);
   }
@@ -557,15 +600,16 @@
     anim.onfinish = () => { fish.style.opacity = 0; };
   }
 
-  // A little nod towards his glass.
-  function nod(wrap) {
-    if (wrap._mw.busy || wrap._mw.clip || reduced()) return;
-    play(wrap, 'nod');
-  }
-
-  function blep(wrap) {
-    if (wrap._mw.busy || wrap._mw.clip || reduced()) return;
-    play(wrap, 'blep', { fps: 8 });
+  // Idle moments: look around, sulk at his glass when thirsty, peek at you from the water.
+  function idleMove(wrap) {
+    const st = wrap._mw;
+    if (st.busy || st.clip || reduced()) return;
+    if (st.mode === 'swim') { if (Math.random() < .5) play(wrap, 'peek'); return; }
+    const r = Math.random();
+    if (st.mood === 0 && r < .5) play(wrap, 'sulk', { fps: 8 });
+    else if (st.mood >= 3 && r < .55) hop(wrap);
+    else if (r < .8) play(wrap, 'look', { fps: 10 });
+    else hop(wrap);
   }
 
   function lookAround(wrap) {
@@ -584,9 +628,7 @@
         if (!document.hidden && !st.busy) {
           const r = Math.random();
           if (st.level >= .2 && r < .5) fishPass(wrap);
-          else if (r < .68) lick(wrap);
-          else if (r < .8) nod(wrap);
-          else if (r < .9) blep(wrap);
+          else if (r < .88) idleMove(wrap);
           else lookAround(wrap);
         }
         next();
@@ -651,6 +693,11 @@
     const toWater = o.surface !== false;
     if (reduced()) { if (toWater) slosh(wrap, .6); return Promise.resolve(); }
     const fx = wrap.querySelector('.mw-fx');
+    // o.tilt swings the cup and stream round the landing point so it can pour in from the side.
+    const box = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    if (o.tilt) box.setAttribute('transform', `rotate(${o.tilt} ${x} ${end})`);
+    fx.appendChild(box);
+    setTimeout(() => box.remove(), 2600);
     const ns = 'http://www.w3.org/2000/svg';
     const top = Math.max(-40, end - (o.drop || 190));
     const len = end - top + 4;
@@ -666,7 +713,7 @@
         <path d="M0 0 H30 L27 36 Q26.5 38 24 38 H6 Q3.5 38 3 36 Z" fill="none" stroke="#3b4048" stroke-width="2.8" stroke-linejoin="round"/>
         <path d="M6 6 L8 30" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".8"/></g>`;
       cup.style.filter = 'drop-shadow(0 3px 4px rgba(0,0,0,.18))';
-      fx.appendChild(cup);
+      box.appendChild(cup);
       const inner = cup.firstElementChild;
       inner.style.transformOrigin = '0px 0px';
       inner.animate([
@@ -684,7 +731,7 @@
       <rect x="${x - 3}" y="${top}" width="3.5" height="${len}" rx="2" fill="#fff" opacity=".55"/></g>`;
     g.style.transformOrigin = `${x}px ${top}px`;
     g.style.opacity = 0;
-    fx.appendChild(g);
+    box.appendChild(g);
     setTimeout(() => {
       g.style.opacity = 1;
       g.animate([{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { duration: 320, easing: 'cubic-bezier(.55,0,.8,.3)', fill: 'forwards' });
@@ -735,7 +782,10 @@
   function pourTarget(wrap) {
     const st = wrap._mw;
     const svg = wrap.querySelector('svg');
-    if (st.mode === 'sit') return toClient(svg, GLASS_X + 2, GLASS_RIM - GLASS_DROP - 2);
+    if (st.mode === 'sit') {
+      const t = (GLASS_TILT * Math.PI) / 180;
+      return toClient(svg, GLASS_X + GLASS_DROP * Math.sin(t), GLASS_RIM - GLASS_DROP * Math.cos(t));
+    }
     const mouth = mouthPoint(wrap);
     return toClient(svg, mouth.x + 2, Math.max(-40, levelY(st.level) - 196) - 2);
   }
@@ -772,6 +822,7 @@
     const d = wrap.querySelector('.mw-drift');
     if (d) d.style.transform = '';
     wrap.querySelector('svg').classList.remove('mw--rev');
+    st.rev = false;
   }
 
   async function swimMove(wrap) {
@@ -799,6 +850,7 @@
       frames = [tf(sx, sy, face, 0), tf((sx + ex) / 2, sy + 6, face, 4), tf(ex, 0, face, 0)];
       dur = 2400;
       svg.classList.add('mw--rev');
+      st.rev = true;
     } else if (move < .6 && ahead >= 70) { // loop-the-loop
       ex = sx + face * 60;
       frames = [tf(sx, sy, face, 0), tf(sx + face * 20, sy - 28, face, -120), tf(sx + face * 40, sy - 20, face, -240), tf(ex, 0, face, -360)];
@@ -825,6 +877,7 @@
     drift.style.transform = tf(ex, ey, ef);
     anim.cancel();
     st.swimAnim = null;
+    st.rev = false;
     svg.classList.remove('mw--rev');
   }
 
@@ -844,22 +897,23 @@
     })();
   }
 
-  // His glass in scene coordinates (sit pose at (200, FLOOR + 4) scaled .8). The cup pours from just
-  // above its right side so the stream stays clear of his face.
-  const GLASS_X = 200 + 14 * .8;
-  const GLASS_RIM = FLOOR + 4 - 67 * .8;
-  const GLASS_DROP = 46;
+  // His glass in scene coordinates (sit pose at (200, FLOOR + 4) scaled .8, rim at (3, -90) in pose
+  // space). The cup pours from just above its right side so the stream stays clear of his face.
+  const GLASS_X = 200 + 8 * .8;
+  const GLASS_RIM = FLOOR + 4 - 88 * .8;
+  const GLASS_DROP = 92;
+  const GLASS_TILT = 40;
 
   // Tint the water in his glass with the drink, then let it fade as he laps it up.
   function tintGlass(wrap, color) {
     const tint = wrap.querySelector('.mw-glass-tint');
     tint.setAttribute('fill', color);
-    tint.animate([{ opacity: 0 }, { opacity: .55 }], { duration: 500, delay: 500, fill: 'forwards' });
-    return () => tint.animate([{ opacity: .55 }, { opacity: 0 }], { duration: 1600, fill: 'forwards' });
+    tint.animate([{ opacity: 0 }, { opacity: .5 }], { duration: 500, delay: 400, fill: 'forwards' });
+    return () => tint.animate([{ opacity: .5 }, { opacity: 0 }], { duration: 1800, fill: 'forwards' });
   }
 
-  // Pour a drink for Meowie and let him enjoy it: the cup fills his glass, he bows his hood into it,
-  // laps it up, comes up and licks his lips. In the water he does the same, blowing bubbles.
+  // Pour a drink for Meowie and let him enjoy it. Sitting: his glass appears, the cup fills it and
+  // he laps it up. In the water: the stream lands by his mouth and he turns to you, gulping happily.
   async function pourAndDrink(wrap, color, o = {}) {
     const st = wrap._mw;
     if (reduced()) { slosh(wrap, .6); return; }
@@ -867,24 +921,27 @@
     st.busy = true;
     try {
       if (st.mode === 'sit') {
+        if (st.clip) st.clip.done();
+        st.clip = null;
+        st.hold = ['drink', 0];
+        wrap.querySelector('.mw-actor').animate([{ transform: 'scale(.92, 1.06)' }, { transform: 'scale(1.04, .96)' }, { transform: 'none' }],
+          { duration: 380, easing: 'cubic-bezier(.3, 1.4, .5, 1)' });
         const fade = tintGlass(wrap, color);
-        await pour(wrap, color, { x: GLASS_X, end: GLASS_RIM, drop: GLASS_DROP, cup: o.cup, surface: false });
+        await pour(wrap, color, { x: GLASS_X, end: GLASS_RIM, drop: GLASS_DROP, tilt: GLASS_TILT, cup: o.cup, surface: false });
         await wait(700);
-        setTimeout(fade, 1100);
+        st.hold = null;
+        setTimeout(fade, 900);
         await drink(wrap);
       } else {
         const mouth = mouthPoint(wrap);
         const surf = levelY(st.level);
         pour(wrap, color, { x: Math.max(40, Math.min(360, mouth.x)), end: surf, cup: o.cup });
-        const fade = tintGlass(wrap, color);
-        setTimeout(() => mouthBubbles(wrap, 5), 1600);
-        setTimeout(() => mouthBubbles(wrap, 4), 2400);
-        setTimeout(fade, 1800);
-        await wait(700);
+        await wait(600);
         await drink(wrap);
       }
     } finally {
       st.busy = false;
+      st.hold = null;
     }
   }
 
