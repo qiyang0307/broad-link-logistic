@@ -7,7 +7,7 @@
       "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
     },
     {
-      "source": "/(.*)\\.mp4",
+      "source": "/(.*)\\.(webp|m4a)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800" }]
     },
     {

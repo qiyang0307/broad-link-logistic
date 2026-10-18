@@ -321,28 +321,80 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 32px; }
 .toast.show { transform: translate(-50%, 0); visibility: visible; }
 
 /* ---------- Meowie ---------- */
-/* He is played from video clips with their own backgrounds. The picture runs edge to edge and
-   fades into the page at the top and bottom, so there's no box around him. */
-.cat-wrap.mw-v { position: relative; -webkit-tap-highlight-color: transparent; }
-.mw-screen { position: relative; width: 100%; aspect-ratio: 1.4; overflow: hidden; cursor: pointer; touch-action: pan-y;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 9%, #000 88%, transparent 100%);
-  mask-image: linear-gradient(180deg, transparent 0, #000 9%, #000 88%, transparent 100%); background: #dbe9f3; }
-.ob-hero .mw-screen, .splash .mw-screen, .calc .mw-screen { border-radius: 28px; -webkit-mask-image: none; mask-image: none; box-shadow: 0 14px 30px -18px rgba(10, 60, 110, .45); }
-.mw-film { position: absolute; inset: 0; transform: translate(var(--tx, 0), var(--ty, 0)) scale(calc(1.04 * var(--build, 1)), 1.04); transform-origin: 50% 90%;
-  transition: transform .5s cubic-bezier(.22, 1, .36, 1); }
-.mw-vid { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .32s ease; pointer-events: none; }
-.mw-vid.mw-on { opacity: 1; }
-.mw-act { z-index: 1; }
-.mw-over { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; overflow: visible; }
-.mw-tint { opacity: .26; }
-.mw--swim .mw-tint { opacity: .14; }
+.cat-wrap svg { width: 100%; height: auto; display: block; overflow: visible; -webkit-tap-highlight-color: transparent; }
+.mw-sand { fill: #f1dcaa; }
+.mw-pebbles { fill: #e0c48d; }
+.mw-glow { fill: color-mix(in srgb, var(--water-1) 30%, transparent); filter: blur(12px); }
+.mw-rays { opacity: .14; animation: rays 7s ease-in-out infinite alternate; }
+@keyframes rays { from { opacity: .08; transform: translateX(-8px); } to { opacity: .2; transform: translateX(8px); } }
 .mw-water { transition: transform 1.6s cubic-bezier(.34, 1.45, .64, 1); }
+.mw-pos { transition: transform 1.4s cubic-bezier(.22, 1, .36, 1); }
 .mw-slosh { transform-origin: 0 0; }
+.mw-pupil { transition: transform .22s cubic-bezier(.22, 1, .36, 1); }
+.mw-par1, .mw-par2, .mw-par3 { transition: transform .5s cubic-bezier(.22, 1, .36, 1); }
+.stage .cat-wrap svg { touch-action: pan-y; }
+.mw-fish { pointer-events: none; }
+.mw-fish-tail { transform-origin: -14px 0; animation: fishTail .28s ease-in-out infinite alternate; }
+@keyframes fishTail { from { transform: rotate(-20deg); } to { transform: rotate(20deg); } }
 .mw-wave { animation: wave 3.6s linear infinite; }
+.mw-wave-back { animation-duration: 6s; animation-direction: reverse; }
 @keyframes wave { from { transform: translateX(0); } to { transform: translateX(-240px); } }
+.mw-bub { animation: bub 4s ease-in infinite; }
+@keyframes bub { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: .9; } 90% { opacity: .6; } 100% { transform: translateY(-238px); opacity: 0; } }
+.mw-weed, .mw-coral { transform-box: fill-box; transform-origin: 50% 100%; animation: sway 3.2s ease-in-out infinite alternate; }
+.mw-weed-2 { animation-duration: 3.9s; }
+.mw-weed-3 { animation-duration: 3.5s; animation-delay: -1s; }
+.mw-coral { animation-duration: 5s; }
+@keyframes sway { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }
+
+/* Meowie himself is a sprite sheet cut from his reference clip; meowie.js steps the frames. */
+.mw-sit { transform-box: fill-box; transform-origin: 50% 100%; }
+.mw-look { transition: transform .5s cubic-bezier(.22, 1, .36, 1); }
+.mw-squish { animation: squish 2.8s ease-in-out infinite; }
+@keyframes squish { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.025, .978); } }
+.mw-glass-tint { opacity: 0; mix-blend-mode: multiply; pointer-events: none; }
+
+/* Mood extras around him */
+.mw-x { opacity: 0; transition: opacity .4s ease; }
+.mw--m0 .mw-sweat { opacity: 1; animation: sweat 2.4s ease-in infinite; }
+@keyframes sweat { 0% { transform: translateY(-4px); opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { transform: translateY(14px); opacity: 0; } }
+.mw--m4 .mw-spark { opacity: 1; }
+.mw--m4 .mw-spark path { transform-box: fill-box; transform-origin: center; animation: twinkle 1.6s ease-in-out infinite; }
+.mw--m4 .mw-spark path:nth-child(2) { animation-delay: .4s; }
+.mw--m4 .mw-spark path:nth-child(3) { animation-delay: .8s; }
+.mw--m4 .mw-spark path:nth-child(4) { animation-delay: 1.2s; }
+@keyframes twinkle { 0%, 100% { opacity: .2; scale: .6; } 50% { opacity: 1; scale: 1.15; } }
+.mw--moodpop .mw-actor { animation: moodPop .6s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes moodPop { 0% { transform: scale(1); } 35% { transform: scale(1.08, .94); } 70% { transform: scale(.97, 1.04); } 100% { transform: scale(1); } }
+
+/* Sky: sun, sunset or moon with stars, by Malaysian time */
+.mw-sunrays { animation: spin 24s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.mw--intro .mw-screen { animation: mwIn .9s cubic-bezier(.3, 1.3, .5, 1) .15s both; }
-@keyframes mwIn { from { transform: scale(.86); opacity: 0; } to { transform: none; opacity: 1; } }
+.mw-sun { animation: sunPulse 4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes sunPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+.mw-cloud { animation: cloud 26s linear infinite; }
+.mw-cloud-2 { animation-duration: 38s; animation-delay: -12s; }
+@keyframes cloud { from { translate: -90px 0; } to { translate: 160px 0; } }
+.mw-star { transform-box: fill-box; transform-origin: center; animation: twinkleStar 2.4s ease-in-out infinite; }
+@keyframes twinkleStar { 0%, 100% { opacity: .25; scale: .7; } 50% { opacity: 1; scale: 1.1; } }
+.mw--night { --water-1: #4f93e6; --water-2: #1d4f9e; }
+.mw--dusk { --water-1: #6fb8f0; --water-2: #2a6fc4; }
+.mw-stream { transform-box: fill-box; transform-origin: center; animation: streamWobble .12s ease-in-out infinite alternate; }
+@keyframes streamWobble { from { transform: scaleX(.85); } to { transform: scaleX(1.1); } }
+
+/* Petting: purr wiggle */
+.mw--pet .mw-squish { animation: purr .18s ease-in-out 10 alternate; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes purr { from { transform: rotate(-1.5deg); } to { transform: rotate(1.5deg); } }
+
+/* In the water he bobs and drifts about (moves run from meowie.js) */
+.mw--swim .mw-actor { animation: bobSwim 1.8s ease-in-out infinite; }
+@keyframes bobSwim { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-9px) rotate(3deg); } }
+.mw--zoom .mw-actor { animation: roll 1.4s cubic-bezier(.45, 0, .2, 1); }
+@keyframes roll { to { transform: rotate(-360deg); } }
+
+/* Intro: Meowie drops in */
+.mw--intro .mw-actor { animation: dropIn 1.2s cubic-bezier(.3, 1.35, .5, 1) .2s both; }
+@keyframes dropIn { from { transform: translateY(-460px); } to { transform: none; } }
 
 @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes popIn { from { transform: scale(.3); opacity: 0; } to { transform: none; opacity: 1; } }
@@ -559,5 +611,27 @@ button.pill.fire:active { transform: scale(.94); }
 .snd { border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 999px; padding: 5px 10px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; transition: background .2s, color .2s, border-color .2s; }
 .snd[aria-pressed="true"] { background: color-mix(in srgb, var(--brand, #0a84d6) 14%, var(--card)); color: var(--ink, inherit); border-color: color-mix(in srgb, var(--brand, #0a84d6) 45%, var(--line)); }
 .snd[aria-pressed="false"] { text-decoration: line-through; opacity: .7; }
-.mw--swim .mw-water { opacity: 0; }
-.mw-water { transition: transform 1.6s cubic-bezier(.34, 1.45, .64, 1), opacity .6s ease; }
+
+/* Body build (weight screen) */
+.mw-bodyfit { transition: transform .35s cubic-bezier(.34, 1.45, .64, 1); }
+
+/* Activity vibes */
+.mw-ball { display: none; }
+.mw--hyper .mw-ball { display: inline; }
+.mw-ball-in { animation: juggle .5s cubic-bezier(.3, 0, .7, 1) infinite alternate; }
+@keyframes juggle { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(-80px) rotate(200deg); } }
+.mw--hyper:not(.mw--swim) .mw-drift { animation: hyperHop .5s cubic-bezier(.3, 0, .7, 1) infinite alternate; }
+@keyframes hyperHop { from { transform: translateY(0) scale(1.06, .94); } to { transform: translateY(-16px) scale(.97, 1.03); } }
+.mw.mw--hyper .mw-spark { opacity: 1; }
+.mw--hyper .mw-spark path { transform-box: fill-box; transform-origin: center; animation: twinkle .8s ease-in-out infinite; }
+.mw--walk:not(.mw--swim) .mw-drift { animation: stroll 3.2s ease-in-out infinite; }
+@keyframes stroll {
+  0%, 100% { transform: translate(-40px, 0) rotate(-3deg); }
+  12% { transform: translate(-30px, -6px) rotate(0deg); } 25% { transform: translate(-20px, 0) rotate(3deg); }
+  37% { transform: translate(-10px, -6px) rotate(0deg); } 50% { transform: translate(40px, 0) rotate(-3deg); }
+  62% { transform: translate(30px, -6px) rotate(0deg); } 75% { transform: translate(20px, 0) rotate(3deg); }
+  87% { transform: translate(10px, -6px) rotate(0deg); }
+}
+.mw--relax:not(.mw--swim) .mw-drift { animation: relaxBreath 3.4s ease-in-out infinite; transform-origin: 0 0; }
+.mw--relax .mw-squish { animation-duration: 4.6s; }
+@keyframes relaxBreath { 0%, 100% { transform: scale(1, 1) rotate(-2deg); } 50% { transform: scale(1.03, .98) rotate(2deg); } }
