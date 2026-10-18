@@ -16,6 +16,7 @@
   let nextBar = 0;
   let bar = 0;
   let ducked = false;
+  let hushed = false;
 
   const BPM = 84;
   const BEAT = 60 / BPM;
@@ -175,7 +176,7 @@
     }
   }
 
-  function musicTarget() { return prefs.music ? MUSIC_VOL * (ducked ? .35 : 1) : 0; }
+  function musicTarget() { return prefs.music && !hushed ? MUSIC_VOL * (ducked ? .35 : 1) : 0; }
 
   function startMusic() {
     if (!ctx || timer) return;
@@ -225,6 +226,8 @@
     },
     // Lower the music while Meowie makes his own sounds.
     duck(on) { ducked = !!on; if (ctx && prefs.music) { const n = ctx.currentTime; musicBus.gain.cancelScheduledValues(n); musicBus.gain.setValueAtTime(musicBus.gain.value, n); musicBus.gain.linearRampToValueAtTime(musicTarget(), n + .3); } },
+    // Silence the background music while something else (the opening film) has the stage.
+    hush(on) { hushed = !!on; apply(); },
     unlock,
   };
 })();

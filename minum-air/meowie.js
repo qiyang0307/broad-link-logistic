@@ -470,7 +470,7 @@
         ctx.globalCompositeOperation = 'color';
         ctx.drawImage(tint, 0, 0, cv.width, cv.height);
         ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = .72;
+        ctx.globalAlpha = .8;
         ctx.drawImage(tint, 0, 0, cv.width, cv.height);
         ctx.globalAlpha = 1;
         box.classList.add('mw-tinted');

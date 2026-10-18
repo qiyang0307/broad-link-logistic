@@ -467,18 +467,40 @@
   function splash() {
     const drops = Array.from({ length: 14 }, (_, i) =>
       `<span style="left:${(i * 7.3 + 3) % 100}%;animation-duration:${1.6 + (i % 5) * .35}s;animation-delay:${(i % 7) * .25}s"></span>`).join('');
-    // Opening scene: Meowie's intro film full screen with the title over it. Tap to skip.
-    show('splash', `<video class="clip-vid" muted playsinline autoplay preload="auto" disablepictureinpicture><source src="meowie-intro.mp4" type="video/mp4"><source src="meowie-intro.webm" type="video/webm"></video><div class="splash-shade"></div><div class="drops">${drops}</div>
+    // Opening scene: Meowie's intro film with its own music and sound, and the title under it.
+    // Phones only allow sound after a tap, so if it starts muted a small button turns it on.
+    show('splash', `<button type="button" class="splash-snd" hidden>🔊 ${t('tapSound')}</button><video class="clip-vid" playsinline autoplay preload="auto" disablepictureinpicture><source src="meowie-intro.mp4" type="video/mp4"><source src="meowie-intro.webm" type="video/webm"></video><div class="splash-shade"></div><div class="drops">${drops}</div>
       <div class="splash-title"><h1>Meowie</h1><p class="splash-app">Minum Air</p><p>${t('splashSub')}</p></div>`, {
       onMount: (el) => {
         el.classList.add('splash');
         const v = $('video', el);
-        el.addEventListener('click', () => leave());
+        const snd = $('.splash-snd', el);
+        const wantSound = !window.MASound || MASound.music || MASound.sfx;
         let left = false;
-        function leave() { if (left) return; left = true; state.onboarded ? enterHome() : goStep(0); }
+        let timer = 0;
+        const arm = (ms) => { clearTimeout(timer); timer = setTimeout(leave, ms); };
+        function leave() {
+          if (left) return;
+          left = true;
+          clearTimeout(timer);
+          v.pause();
+          if (window.MASound) MASound.hush(false);
+          state.onboarded ? enterHome() : goStep(0);
+        }
+        if (window.MASound) MASound.hush(true);
+        v.muted = !wantSound;
+        v.play().catch(() => { v.muted = true; if (wantSound) snd.hidden = false; return v.play().catch(() => {}); });
+        snd.addEventListener('click', (e) => {
+          e.stopPropagation();
+          snd.hidden = true;
+          v.muted = false;
+          v.currentTime = 0;
+          v.play().catch(() => {});
+          arm(5200);
+        });
+        el.addEventListener('click', () => leave());
         v.addEventListener('ended', leave);
-        v.play().catch(() => {});
-        setTimeout(leave, 5200);
+        arm(5200);
       },
     });
   }
