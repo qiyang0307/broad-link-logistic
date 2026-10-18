@@ -510,6 +510,25 @@
   }
 
   // ---------- home ----------
+  // Five steps through the day for the little status pill.
+  const bracket5 = (p) => (p >= 1 ? 4 : p >= .75 ? 3 : p >= .45 ? 2 : p >= .2 ? 1 : 0);
+  // When the next glass is due: the waking day split evenly into 250 ml glasses, counted
+  // from the last drink (or from waking up).
+  function nextSip(d) {
+    const p = state.profile;
+    const at = (hm) => { const [h, m] = String(hm || '07:00').split(':').map(Number); const x = new Date(); x.setHours(h, m, 0, 0); return x.getTime(); };
+    const wake = at(p.wake);
+    let sleep = at(p.sleep);
+    if (sleep <= wake) sleep += 864e5;
+    const now = Date.now();
+    if (total(d) >= d.goal) return t('sipDone');
+    if (now < wake || now > sleep) return t('sipRest');
+    const left = Math.max(1, Math.ceil((d.goal - total(d)) / 250));
+    const last = d.log.length ? d.log[d.log.length - 1].t : wake;
+    const gap = Math.max(15 * 6e4, (sleep - Math.max(now, last)) / left);
+    const mins = Math.round((last + gap - now) / 6e4);
+    return mins <= 0 ? t('sipNow') : mins < 60 ? t('sipIn', { m: mins }) : t('sipInH', { h: Math.floor(mins / 60), m: mins % 60 });
+  }
   function greeting() {
     const h = myHour();
     const g = t('greet');
@@ -547,12 +566,25 @@
     const dateStr = new Intl.DateTimeFormat(L()._locale, { timeZone: 'Asia/Kuala_Lumpur', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
     const bonus = heatBonus(w && w.feels);
     const html = `
-      <div class="home-head"><div><h2>${greeting()}${t('comma')}${name}</h2><p>${dateStr}</p></div>
-        <button type="button" class="pill fire" id="streakBtn" aria-label="${t('streakTitle')}">🔥 ${streakCount()}</button></div>
-      <span class="pill weather-chip">${Meowie.skyNow() === 'night' ? '🌙' : w ? (w.feels >= HEAT_START ? '☀️' : '⛅') : '🌤️'} ${esc(state.profile.city || 'Malaysia')}${w ? ` · ${t('feels', { f: Math.round(w.feels) })}${bonus ? ` · ${t('goalPlus', { b: bonus })}` : ''}` : weatherFailed ? '' : ` · ${t('loadingWeather')}`}</span>
+      <div class="top-bar">
+        <span class="pill weather-chip">${Meowie.skyNow() === 'night' ? '🌙' : w ? (w.feels >= HEAT_START ? '☀️' : '⛅') : '🌤️'} ${w ? `${Math.round(w.feels)}°C ${esc(state.profile.city || '')}` : esc(state.profile.city || 'Malaysia')}</span>
+        <button type="button" class="pill fire" id="streakBtn" aria-label="${t('streakTitle')}">🔥 ${t('streakPill', { n: streakCount() })}</button>
+        <button type="button" class="me-btn" id="meBtn" aria-label="${t('tabs').profile}"><img src="meowie-avatar.jpg" alt=""></button>
+      </div>
+      <div class="home-head"><div><p class="date">${dateStr} 🌸</p><h2>${greeting()}${t('comma')}${name}!</h2></div>
+        <span class="track-pill">${t('track')[bracket5(pct)]}</span></div>
       <div class="stage"><div class="bubble-say" id="say" data-bracket="${bracket(pct)}">${lines[0]}</div><div class="hero-cat"></div></div>
-      <div class="stats-row"><div class="pct"><span id="pctNum">${Math.round(shownPct * 100)}</span>%</div>
-        <div class="ml"><b id="mlNum">${fmt(drunk)}</b> / ${fmt(d.goal)} ml</div></div>
+      <div class="goal-card stats-row">
+        <p class="gc-label"><i></i>${t('hydGoal')} 💧</p>
+        <div class="gc-main">
+          <div class="pct"><span id="pctNum">${Math.round(shownPct * 100)}</span>%<small>${pct >= 1 ? t('gcDone') : drunk ? t('gcCompleted') : t('gcStart')}</small></div>
+          <div class="gc-side"><span class="ml"><b id="mlNum">${fmt(drunk)}</b> / ${fmt(d.goal)} ml</span>
+            <small>${pct >= 1 ? t('gcOver', { ml: fmt(drunk - d.goal) }) : t('gcLeft', { ml: fmt(d.goal - drunk) })}</small></div>
+        </div>
+        <div class="gc-bar"><span style="width:${Math.min(100, shownPct * 100)}%"></span></div>
+        <div class="gc-chips"><span class="gc-chip sip">⏰ ${nextSip(d)}</span>
+          <span class="gc-chip cups">🏁 ${t('gcCups', { n: Math.ceil(d.goal / 250) })}</span></div>
+      </div>
       <div class="add-main"><button class="cta" id="quickAdd">${cupSvg(DRINKS[0]).replace('<svg', '<svg style="width:26px;height:32px"')} ${t('addWater', { ml: state.lastSize })}</button>
         <button class="add-more" id="moreBtn" aria-label="${t('otherDrinks')}">+</button></div>
       <p class="hold-hint">${t('holdHint')}</p>
@@ -634,6 +666,9 @@
     $('#moreBtn', el).addEventListener('click', () => openSheet());
     el.querySelectorAll('[data-drink]').forEach((b) => b.addEventListener('click', () => openSheet(b.dataset.drink, b)));
     $('#streakBtn', el).addEventListener('click', openStreakSheet);
+    $('#meBtn', el).addEventListener('click', () => { const b = $('#tabbar [data-tab="profile"]'); if (b) b.click(); });
+    const bar = $('.gc-bar span', el);
+    if (bar) requestAnimationFrame(() => { bar.style.width = Math.min(100, pct * 100) + '%'; });
     const toggleLog = () => { logOpen = !logOpen; renderHome(false); };
     // The review at the top shows its first tip; tap it to see the rest.
     const rv = el.querySelector(':scope > .review');
