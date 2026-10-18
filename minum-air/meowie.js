@@ -27,20 +27,24 @@
   const SHEETS = {
     idle: { n: 61, w: 360, x: 180, cols: 8 }, pet: { n: 35, w: 520, x: 180, cols: 7 },
     happy: { n: 26, w: 360, x: 180, cols: 8 },
-    swim: { n: 15, w: 360, x: 180, cols: 8 }, roll: { n: 13, w: 360, x: 180, cols: 8 },
+    swim: { n: 40, w: 360, x: 180, cols: 8 }, peek: { n: 57, w: 360, x: 180, cols: 8 },
+    turn: { n: 15, w: 360, x: 180, cols: 8 },
   };
   const sheetUrl = (name) => `meowie-${name}.webp`;
   const range = (a, b) => Array.from({ length: Math.abs(b - a) + 1 }, (_, i) => (a < b ? a + i : a - i));
   const on = (sheet, frames) => frames.map((i) => [sheet, i]);
   const CLIPS = {
-    // Lean in, lap a few times, then sit back up.
     pet: on('pet', range(0, 34)),
     happy: on('happy', range(0, 25)),
-    roll: on('roll', range(0, 12)),
+    // In the water (his full shark suit): a seamless 40-frame swim loop, turning round from
+    // facing right to facing left, and stopping to look at you with a little "oh!".
+    peek: on('peek', range(0, 56)),
+    turn: on('turn', range(0, 14)),
   };
+  const WATER_SHEETS = new Set(['swim', 'peek', 'turn']);
   const FPS = 15;
   const IDLE_FPS = 12;
-  const SWIM_FPS = 15;
+  const SWIM_FPS = 22;
   const XFADE = 220;
 
   // Meowie's own sounds, cut from the clips.
@@ -142,7 +146,9 @@
         return;
       }
       st.shown = true;
-      const c = st.clip;
+      let c = st.clip;
+      // A clip filmed on the sand ends if the water rises around him mid-way (and vice versa).
+      if (c && WATER_SHEETS.has(c.frames[0][0]) !== (st.mode === 'swim')) { st.clip = null; c.done(); c = null; }
       if (c) {
         const k = Math.max(0, Math.floor(((now - c.t0) / 1000) * c.fps));
         if (k >= c.frames.length) { st.clip = null; c.done(); frame(wrap, idleFrame(wrap, now)); }
@@ -457,7 +463,7 @@
   async function happy(wrap) {
     const st = wrap._mw;
     if (st.clip || reduced()) return;
-    if (st.mode === 'swim') { await play(wrap, 'roll', { fps: 12 }); return; }
+    if (st.mode === 'swim') { await play(wrap, 'peek', { fps: 24 }); return; }
     sfx('happy', .6);
     await play(wrap, 'happy');
   }
@@ -489,7 +495,7 @@
     const actor = wrap.querySelector('.mw-actor');
     wrap.classList.add('mw--jump');
     sfx('splash', .6);
-    play(wrap, 'roll', { fps: 11 });
+    play(wrap, 'peek', { fps: 24 });
     const anim = actor.animate([
       { transform: 'translate(0px, 0px) rotate(0deg)' },
       { transform: 'translate(10px, -120px) rotate(-10deg)', offset: .45 },
@@ -503,7 +509,7 @@
   // Swim a lap even when the water is low.
   async function swim(wrap) {
     const st = wrap._mw;
-    if (st.mode === 'swim') { await play(wrap, 'roll', { fps: 12 }); return; }
+    if (st.mode === 'swim') { await play(wrap, 'peek', { fps: 24 }); return; }
     await happy(wrap);
   }
 
@@ -593,7 +599,7 @@
       if (st.mode === 'swim') {
         floatHearts(wrap, 4);
         sfx('meow', .6);
-        await play(wrap, 'roll', { fps: 12 });
+        await play(wrap, 'peek', { fps: 24 });
       } else {
         sfx('purr');
         setTimeout(() => floatHearts(wrap, 4), 900);
@@ -849,51 +855,43 @@
 
   function stopSwim(wrap) {
     const st = wrap._mw;
-    if (st.swimAnim) { st.swimAnim.cancel(); st.swimAnim = null; }
-    st.sx = 0; st.sy = 0; st.face = 1;
+    st.sx = 0; st.sy = 0; st.face = 1; st.turning = false;
     const d = wrap.querySelector('.mw-drift');
     if (d) d.style.transform = '';
   }
 
-  async function swimMove(wrap) {
-    const st = wrap._mw;
-    const drift = wrap.querySelector('.mw-drift');
-    const { sx, face } = st;
-    const ahead = face > 0 ? SX_MAX - sx : sx - SX_MIN;
-    let frames, dur, ex = sx, ef = face;
-    if (ahead < 30) { // turn round: a little hop and flip
-      frames = [tf(sx, 0, face), tf(sx, -10, face * .1, face * -4), tf(sx, 0, -face)];
-      ef = -face; dur = 650;
-    } else { // paddle along with a gentle wave
-      ex = sx + face * Math.min(ahead, rand(80, 240));
-      const d = Math.abs(ex - sx);
-      frames = [tf(sx, 0, face), tf(sx + (ex - sx) * .25, -6, face, -2), tf(sx + (ex - sx) * .5, 3, face, 1), tf(sx + (ex - sx) * .75, -6, face, -2), tf(ex, 0, face)];
-      dur = Math.max(1400, d * 22);
-    }
-    const anim = drift.animate(frames.map((transform) => ({ transform })), { duration: dur, easing: 'ease-in-out', fill: 'forwards' });
-    st.swimAnim = anim;
-    try { await anim.finished; } catch { return; }
-    if (st.swimAnim !== anim) return;
-    st.sx = ex; st.sy = 0; st.face = ef;
-    drift.style.transform = tf(ex, 0, ef);
-    anim.cancel();
-    st.swimAnim = null;
-  }
-
+  // Swims continuously: steady speed with a gentle bob, and his real turn at each side. The swim
+  // frames face right; facing left is the same loop mirrored, so the turn clip (right to left)
+  // played mirrored turns him from left to right.
+  const SWIM_SPEED = 46;
   function startSwimLoop(wrap) {
     const st = wrap._mw;
     if (st.swimLoop) return;
     st.swimLoop = true;
     if (st.face == null) { st.sx = 0; st.sy = 0; st.face = 1; }
-    (async function loop() {
-      while (wrap.isConnected) {
-        if (st.mode === 'swim' && !document.hidden && !reduced()) {
-          await swimMove(wrap);
-          await wait(rand(150, 700));
-        } else await wait(700);
+    const drift = wrap.querySelector('.mw-drift');
+    let last = performance.now();
+    (function tick(now) {
+      if (!wrap.isConnected && st.shown) { st.swimLoop = false; return; }
+      const dt = Math.min(.05, (now - last) / 1000);
+      last = now;
+      if (st.mode === 'swim' && !reduced()) {
+        // Ease the speed down while he turns or stops to look at you, then pick it back up.
+        const target = st.turning ? .25 : st.clip ? .15 : 1;
+        st.speed = (st.speed ?? 1) + (target - (st.speed ?? 1)) * Math.min(1, dt * 3);
+        st.sx += st.face * SWIM_SPEED * st.speed * dt;
+        const edge = st.face > 0 ? st.sx >= SX_MAX : st.sx <= SX_MIN;
+        if (edge && !st.turning && !st.busy) {
+          st.turning = true;
+          play(wrap, 'turn', { fps: 16 }).then(() => { st.face = -st.face; st.turning = false; });
+        }
+        st.sx = Math.max(SX_MIN - 20, Math.min(SX_MAX + 20, st.sx));
+        const t = now / 1000;
+        st.sy = Math.sin(t * 2.4) * 5;
+        drift.style.transform = tf(st.sx, st.sy, st.face, Math.cos(t * 2.4) * 2);
       }
-      st.swimLoop = false;
-    })();
+      requestAnimationFrame(tick);
+    })(last);
   }
 
   // Pour a drink for Meowie: his drinking video plays over the tank while the water rises beneath.
