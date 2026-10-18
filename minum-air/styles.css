@@ -733,3 +733,31 @@ button.pill.fire:active { transform: scale(.94); }
 .tile.tap:active { transform: scale(.96); }
 .tile.tap:hover { box-shadow: 0 8px 20px -14px rgba(10, 60, 110, .5); }
 .tile-go { float: right; font-size: 16px; line-height: 1; color: var(--brand); }
+
+/* Top row pills: same height, lined up */
+.top-bar .pill { height: 40px; padding: 0 14px; font-size: 14px; line-height: 1; font: inherit; font-weight: 800; font-size: 14px; cursor: pointer; }
+.top-bar .weather-chip { color: var(--ink); }
+.top-bar .weather-chip:active { transform: scale(.94); }
+
+/* Weather sheet */
+.wx-sheet h3 { margin: 0; font-size: 22px; }
+.wx-load { color: var(--muted); font-weight: 700; padding: 20px 0; text-align: center; }
+.wx-hero { display: flex; align-items: center; gap: 12px; margin: 4px 0 14px; }
+.wx-big { font-size: 52px; line-height: 1; animation: popIn .5s cubic-bezier(.3, 1.4, .5, 1) both; }
+.wx-hero p { margin: 2px 0 0; color: var(--muted); font-weight: 800; }
+.wx-temp { margin-left: auto; text-align: right; }
+.wx-temp b { display: block; font-family: var(--font-head); font-size: 44px; line-height: 1; }
+.wx-temp small { color: var(--muted); font-weight: 800; }
+.wx-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.wx-list li { display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: 4px 10px; padding: 12px; border-radius: 16px; background: var(--bg); border: 1px solid var(--line); animation: slideIn .4s cubic-bezier(.22, 1, .36, 1) both; }
+.wx-list li:nth-child(2) { animation-delay: .05s; } .wx-list li:nth-child(3) { animation-delay: .1s; } .wx-list li:nth-child(4) { animation-delay: .15s; } .wx-list li:nth-child(5) { animation-delay: .2s; }
+.wx-ic { font-size: 24px; text-align: center; grid-row: span 2; }
+.wx-t { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.wx-t small { width: 100%; color: var(--muted); font-weight: 800; font-size: 12px; }
+.wx-t b { font-size: 18px; }
+.wx-t em { font-style: normal; font-weight: 800; font-size: 12px; padding: 2px 8px; border-radius: 99px; color: var(--ink); background: color-mix(in srgb, var(--c) 28%, transparent); }
+.wx-meter { grid-column: 2; height: 6px; border-radius: 99px; background: color-mix(in srgb, var(--muted) 18%, transparent); overflow: hidden; }
+.wx-meter i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--c); transition: width .9s cubic-bezier(.22, 1, .36, 1); }
+.wx-meter i.go { width: var(--w); }
+.wx-tip { margin: 14px 0 4px; padding: 12px 14px; border-radius: 14px; font-weight: 800; background: color-mix(in srgb, var(--brand) 12%, var(--card)); }
+.wx-src { margin: 6px 0 0; text-align: center; font-size: 12px; color: var(--muted); }

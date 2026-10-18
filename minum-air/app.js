@@ -565,7 +565,7 @@
     const bonus = heatBonus(w && w.feels);
     const html = `
       <div class="top-bar">
-        <span class="pill weather-chip">${Meowie.skyNow() === 'night' ? '🌙' : w ? (w.feels >= HEAT_START ? '☀️' : '⛅') : '🌤️'} ${w ? `${Math.round(w.feels)}°C ${esc(state.profile.city || '')}` : esc(state.profile.city || 'Malaysia')}</span>
+        <button type="button" class="pill weather-chip" id="wxBtn" aria-label="${t('wxTitle')}">${Meowie.skyNow() === 'night' ? '🌙' : w ? (w.feels >= HEAT_START ? '☀️' : '⛅') : '🌤️'} ${w ? `${Math.round(w.feels)}°C ${esc(state.profile.city || '')}` : esc(state.profile.city || 'Malaysia')}</button>
         <button type="button" class="pill fire" id="streakBtn" aria-label="${t('streakTitle')}">🔥 ${t('streakPill', { n: streakCount() })}</button>
       </div>
       <div class="home-head"><div><p class="date">${dateStr} 🌸</p><h2>${greeting()}${t('comma')}${name}!</h2></div></div>
@@ -662,6 +662,7 @@
     $('#moreBtn', el).addEventListener('click', () => openSheet());
     el.querySelectorAll('[data-drink]').forEach((b) => b.addEventListener('click', () => openSheet(b.dataset.drink, b)));
     $('#streakBtn', el).addEventListener('click', openStreakSheet);
+    $('#wxBtn', el).addEventListener('click', openWeatherSheet);
     const bar = $('.gc-bar span', el);
     if (bar) requestAnimationFrame(() => { bar.style.width = Math.min(100, pct * 100) + '%'; });
     const toggleLog = () => { logOpen = !logOpen; renderHome(false); };
@@ -1184,6 +1185,56 @@
       </div>`;
     openSheetEl();
     requestAnimationFrame(() => { const bar = $('.next-bar i', sheet); if (bar) bar.classList.add('go'); });
+  }
+
+  // Weather right now in your city: conditions, temperature, heat level, humidity and haze.
+  // Live from Open-Meteo (forecast + air quality); asked for each time the sheet opens.
+  const WX_ICON = (c, night) => (c === 0 ? (night ? '🌙' : '☀️') : c <= 2 ? (night ? '☁️' : '🌤️') : c === 3 ? '☁️' : c <= 48 ? '🌫️' : c <= 57 ? '🌦️' : c <= 67 ? '🌧️' : c <= 82 ? '🌧️' : '⛈️');
+  const WX_KIND = (c) => (c === 0 ? 0 : c <= 2 ? 1 : c === 3 ? 2 : c <= 48 ? 3 : c <= 57 ? 4 : c <= 82 ? 5 : 6);
+  // Heat level from the feels-like temperature (heat index bands).
+  const heatLevel = (f) => (f < 27 ? 0 : f < 32 ? 1 : f < 39 ? 2 : f < 46 ? 3 : 4);
+  const humLevel = (h) => (h < 40 ? 0 : h < 60 ? 1 : h < 80 ? 2 : 3);
+  // Haze from fine particles (PM2.5, µg/m³), in the same bands Malaysia's API uses.
+  const hazeLevel = (pm) => (pm <= 12 ? 0 : pm <= 35 ? 1 : pm <= 55 ? 2 : pm <= 150 ? 3 : 4);
+  const LEVEL_COL = ['#3fd39a', '#9bd84a', '#ffb02e', '#f2753a', '#d9435a'];
+  async function openWeatherSheet() {
+    const city = CITIES.find((c) => c[0] === state.profile.city) || CITIES[0];
+    sheet.innerHTML = `<div class="grab"></div><div class="wx-sheet"><h3>${esc(city[0])}</h3><p class="wx-load">${t('loadingWeather')}</p></div>`;
+    openSheetEl();
+    const box = $('.wx-sheet', sheet);
+    try {
+      const q = `latitude=${city[1]}&longitude=${city[2]}&timezone=Asia%2FKuala_Lumpur`;
+      const [wr, ar] = await Promise.all([
+        fetch(`https://api.open-meteo.com/v1/forecast?${q}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,is_day,wind_speed_10m,uv_index&daily=temperature_2m_max,temperature_2m_min&forecast_days=1`),
+        fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${q}&current=pm2_5,pm10,us_aqi`).catch(() => null),
+      ]);
+      if (!wr.ok) throw new Error(wr.status);
+      const c = (await wr.json());
+      const air = ar && ar.ok ? (await ar.json()).current : null;
+      const cur = c.current;
+      const night = !cur.is_day;
+      const hl = heatLevel(cur.apparent_temperature);
+      const hu = humLevel(cur.relative_humidity_2m);
+      const hz = air && air.pm2_5 != null ? hazeLevel(air.pm2_5) : -1;
+      const row = (ic, label, val, lvl, txt, pct) => `<li><span class="wx-ic">${ic}</span><span class="wx-t"><small>${label}</small><b>${val}</b>
+        ${txt ? `<em style="--c:${LEVEL_COL[lvl]}">${txt}</em>` : ''}</span>${pct != null ? `<span class="wx-meter"><i style="--w:${pct}%;--c:${LEVEL_COL[lvl]}"></i></span>` : ''}</li>`;
+      if (sheet.querySelector('.wx-sheet') !== box) return;
+      box.innerHTML = `<div class="wx-hero"><span class="wx-big">${WX_ICON(cur.weather_code, night)}</span>
+          <div><h3>${esc(city[0])}</h3><p>${t('wxKinds')[WX_KIND(cur.weather_code)]}</p></div>
+          <div class="wx-temp"><b>${Math.round(cur.temperature_2m)}°</b><small>${Math.round(c.daily.temperature_2m_min[0])}° / ${Math.round(c.daily.temperature_2m_max[0])}°</small></div></div>
+        <ul class="wx-list">
+          ${row('🌡️', t('wxFeels'), `${Math.round(cur.apparent_temperature)}°C`, hl, t('wxHeat')[hl], Math.min(100, Math.max(6, (cur.apparent_temperature - 22) / 26 * 100)))}
+          ${row('💦', t('wxHum'), `${Math.round(cur.relative_humidity_2m)}%`, [1, 0, 2, 3][hu], t('wxHumL')[hu], cur.relative_humidity_2m)}
+          ${hz >= 0 ? row('🌫️', t('wxHaze'), `PM2.5 ${Math.round(air.pm2_5)} µg/m³`, hz, t('wxHazeL')[hz], Math.min(100, Math.max(6, air.pm2_5 / 1.5))) : row('🌫️', t('wxHaze'), '—', 0, '', null)}
+          ${row('🔆', t('wxUv'), Math.round(cur.uv_index), Math.min(4, Math.floor(cur.uv_index / 2.5)), '', Math.min(100, cur.uv_index / 11 * 100))}
+          ${row('🍃', t('wxWind'), `${Math.round(cur.wind_speed_10m)} km/h`, 0, '', null)}
+        </ul>
+        <p class="wx-tip">${hz >= 2 ? t('wxTipHaze') : hl >= 2 ? t('wxTipHot') : t('wxTipOk')}</p>
+        <p class="wx-src">${t('wxSrc')}</p>`;
+      requestAnimationFrame(() => box.querySelectorAll('.wx-meter i').forEach((i) => i.classList.add('go')));
+    } catch {
+      if (sheet.querySelector('.wx-sheet') === box) box.innerHTML = `<h3>${esc(city[0])}</h3><p class="wx-load">${t('wxFail')}</p>`;
+    }
   }
 
   // Deleting everything takes two steps: confirm, then a final button that unlocks after a short countdown.
