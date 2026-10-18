@@ -49,7 +49,7 @@
   function sfx(name, vol = .8) {
     if (window.MASound && !window.MASound.sfx) return;
     let a = sounds[name];
-    if (!a) { a = sounds[name] = new Audio(`snd-${name}.m4a`); a.preload = 'auto'; }
+    if (!a) { a = sounds[name] = new Audio(`snd-${name}.mp3`); a.preload = 'auto'; }
     a.volume = vol;
     try { a.currentTime = 0; } catch {}
     if (window.MASound) window.MASound.duck(true);
