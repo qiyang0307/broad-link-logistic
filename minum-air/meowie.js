@@ -5,13 +5,6 @@
 (function () {
   let uid = 0;
   const LINE = '#454b54';
-  const FUR = '#a3a9b0';
-  const FUR_DARK = '#565c64';
-  const CREAM = '#f7f5f2';
-  const HOOD = '#8f979f';
-  const HOOD_DARK = '#79818a';
-  const HOOD_LIGHT = '#a4acb4';
-  const EYE = '#7cc43c';
 
   // Scene geometry (viewBox 0 0 400 320). No frame: the water fades out at the sides.
   const W = 400;
@@ -23,126 +16,49 @@
   // 0 thirsty, 1 meh, 2 content, 3 happy, 4 over the moon
   const moodFor = (p) => (p >= 1 ? 4 : p >= .75 ? 3 : p >= .45 ? 2 : p >= .2 ? 1 : 0);
 
-  // The face opening of the hood: an ellipse centred at (0, FY).
-  const FY = 10;
-  const FRX = 52;
-  const FRY = 50;
+  // Meowie is cut out frame by frame from his reference clip and packed into one sprite sheet:
+  // 49 frames at 12 fps, 7 per row. Frames 0–29 bow into the glass and lap, 30–42 come up and
+  // lick the lips, 43–48 settle back.
+  const SHEET = 'meowie-sheet.webp';
+  const FW = 300;
+  const FH = 484;
+  const COLS = 7;
+  const FPS = 12;
+  const range = (a, b) => Array.from({ length: Math.abs(b - a) + 1 }, (_, i) => (a < b ? a + i : a - i));
+  const CLIPS = {
+    drink: range(0, 48),
+    lick: range(30, 48),
+    nod: range(0, 5).concat(range(5, 0)),
+    blep: range(31, 33).concat([33, 33, 33, 33], range(33, 31)),
+  };
+  // Resting frame per mood: sleepy when thirsty, alert in the middle, a happy blep at the top.
+  const REST = [3, 0, 0, 31, 32];
+  const REST_RELAX = 4;
 
-  // A full ring of white felt teeth around the face opening, the bottom centre left clear for the mouth.
-  function teeth() {
-    let out = '';
-    const r = (d) => (d * Math.PI) / 180;
-    const p = (deg, k) => [(Math.cos(r(deg)) * FRX * k).toFixed(1), (FY + Math.sin(r(deg)) * FRY * k).toFixed(1)];
-    for (let a = 11.25; a < 360; a += 22.5) {
-      const [x1, y1] = p(a - 9.5, 1.02);
-      const [x2, y2] = p(a + 9.5, 1.02);
-      const [tx, ty] = p(a, .79);
-      out += `<path d="M${x1} ${y1} L${tx} ${ty} L${x2} ${y2} Z" fill="#fff" stroke="#c9ced4" stroke-width="1.2" stroke-linejoin="round"/>`;
-    }
-    return out;
-  }
-
-  function openEye(x) {
-    return `<ellipse cx="${x}" cy="15" rx="12.5" ry="13" fill="#fff" stroke="${LINE}" stroke-width="1.6"/>
-      <ellipse cx="${x}" cy="15.5" rx="10.5" ry="11.5" fill="${EYE}"/>
-      <g class="mw-pupil"><ellipse cx="${x}" cy="16" rx="6.6" ry="8.6" fill="#16181b"/>
-      <circle cx="${x + 3.4}" cy="11" r="3.4" fill="#fff"/><circle cx="${x - 3.2}" cy="20" r="1.6" fill="#fff"/></g>`;
-  }
-  const heart = (x) => `<path d="M${x} 24 C${x - 15} 13 ${x - 10} 2 ${x} 9 C${x + 10} 2 ${x + 15} 13 ${x} 24 Z" fill="#ff6b8b" stroke="#d94f70" stroke-width="1.4"/>
-      <circle cx="${x - 4}" cy="10" r="2" fill="#fff"/>`;
+  // In pose space the sprite is 198 wide with his feet at y 0. Sheet pixel → pose: x*.66 - 99, y*.66 - 308.
+  const SPR = { x: -99, y: -308, w: 198, h: FH * .66 };
+  const at = (x, y) => [(x * .66 + SPR.x).toFixed(1), (y * .66 + SPR.y).toFixed(1)];
   const star = (x, y, s) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0 -10 L2.6 -2.6 L10 0 L2.6 2.6 L0 10 L-2.6 2.6 L-10 0 L-2.6 -2.6 Z" fill="#ffd54a"/>`;
 
-  // Head in a felt shark hood, centred on (0,0). Every expression is drawn; CSS shows the one for the mood.
-  // .mw-face holds everything inside the hood opening so a head bow can sink it and show the shark face above.
-  function head(id) {
-    const hood = 'M0 -78 C46 -78 80 -46 80 2 C80 50 50 80 0 80 C-50 80 -80 50 -80 2 C-80 -46 -46 -78 0 -78 Z';
-    return `<g class="mw-head">
-      <g class="mw-fin"><path d="M-15 -70 Q-8 -104 4 -124 Q6 -98 17 -70 Z" fill="${HOOD}" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>
-        <path d="M-6 -78 Q-2 -96 2 -108" stroke="${HOOD_LIGHT}" stroke-width="4" stroke-linecap="round" fill="none"/></g>
-      <path d="${hood}" fill="${HOOD}" stroke="${LINE}" stroke-width="3"/>
-      <path d="M-50 -52 Q0 -80 50 -52" fill="none" stroke="${HOOD_LIGHT}" stroke-width="8" stroke-linecap="round" opacity=".75"/>
-      <path d="M-74 30 Q-70 62 -40 76 M74 30 Q70 62 40 76" fill="none" stroke="${HOOD_DARK}" stroke-width="5" stroke-linecap="round" opacity=".7"/>
-      <g class="mw-shark">
-        <g class="mw-sheye"><circle cx="-52" cy="-30" r="8.5" fill="#fff" stroke="${LINE}" stroke-width="2"/><circle cx="-51" cy="-29" r="5.6" fill="#1d2026"/><circle cx="-49.5" cy="-31.5" r="1.8" fill="#fff"/></g>
-        <g class="mw-sheye"><circle cx="52" cy="-30" r="8.5" fill="#fff" stroke="${LINE}" stroke-width="2"/><circle cx="51" cy="-29" r="5.6" fill="#1d2026"/><circle cx="49.5" cy="-31.5" r="1.8" fill="#fff"/></g>
-        <circle cx="-13" cy="-50" r="3" fill="${LINE}"/><circle cx="13" cy="-50" r="3" fill="${LINE}"/>
-      </g>
-      <g class="mw-face">
-      <clipPath id="${id}-face"><ellipse cx="0" cy="${FY}" rx="${FRX}" ry="${FRY}"/></clipPath>
-      <ellipse cx="0" cy="${FY}" rx="${FRX}" ry="${FRY}" fill="${FUR}"/>
-      <g clip-path="url(#${id}-face)">
-        <path d="M-16 -34 Q-13 -20 -17 -6 M0 -38 V-10 M16 -34 Q13 -20 17 -6 M-30 -28 Q-26 -18 -30 -10 M30 -28 Q26 -18 30 -10" stroke="${FUR_DARK}" stroke-width="4" stroke-linecap="round" fill="none"/>
-        <path d="M-56 12 Q-46 15 -36 11 M-56 24 Q-46 27 -38 23 M56 12 Q46 15 36 11 M56 24 Q46 27 38 23" stroke="${FUR_DARK}" stroke-width="3.6" stroke-linecap="round" fill="none"/>
-        <ellipse cx="-18" cy="15" rx="17" ry="16" fill="#c4c9ce"/><ellipse cx="18" cy="15" rx="17" ry="16" fill="#c4c9ce"/>
-        <path d="M-38 34 Q-34 18 -14 26 Q0 30 14 26 Q34 18 38 34 Q38 66 0 70 Q-38 66 -38 34 Z" fill="${CREAM}"/>
-      </g>
-      <ellipse cx="0" cy="${FY}" rx="${FRX}" ry="${FRY}" fill="none" stroke="${LINE}" stroke-width="3"/>
-      ${teeth()}
-      <g class="mw-blush"><ellipse cx="-31" cy="34" rx="8.5" ry="5" fill="#ff9db4"/><ellipse cx="31" cy="34" rx="8.5" ry="5" fill="#ff9db4"/></g>
-      <g class="mw-x mw-eo">${openEye(-18)}${openEye(18)}
-        <g class="mw-lid">
-          <path d="M-31 1 H-5 V14 Q-18 10 -31 14 Z M31 1 H5 V14 Q18 10 31 14 Z" fill="#c4c9ce"/>
-          <path d="M-30 14 Q-18 10 -6 14 M30 14 Q18 10 6 14" stroke="${LINE}" stroke-width="2.4" stroke-linecap="round" fill="none"/>
-        </g>
-      </g>
-      <g class="mw-x mw-eh"><path d="M-28 18 Q-18 5 -8 18 M28 18 Q18 5 8 18" stroke="#2c2f35" stroke-width="3.8" stroke-linecap="round" fill="none"/></g>
-      <g class="mw-x mw-ek">${heart(-18)}${heart(18)}</g>
-      <path class="mw-tongue" d="M-6.5 39 Q-8 64 0 70 Q8 64 6.5 39 Z" fill="#ef8296" stroke="#c75d72" stroke-width="1.2"/>
-      <g class="mw-x mw-mf"><path d="M-6 42.5 Q0 37.5 6 42.5" stroke="#6d5f60" stroke-width="2.4" stroke-linecap="round" fill="none"/></g>
-      <g class="mw-x mw-mw"><path d="M0 33.5 V37 M0 37 Q-5 42 -10 38.5 M0 37 Q5 42 10 38.5" fill="none" stroke="#6d5f60" stroke-width="2.4" stroke-linecap="round"/></g>
-      <g class="mw-x mw-ms"><path d="M0 33.5 V36 M-12 36 Q-6 45 0 37 Q6 45 12 36" fill="none" stroke="#6d5f60" stroke-width="2.6" stroke-linecap="round"/></g>
-      <g class="mw-x mw-mo"><path d="M-10 36 Q0 38 10 36 Q9 51 0 51 Q-9 51 -10 36 Z" fill="#7a2f3b" stroke="#5a2430" stroke-width="1.6" stroke-linejoin="round"/>
-        <path d="M-6 46 Q0 41 6 46 Q5 51 0 51 Q-5 51 -6 46 Z" fill="#ef8296"/></g>
-      <circle class="mw-mouth-pt" cx="0" cy="40" r="1" fill="none"/>
-      <path d="M-6 27 Q0 25.5 6 27 L0 33.5 Z" fill="#f28c9c" stroke="#c97a8a" stroke-width="1.2" stroke-linejoin="round"/>
-      <g class="mw-lick"><path d="M-3 38 C-12 44 -27 40 -29 28 C-31 17 -19 12 -11 19 C-6 23 -3 31 4 37 Z" fill="#f07b92" stroke="#c75d72" stroke-width="1.6" stroke-linejoin="round"/>
-        <path d="M-6 34 Q-14 30 -18 22" stroke="#d9667e" stroke-width="1.6" stroke-linecap="round" fill="none"/></g>
-      <g stroke="#eef0f2" stroke-width="1.6" stroke-linecap="round" opacity=".9">
-        <path d="M-26 36 L-64 30 M-26 41 L-64 44"/><path d="M26 36 L64 30 M26 41 L64 44"/>
-      </g>
-      </g>
-      <path class="mw-x mw-sweat" d="M58 -14 Q66 -2 62 4 Q57 8 53 3 Q51 -3 58 -14 Z" fill="#8fd3ff" stroke="#4fa8de" stroke-width="1.4"/>
-      <g class="mw-x mw-spark">${star(-84, -58, 1)}${star(88, -44, .8)}${star(-80, 52, .7)}${star(86, 62, 1)}</g>
-    </g>`;
-  }
-
-  // Sitting pose: a round, chubby tabby with a white bib and paws. Origin = between the feet.
+  // Meowie, sitting with his glass. Origin = between the feet.
   function sitPose(id) {
-    const body = 'M-40 -150 C-72 -146 -86 -92 -86 -48 C-86 -14 -72 0 -50 0 H50 C72 0 86 -14 86 -48 C86 -92 72 -146 40 -150 Z';
-    const stripes = [-128, -104, -80, -56, -32].map((y, i) => {
-      const w = i % 2 ? 8 : 10;
-      return `<path d="M-96 ${y} Q-64 ${y + 9} -34 ${y - 2} M96 ${y} Q64 ${y + 9} 34 ${y - 2}" stroke="${FUR_DARK}" stroke-width="${w}" stroke-linecap="round" fill="none"/>`;
-    }).join('');
-    const paw = (x, y, rx, ry) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${CREAM}" stroke="${LINE}" stroke-width="2.6"/>
-      <path d="M${x - rx * .32} ${y + ry * .1} V${y + ry * .8} M${x + rx * .32} ${y + ry * .1} V${y + ry * .8}" stroke="#bfc3c8" stroke-width="2" stroke-linecap="round"/>`;
+    const [mx, my] = at(150, 192);
+    const [hx, hy] = at(150, 155);
+    const [gx, gy] = at(103, 386);
+    const [gx2, gy2] = at(195, 458);
     return `<g class="mw-sit">
-      <g class="mw-bodyfit"><g class="mw-squish">
-      <g class="mw-tail-sit">
-        <path d="M60 -12 C112 -6 124 -46 100 -78" fill="none" stroke="${LINE}" stroke-width="21" stroke-linecap="round"/>
-        <path d="M60 -12 C112 -6 124 -46 100 -78" fill="none" stroke="${FUR}" stroke-width="15" stroke-linecap="round"/>
-        <path d="M60 -12 C112 -6 124 -46 100 -78" fill="none" stroke="${FUR_DARK}" stroke-width="15" stroke-dasharray="8 10" stroke-dashoffset="4"/>
-      </g>
-      <clipPath id="${id}-body"><path d="${body}"/></clipPath>
-      <path d="${body}" fill="${FUR}"/>
-      <g clip-path="url(#${id}-body)">${stripes}
-        <path d="M-84 -40 Q-60 -78 -36 -30 M84 -40 Q60 -78 36 -30" stroke="${FUR_DARK}" stroke-width="4" stroke-linecap="round" fill="none" opacity=".55"/>
-        <path d="M-30 -150 Q0 -138 30 -150 Q40 -84 26 -26 Q0 -14 -26 -26 Q-40 -84 -30 -150 Z" fill="#e9eaec"/>
-        <path d="M-12 -96 Q-6 -90 0 -96 Q6 -90 12 -96 M-14 -70 Q-7 -64 0 -70 Q7 -64 14 -70" stroke="#cfd2d6" stroke-width="2.4" stroke-linecap="round" fill="none"/>
-      </g>
-      <path d="${body}" fill="none" stroke="${LINE}" stroke-width="3"/>
-      ${paw(-66, -8, 19, 10)}${paw(66, -8, 19, 10)}
-      ${paw(-26, -7, 16, 11)}${paw(26, -7, 16, 11)}
-      </g></g>
-      <g class="mw-headpos" transform="translate(0 -184)">${head(id + 's')}</g>
-      <g class="mw-glass">
-        <path d="M-21 -52 H21 L18 -2 Q17.5 2 13 2 H-13 Q-17.5 2 -18 -2 Z" fill="rgba(214,238,255,.45)" stroke="#8fb4cf" stroke-width="2.4" stroke-linejoin="round"/>
-        <clipPath id="${id}-gl"><path d="M-21 -52 H21 L18 -2 Q17.5 2 13 2 H-13 Q-17.5 2 -18 -2 Z"/></clipPath>
-        <g clip-path="url(#${id}-gl)"><g class="mw-glass-water"><rect x="-26" y="-34" width="52" height="40" fill="#7cc8f5" opacity=".85"/>
-          <path d="M-26 -34 H26" stroke="#d8f0ff" stroke-width="2.4"/></g></g>
-        <path d="M-14 -45 L-12 -8" stroke="#fff" stroke-width="2.6" stroke-linecap="round" opacity=".85"/>
-        <ellipse cx="0" cy="-52" rx="21" ry="3.2" fill="none" stroke="#a9c8de" stroke-width="1.6"/>
-      </g>
-      <g class="mw-ball" transform="translate(-34 -272)"><g class="mw-ball-in">
+      <g class="mw-bodyfit"><g class="mw-look"><g class="mw-squish">
+        <clipPath id="${id}-spr"><rect width="${FW}" height="${FH}"/></clipPath>
+        <g transform="translate(${SPR.x} ${SPR.y}) scale(.66)" clip-path="url(#${id}-spr)">
+          <image class="mw-sheet" href="${SHEET}" width="${FW * COLS}" height="${FH * 7}"/>
+          <rect class="mw-sprite" width="${FW}" height="${FH}" fill="none"/></g>
+        <rect class="mw-glass-tint" x="${gx}" y="${gy}" width="${(gx2 - gx).toFixed(1)}" height="${(gy2 - gy).toFixed(1)}" rx="4" fill="#7cc8f5"/>
+        <circle class="mw-mouth-pt" cx="${mx}" cy="${my}" r="1" fill="none"/>
+        <circle class="mw-head-pt" cx="${hx}" cy="${hy}" r="1" fill="none"/>
+      </g></g></g>
+      <path class="mw-x mw-sweat" d="M72 -236 Q80 -224 76 -218 Q71 -214 67 -219 Q65 -225 72 -236 Z" fill="#8fd3ff" stroke="#4fa8de" stroke-width="1.4"/>
+      <g class="mw-x mw-spark">${star(-92, -262, 1)}${star(96, -246, .8)}${star(-104, -150, .7)}${star(104, -140, 1)}</g>
+      <g class="mw-ball" transform="translate(-40 -290)"><g class="mw-ball-in">
         <circle r="17" fill="#fff" stroke="${LINE}" stroke-width="2.6"/>
         <path d="M-17 0 A17 17 0 0 1 0 -17 L0 0 Z" fill="#e8453c"/><path d="M17 0 A17 17 0 0 1 0 17 L0 0 Z" fill="#e8453c"/>
         <path d="M0 -17 A17 17 0 0 1 17 0 L0 0 Z" fill="#ffc93c"/><path d="M0 17 A17 17 0 0 1 -17 0 L0 0 Z" fill="#2f7fe0"/>
@@ -150,30 +66,47 @@
     </g>`;
   }
 
-  // Stretched pose for swimming and jumping. Origin = middle of the body.
-  function stretchPose(id) {
-    const leg = (cls, d, [ex, ey]) => `<g class="mw-leg ${cls}"><path d="${d}" stroke="${LINE}" stroke-width="22" stroke-linecap="round" fill="none"/>
-      <path d="${d}" stroke="${FUR}" stroke-width="16" stroke-linecap="round" fill="none"/>
-      <circle cx="${ex}" cy="${ey}" r="9.5" fill="${CREAM}" stroke="${LINE}" stroke-width="2.4"/></g>`;
-    return `<g class="mw-stretch">
-      <g class="mw-tail-s">
-        <path d="M-92 -4 C-126 -16 -142 8 -180 -12" fill="none" stroke="${LINE}" stroke-width="21" stroke-linecap="round"/>
-        <path d="M-92 -4 C-126 -16 -142 8 -180 -12" fill="none" stroke="${FUR}" stroke-width="15" stroke-linecap="round"/>
-        <path d="M-92 -4 C-126 -16 -142 8 -180 -12" fill="none" stroke="${FUR_DARK}" stroke-width="15" stroke-dasharray="8 10"/>
-      </g>
-      ${leg('mw-leg-b2', 'M-62 20 Q-82 40 -96 44', [-96, 44])}
-      ${leg('mw-leg-f2', 'M30 22 Q50 42 66 46', [66, 46])}
-      <clipPath id="${id}-sb"><ellipse cx="-16" cy="4" rx="86" ry="44"/></clipPath>
-      <ellipse cx="-16" cy="4" rx="86" ry="44" fill="${FUR}"/>
-      <g clip-path="url(#${id}-sb)">
-        <path d="M-80 -44 Q-70 -14 -78 14 M-56 -48 Q-46 -14 -54 12 M-32 -48 Q-22 -14 -30 10 M-8 -48 Q2 -16 -6 8 M16 -46 Q26 -18 18 4" stroke="${FUR_DARK}" stroke-width="8" stroke-linecap="round" fill="none"/>
-        <path d="M-96 26 Q-56 36 -16 34 Q30 34 70 18 V60 H-96 Z" fill="#e9eaec"/>
-      </g>
-      <ellipse cx="-16" cy="4" rx="86" ry="44" fill="none" stroke="${LINE}" stroke-width="3"/>
-      ${leg('mw-leg-b1', 'M-50 26 Q-66 48 -78 56', [-78, 56])}
-      ${leg('mw-leg-f1', 'M40 24 Q58 48 76 54', [76, 54])}
-      <g transform="translate(80 -16) scale(.9)">${head(id + 'w')}</g>
-    </g>`;
+  // Show one frame of the sprite sheet.
+  function frame(wrap, i) {
+    const st = wrap._mw;
+    if (st.frame === i) return;
+    st.frame = i;
+    const s = wrap.querySelector('.mw-sheet');
+    if (!s) return;
+    s.setAttribute('x', -(i % COLS) * FW);
+    s.setAttribute('y', -Math.floor(i / COLS) * FH);
+  }
+
+  function restFrame(wrap) {
+    const st = wrap._mw;
+    if (st.clip) return;
+    const relax = wrap.querySelector('svg').classList.contains('mw--relax');
+    frame(wrap, relax && st.mood < 3 ? REST_RELAX : REST[st.mood] || 0);
+  }
+
+  // Play a clip of frames; resolves when done. A new clip cuts off the one playing.
+  function play(wrap, name, o = {}) {
+    const st = wrap._mw;
+    const frames = CLIPS[name];
+    const token = {};
+    st.clip = token;
+    if (reduced()) { st.clip = null; restFrame(wrap); return Promise.resolve(); }
+    const fps = o.fps || FPS;
+    return new Promise((done) => {
+      const t0 = performance.now();
+      (function tick(now) {
+        if (st.clip !== token) return done();
+        const k = Math.floor(((now - t0) / 1000) * fps);
+        if (k >= frames.length || !wrap.isConnected) {
+          st.clip = null;
+          restFrame(wrap);
+          return done();
+        }
+        frame(wrap, frames[k]);
+        if (o.onFrame) o.onFrame(frames[k]);
+        requestAnimationFrame(tick);
+      })(t0);
+    });
   }
 
   function wave(amp) {
@@ -259,7 +192,6 @@
   <g class="mw-par3"><g class="mw-pos" style="transform: translate(200px, ${FLOOR + 4}px) scale(.8)">
     <g class="mw-drift"><g class="mw-actor">
       ${sitPose(id)}
-      ${stretchPose(id)}
     </g></g>
   </g></g>
   <g mask="url(#${id}-mask)" clip-path="url(#${id}-above)" pointer-events="none">
@@ -271,8 +203,9 @@
     const wrap = document.createElement('div');
     wrap.className = 'cat-wrap';
     wrap.innerHTML = svg;
-    wrap._mw = { id, level: 0, mode: 'sit', mood: 0, busy: false, layers: [], sx: 0, sy: 0, face: 1 };
+    wrap._mw = { id, level: 0, mode: 'sit', mood: 0, busy: false, layers: [], sx: 0, sy: 0, face: 1, frame: -1 };
     place(wrap, 0, true);
+    restFrame(wrap);
     return wrap;
   }
 
@@ -362,20 +295,17 @@
   // Body build from thin (-1) to chubby (1): the body widens, the head drops to sit on it and puffs a little.
   function setBuild(wrap, k) {
     const b = Math.max(-1, Math.min(1, k));
-    const sx = 1 + b * (b > 0 ? .62 : .34);
-    const sy = 1 - b * (b > 0 ? .1 : -.08);
-    const hx = 1 + b * (b > 0 ? .14 : .07);
+    const sx = 1 + b * (b > 0 ? .24 : .14);
+    const sy = 1 - b * .04;
     const body = wrap.querySelector('.mw-sit .mw-bodyfit');
-    const head = wrap.querySelector('.mw-sit .mw-headpos');
-    if (!body || !head) return;
-    body.style.transform = `scale(${sx.toFixed(3)}, ${sy.toFixed(3)})`;
-    head.style.transform = `translate(0px, ${(-184 + 140 * (1 - sy)).toFixed(1)}px) scale(${hx.toFixed(3)}, 1)`;
+    if (body) body.style.transform = `scale(${sx.toFixed(3)}, ${sy.toFixed(3)})`;
   }
 
   // Activity moods: relax (eyes shut, slow breathing), walk (strolls about), hyper (hops and juggles a ball).
   function setVibe(wrap, vibe) {
     const svg = wrap.querySelector('svg');
     ['relax', 'walk', 'hyper'].forEach((v) => svg.classList.toggle('mw--' + v, v === vibe));
+    restFrame(wrap);
   }
 
   function setMood(wrap, mood, instant) {
@@ -389,6 +319,7 @@
       svg.classList.add('mw--moodpop');
     }
     st.mood = mood;
+    restFrame(wrap);
   }
 
   function setLevel(wrap, pct, opts = {}) {
@@ -429,45 +360,23 @@
     }
   }
 
-  // Sitting: bow into the glass, lap it up with the tongue, come up with a happy squint and lick his lips.
-  // Swimming: gulp at the surface. Hearts float up while drinking.
+  // He bows his hood into the glass, laps it up, comes up and licks his lips. Hearts float up.
   async function drink(wrap) {
-    const svg = wrap.querySelector('svg');
     if (reduced()) return;
-    if (wrap._mw.mode === 'sit') { await lapGlass(wrap); return; }
-    svg.classList.add('mw--drink');
-    floatHearts(wrap, 3);
-    await wait(1500);
-    svg.classList.remove('mw--drink');
+    setTimeout(() => floatHearts(wrap, 3), 2700);
+    await play(wrap, 'drink');
   }
 
-  async function lapGlass(wrap) {
-    const svg = wrap.querySelector('svg');
-    svg.classList.add('mw--glass');
-    await wait(420);
-    lookAtSvg(wrap, 200, 320);
-    svg.classList.add('mw--drink');
-    await wait(2300);
-    svg.classList.remove('mw--drink');
-    await lick(wrap, true);
-    svg.classList.remove('mw--glass');
-  }
-
-  // Big sideways lick of the lips with a happy squint.
-  async function lick(wrap, hearts) {
-    const svg = wrap.querySelector('svg');
-    svg.classList.add('mw--lick');
-    if (hearts) floatHearts(wrap, 3);
-    await wait(1150);
-    svg.classList.remove('mw--lick');
+  // Lick the lips with a happy squint.
+  async function lick(wrap) {
+    if (wrap._mw.clip) return;
+    await play(wrap, 'lick');
   }
 
   function floatHearts(wrap, n) {
     const fx = wrap.querySelector('.mw-fx');
     const ns = 'http://www.w3.org/2000/svg';
-    const swim = wrap._mw.mode === 'swim';
-    const x0 = swim ? 250 : 200;
-    const y0 = swim ? levelY(wrap._mw.level) + 10 : 120;
+    const { x: x0, y: y0 } = markPoint(wrap, '.mw-head-pt', { x: 200, y: 120 });
     for (let i = 0; i < n; i++) {
       const h = document.createElementNS(ns, 'path');
       h.setAttribute('d', 'M0 6 C-9 0 -6 -7 0 -3 C6 -7 9 0 0 6 Z');
@@ -556,19 +465,16 @@
   };
 
   // Pupils follow a point on screen, then drift back to centre.
+  // He leans a little towards where you touch or what he is watching.
   function lookAt(wrap, cx, cy) {
     const st = wrap._mw;
-    wrap.querySelectorAll(st.mode === 'swim' ? '.mw-stretch .mw-head' : '.mw-sit .mw-head').forEach((h) => {
-      const r = h.getBoundingClientRect();
-      const vx = cx - (r.left + r.width / 2);
-      const vy = cy - (r.top + r.height * .55);
-      const d = Math.max(60, Math.hypot(vx, vy));
-      const tx = (vx / d) * 4;
-      const ty = (vy / d) * 3;
-      h.querySelectorAll('.mw-pupil').forEach((p) => { p.style.transform = `translate(${tx}px, ${ty}px)`; });
-    });
+    const look = wrap.querySelector('.mw-look');
+    const r = wrap.querySelector('.mw-sprite').getBoundingClientRect();
+    const vx = cx - (r.left + r.width / 2);
+    const k = Math.max(-1, Math.min(1, vx / Math.max(80, r.width)));
+    look.style.transform = `rotate(${(k * 5).toFixed(2)}deg)`;
     clearTimeout(st.lookTimer);
-    st.lookTimer = setTimeout(() => wrap.querySelectorAll('.mw-pupil').forEach((p) => { p.style.transform = ''; }), 1800);
+    st.lookTimer = setTimeout(() => { look.style.transform = ''; }, 1800);
   }
   const lookAtSvg = (wrap, x, y) => { const c = toClient(wrap.querySelector('svg'), x, y); lookAt(wrap, c.x, c.y); };
 
@@ -606,6 +512,7 @@
     clearTimeout(st.petTimer);
     svg.classList.add('mw--pet');
     floatHearts(wrap, 4);
+    if (!st.busy) lick(wrap);
     if (navigator.vibrate) navigator.vibrate([8, 50, 8, 50, 8]);
     st.petTimer = setTimeout(() => svg.classList.remove('mw--pet'), 1800);
   }
@@ -650,11 +557,15 @@
     anim.onfinish = () => { fish.style.opacity = 0; };
   }
 
-  function yawn(wrap) {
-    const svg = wrap.querySelector('svg');
-    if (wrap._mw.busy || reduced()) return;
-    svg.classList.add('mw--yawn');
-    setTimeout(() => svg.classList.remove('mw--yawn'), 1600);
+  // A little nod towards his glass.
+  function nod(wrap) {
+    if (wrap._mw.busy || wrap._mw.clip || reduced()) return;
+    play(wrap, 'nod');
+  }
+
+  function blep(wrap) {
+    if (wrap._mw.busy || wrap._mw.clip || reduced()) return;
+    play(wrap, 'blep', { fps: 8 });
   }
 
   function lookAround(wrap) {
@@ -673,8 +584,9 @@
         if (!document.hidden && !st.busy) {
           const r = Math.random();
           if (st.level >= .2 && r < .5) fishPass(wrap);
-          else if (st.mode === 'sit' && r < .65) lick(wrap);
-          else if (st.mode === 'sit' && r < .8) yawn(wrap);
+          else if (r < .68) lick(wrap);
+          else if (r < .8) nod(wrap);
+          else if (r < .9) blep(wrap);
           else lookAround(wrap);
         }
         next();
@@ -740,7 +652,7 @@
     if (reduced()) { if (toWater) slosh(wrap, .6); return Promise.resolve(); }
     const fx = wrap.querySelector('.mw-fx');
     const ns = 'http://www.w3.org/2000/svg';
-    const top = Math.max(-40, end - 190);
+    const top = Math.max(-40, end - (o.drop || 190));
     const len = end - top + 4;
     const lead = o.cup === false ? 0 : 260;
     if (o.cup !== false) {
@@ -810,20 +722,20 @@
     }
   }
 
-  // Swimming Meowie's mouth in scene coordinates (the mouth sits at 0,38 in head space).
-  function mouthPoint(wrap) {
+  // A marker inside the sprite in scene coordinates, measured so every CSS animation and transform is included.
+  function markPoint(wrap, sel, fallback) {
     const svg = wrap.querySelector('svg');
-    // Measured from a marker in the head so every CSS animation and transform is included.
-    const r = wrap.querySelector('.mw-stretch .mw-mouth-pt').getBoundingClientRect();
-    if (!r.width && !r.height && !r.left) return { x: 260, y: levelY(wrap._mw.level) + 20 };
+    const r = wrap.querySelector(sel).getBoundingClientRect();
+    if (!r.width && !r.height && !r.left) return fallback;
     return toSvg(svg, r.left + r.width / 2, r.top + r.height / 2);
   }
+  const mouthPoint = (wrap) => markPoint(wrap, '.mw-mouth-pt', { x: 200, y: levelY(wrap._mw.level) + 20 });
 
   // Where the pouring cup will appear, in screen coordinates (for hand-off animations).
   function pourTarget(wrap) {
     const st = wrap._mw;
     const svg = wrap.querySelector('svg');
-    if (st.mode === 'sit') return toClient(svg, GLASS_X + 2, Math.max(-40, GLASS_RIM - 190) - 2);
+    if (st.mode === 'sit') return toClient(svg, GLASS_X + 2, GLASS_RIM - GLASS_DROP - 2);
     const mouth = mouthPoint(wrap);
     return toClient(svg, mouth.x + 2, Math.max(-40, levelY(st.level) - 196) - 2);
   }
@@ -895,10 +807,11 @@
       ex = sx + face * rand(60, Math.min(ahead, 110));
       frames = [tf(sx, sy, face, 0), tf(sx + (ex - sx) * .45, sy + 32, face, 14), tf(ex, 0, face, -6)];
       dur = 1900;
-    } else if (ahead >= 60) { // backstroke: roll onto his back, glide, roll back
+    } else if (ahead >= 60) { // waddle: rock side to side as he paddles along
       ex = sx + face * rand(55, Math.min(ahead, 100));
-      frames = [tf(sx, sy, face, 0, 1), tf(sx + (ex - sx) * .15, sy - 4, face, 0, -1), tf(sx + (ex - sx) * .85, sy - 4, face, 0, -1), tf(ex, 0, face, 0, 1)];
-      dur = 2600;
+      const st8 = (k, rot) => tf(sx + (ex - sx) * k, sy - (k * 100 % 25 > 12 ? 6 : 0), face, rot);
+      frames = [st8(0, 0), st8(.2, -9), st8(.4, 9), st8(.6, -9), st8(.8, 9), tf(ex, 0, face, 0)];
+      dur = 2400;
       easing = 'ease-in-out';
     } else {
       frames = [tf(sx, sy, face), tf(sx, sy - 8, face * .15), tf(sx, sy, -face)];
@@ -931,45 +844,44 @@
     })();
   }
 
-  // While being filled the glass waits to his side; rim in scene coordinates
-  // (sit pose at (200, FLOOR + 4) scaled .8, glass shifted 100 right, rim at y -52 locally).
-  const GLASS_X = 200 + 100 * .8;
-  const GLASS_RIM = FLOOR + 4 - 52 * .8;
+  // His glass in scene coordinates (sit pose at (200, FLOOR + 4) scaled .8). The cup pours from just
+  // above its right side so the stream stays clear of his face.
+  const GLASS_X = 200 + 14 * .8;
+  const GLASS_RIM = FLOOR + 4 - 67 * .8;
+  const GLASS_DROP = 46;
 
-  // Pour a drink for Meowie and let him enjoy it.
-  // Sitting: the cup fills his glass and he laps it up.
-  // Swimming: he rises to the surface, catches the stream in his mouth and looks blissful.
+  // Tint the water in his glass with the drink, then let it fade as he laps it up.
+  function tintGlass(wrap, color) {
+    const tint = wrap.querySelector('.mw-glass-tint');
+    tint.setAttribute('fill', color);
+    tint.animate([{ opacity: 0 }, { opacity: .55 }], { duration: 500, delay: 500, fill: 'forwards' });
+    return () => tint.animate([{ opacity: .55 }, { opacity: 0 }], { duration: 1600, fill: 'forwards' });
+  }
+
+  // Pour a drink for Meowie and let him enjoy it: the cup fills his glass, he bows his hood into it,
+  // laps it up, comes up and licks his lips. In the water he does the same, blowing bubbles.
   async function pourAndDrink(wrap, color, o = {}) {
     const st = wrap._mw;
-    const svg = wrap.querySelector('svg');
     if (reduced()) { slosh(wrap, .6); return; }
     if (st.busy) { pour(wrap, color, { cup: o.cup }); await wait(1300); return; }
     st.busy = true;
     try {
       if (st.mode === 'sit') {
-        svg.classList.add('mw--fill');
-        const gw = wrap.querySelector('.mw-sit .mw-glass-water');
-        const fill = gw.animate([{ transform: 'translateY(26px)' }, { transform: 'translateY(0)' }],
-          { duration: 800, delay: (o.cup === false ? 0 : 260) + 300, easing: 'ease-out', fill: 'both' });
-        await pour(wrap, color, { x: GLASS_X, end: GLASS_RIM, cup: o.cup, surface: false });
-        await wait(800);
-        // The full glass slides in between his paws, then he laps it up.
-        svg.classList.add('mw--glass');
-        svg.classList.remove('mw--fill');
-        await wait(150);
-        fill.cancel();
-        await lapGlass(wrap);
+        const fade = tintGlass(wrap, color);
+        await pour(wrap, color, { x: GLASS_X, end: GLASS_RIM, drop: GLASS_DROP, cup: o.cup, surface: false });
+        await wait(700);
+        setTimeout(fade, 1100);
+        await drink(wrap);
       } else {
-        // He keeps swimming at his depth and gulps the fresh water happily, blowing bubbles.
         const mouth = mouthPoint(wrap);
         const surf = levelY(st.level);
         pour(wrap, color, { x: Math.max(40, Math.min(360, mouth.x)), end: surf, cup: o.cup });
-        setTimeout(() => svg.classList.add('mw--sip'), 500);
-        setTimeout(() => mouthBubbles(wrap, 5), 700);
-        setTimeout(() => mouthBubbles(wrap, 4), 1400);
-        setTimeout(() => floatHearts(wrap, 3), 1100);
-        await wait(2600);
-        svg.classList.remove('mw--sip');
+        const fade = tintGlass(wrap, color);
+        setTimeout(() => mouthBubbles(wrap, 5), 1600);
+        setTimeout(() => mouthBubbles(wrap, 4), 2400);
+        setTimeout(fade, 1800);
+        await wait(700);
+        await drink(wrap);
       }
     } finally {
       st.busy = false;
