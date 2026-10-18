@@ -1,7 +1,7 @@
 // Offline shell for Minum Air. Weather calls go straight to the network.
-const CACHE = 'minum-air-v18';
-const SHELL = ['/', '/styles.css', '/meowie.js', '/i18n.js', '/app.js', '/manifest.webmanifest', '/icon.svg', '/sound.js',
-  '/meowie-idle.webp', '/meowie-pet.webp', '/meowie-drink.webp', '/meowie-happy.webp', '/meowie-swim.webp', '/meowie-roll.webp'];
+const CACHE = 'minum-air-v19';
+const SHELL = ['/', '/styles.css', '/meowie.js', '/i18n.js', '/app.js', '/manifest.webmanifest', '/sound.js', '/favicon.png', '/icon-192.png', '/meowie-photo.jpg', '/meowie-avatar.jpg',
+  '/meowie-idle.webp', '/meowie-pet.webp', '/meowie-happy.webp', '/meowie-swim.webp', '/meowie-roll.webp'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

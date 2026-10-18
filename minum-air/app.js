@@ -1020,7 +1020,7 @@
     const draft = { ...p, lang: state.lang };
     const opt = (labels, v) => Object.entries(labels).map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${Array.isArray(l) ? l[0] : l}</option>`).join('');
     show('profile', `<h2 style="font-size:28px;margin-top:6px">${t('profTitle')}</h2>
-      ${hero(t('profSay'))}
+      <div class="prof-hero"><div class="bubble-say">${t('profSay')}</div><img src="meowie-photo.jpg" alt="Meowie" width="720" height="720"></div>
       <div class="card">
         <div class="prof-row"><label for="pLang">${t('pLang')}</label><select id="pLang">${LANGS.map((k) => `<option value="${k}" ${k === state.lang ? 'selected' : ''}>${I18N[k]._label}</option>`).join('')}</select></div>
         <div class="prof-row"><span>${t('pSound')}</span><span class="snd-toggles">
@@ -1043,7 +1043,6 @@
       </div>`, {
       onMount: (el) => {
         el.classList.add('home');
-        mountCat(el, { size: 220, level: Math.min(1, total(today()) / today().goal) });
         const saveBtn = $('#pSave', el);
         const dirtyNote = $('#pDirty', el);
         const isDirty = () => draft.lang !== state.lang || ['name', 'gender', 'weight', 'activity', 'city', 'wake', 'sleep'].some((k) => String(draft[k]) !== String(p[k]));

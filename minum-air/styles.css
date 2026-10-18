@@ -650,3 +650,15 @@ button.pill.fire:active { transform: scale(.94); }
 .mw--relax:not(.mw--swim) .mw-drift { animation: relaxBreath 3.4s ease-in-out infinite; transform-origin: 0 0; }
 .mw--relax .mw-squish { animation-duration: 4.6s; }
 @keyframes relaxBreath { 0%, 100% { transform: scale(1, 1) rotate(-2deg); } 50% { transform: scale(1.03, .98) rotate(2deg); } }
+
+/* Meowie's drinking video plays over the tank when you pour him a drink */
+.mw-film { position: absolute; inset: 0; z-index: 1; overflow: hidden; border-radius: 22px; opacity: 0; transform: scale(.96); pointer-events: none;
+  transition: opacity .45s ease, transform .5s cubic-bezier(.22, 1, .36, 1); }
+.mw-film.mw-on { opacity: 1; transform: none; }
+.mw-film video { width: 100%; height: 100%; object-fit: cover; object-position: 62% 40%; display: block; }
+.cat-wrap .mw-top { z-index: 2; }
+
+/* Profile header photo and tab avatar */
+.prof-hero { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 4px 0 14px; }
+.prof-hero img { width: min(240px, 64vw); height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 32px; box-shadow: 0 16px 34px -18px rgba(10, 60, 110, .55); animation: popIn .5s cubic-bezier(.3, 1.4, .5, 1) both; }
+.tab-av { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto; box-shadow: 0 0 0 2px var(--card); }

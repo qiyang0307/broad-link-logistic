@@ -26,7 +26,7 @@
   const COLS = 8;
   const SHEETS = {
     idle: { n: 61, w: 360, x: 180, cols: 8 }, pet: { n: 35, w: 520, x: 180, cols: 7 },
-    drink: { n: 28, w: 360, x: 180, cols: 8 }, happy: { n: 26, w: 360, x: 180, cols: 8 },
+    happy: { n: 26, w: 360, x: 180, cols: 8 },
     swim: { n: 15, w: 360, x: 180, cols: 8 }, roll: { n: 13, w: 360, x: 180, cols: 8 },
   };
   const sheetUrl = (name) => `meowie-${name}.webp`;
@@ -34,7 +34,6 @@
   const on = (sheet, frames) => frames.map((i) => [sheet, i]);
   const CLIPS = {
     // Lean in, lap a few times, then sit back up.
-    drink: on('drink', range(0, 27).concat(range(26, 20), range(21, 27), range(26, 20), range(21, 27), range(27, 0).filter((_, i) => i % 2 === 0))),
     pet: on('pet', range(0, 34)),
     happy: on('happy', range(0, 25)),
     roll: on('roll', range(0, 12)),
@@ -45,7 +44,6 @@
   const XFADE = 220;
 
   // Meowie's own sounds, cut from the clips.
-  const SOUNDS = ['meow', 'purr', 'drink', 'happy', 'splash'];
   const sounds = {};
   function sfx(name, vol = .8) {
     if (window.MASound && !window.MASound.sfx) return;
@@ -424,19 +422,35 @@
     }
   }
 
-  // Sitting: he leans into his glass and laps it up. In the water: a happy somersault and bubbles.
+  // Drinking plays his real drinking video over the tank: the water is poured into his glass, he
+  // laps it up, licks his lips and blows a bubble. It fades in and back out to the tank, with its
+  // own sound when Meowie's sounds are on.
   async function drink(wrap) {
     if (reduced()) return;
-    if (wrap._mw.mode === 'swim') {
-      setTimeout(() => mouthBubbles(wrap, 5), 300);
-      setTimeout(() => floatHearts(wrap, 3), 500);
-      sfx('splash', .5);
-      await play(wrap, 'roll', { fps: 12 });
-      return;
-    }
-    setTimeout(() => sfx('drink'), 700);
-    setTimeout(() => floatHearts(wrap, 3), 2600);
-    await play(wrap, 'drink');
+    const box = document.createElement('div');
+    box.className = 'mw-film';
+    box.innerHTML = `<video playsinline preload="auto" disablepictureinpicture>
+      <source src="meowie-drink.mp4" type="video/mp4"><source src="meowie-drink.webm" type="video/webm"></video>`;
+    const v = box.firstElementChild;
+    const withSound = !window.MASound || window.MASound.sfx;
+    v.muted = !withSound;
+    wrap.insertBefore(box, wrap.querySelector('.mw-front'));
+    if (withSound && window.MASound) window.MASound.duck(true);
+    const started = await v.play().then(() => true, () => { v.muted = true; return v.play().then(() => true, () => false); });
+    if (!started) { box.remove(); if (window.MASound) window.MASound.duck(false); return; }
+    box.classList.add('mw-on');
+    await new Promise((done) => {
+      const end = () => { v.removeEventListener('timeupdate', near); done(); };
+      // Start fading back to the tank just before the clip ends.
+      const near = () => { if (v.duration && v.currentTime > v.duration - .45) end(); };
+      v.addEventListener('timeupdate', near);
+      v.addEventListener('ended', end, { once: true });
+      setTimeout(end, 7000);
+    });
+    box.classList.remove('mw-on');
+    floatHearts(wrap, 3);
+    if (window.MASound) window.MASound.duck(false);
+    setTimeout(() => box.remove(), 500);
   }
 
   // A happy prance with a meow.
@@ -804,11 +818,8 @@
 
   // Where the pouring cup will appear, in screen coordinates (for hand-off animations).
   function pourTarget(wrap) {
-    const st = wrap._mw;
-    const svg = wrap.querySelector('svg');
-    if (st.mode === 'sit') return toClient(svg, GLASS_X + 2, GLASS_RIM - GLASS_DROP - 2);
-    const mouth = mouthPoint(wrap);
-    return toClient(svg, mouth.x + 2, Math.max(-40, levelY(st.level) - 196) - 2);
+    // The flying glass hands over to the jug pouring in from the top right of the video.
+    return toClient(wrap.querySelector('svg'), 330, 70);
   }
 
   function mouthBubbles(wrap, n) {
@@ -885,32 +896,13 @@
     })();
   }
 
-  // Where his glass ends up in the drinking clip, in scene coordinates (sit pose at
-  // (200, FLOOR + 4) scaled .8; rim about (72, -46) in pose space).
-  const GLASS_X = 200 + 72 * .8;
-  const GLASS_RIM = FLOOR + 4 - 46 * .8;
-  const GLASS_DROP = 120;
-
-  // Pour a drink for Meowie and let him enjoy it. Sitting: a cup pours by his paws and he leans in
-  // to lap from his glass. In the water: the stream lands by him and he does a happy somersault.
+  // Pour a drink for Meowie: his drinking video plays over the tank while the water rises beneath.
   async function pourAndDrink(wrap, color, o = {}) {
     const st = wrap._mw;
     if (reduced()) { slosh(wrap, .6); return; }
-    if (st.busy) { pour(wrap, color, { cup: o.cup }); await wait(1300); return; }
+    if (st.busy) { slosh(wrap, .8); await wait(600); return; }
     st.busy = true;
-    try {
-      if (st.mode === 'sit') {
-        await pour(wrap, color, { x: GLASS_X, end: GLASS_RIM, drop: GLASS_DROP, cup: o.cup, surface: false });
-        await drink(wrap);
-      } else {
-        const mouth = mouthPoint(wrap);
-        pour(wrap, color, { x: Math.max(40, Math.min(360, mouth.x)), end: levelY(st.level), cup: o.cup });
-        await wait(700);
-        await drink(wrap);
-      }
-    } finally {
-      st.busy = false;
-    }
+    try { await drink(wrap); } finally { st.busy = false; }
   }
 
   window.Meowie = { create, setLevel, setLayers, pourPoint, act, moodFor, interact, tilt, slosh, lookAt, pet, pour, pourAndDrink, pourTarget, skyNow, setBuild, setVibe };
