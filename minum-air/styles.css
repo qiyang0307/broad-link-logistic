@@ -355,12 +355,18 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 32px; }
 .mw--jump:not(.mw--swim) .mw-stretch { transform: translateY(-70px); }
 
 /* Idle life */
-.mw-sit .mw-head { transform-origin: 0 60px; animation: headTilt 4s ease-in-out infinite; }
-@keyframes headTilt { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
-.mw-tail-sit { transform-origin: 38px -14px; animation: tailSit 2.6s ease-in-out infinite; }
+.mw-sit .mw-head { transform-origin: 0 70px; animation: headTilt 4s ease-in-out infinite; }
+@keyframes headTilt { 0%, 100% { transform: rotate(-3deg) translateY(0); } 25% { transform: rotate(0) translateY(-3px); } 50% { transform: rotate(3deg) translateY(0); } 75% { transform: rotate(0) translateY(-3px); } }
+.mw-squish { animation: squish 2.8s ease-in-out infinite; }
+@keyframes squish { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.025, .975); } }
+.mw-face, .mw-shark, .mw-sheye, .mw-fin { transform-box: view-box; }
+.mw-face { transform-origin: 0 60px; }
+.mw-fin { transform-origin: 0 -70px; }
+.mw-tail-sit { transform-origin: 60px -12px; animation: tailSit 2.6s ease-in-out infinite; }
 @keyframes tailSit { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-16deg); } }
 .mw-tongue { transform-origin: 0 39px; transform: scaleY(0); }
-.mw-glass { opacity: 0; transform: translateX(-24px); transition: opacity .35s ease, transform .45s cubic-bezier(.22, 1, .36, 1); }
+.mw-lick { transform-origin: 0 39px; transform: scale(0); }
+.mw-glass { opacity: 0; transform: translateX(100px); transition: opacity .35s ease, transform .45s cubic-bezier(.34, 1.3, .64, 1); }
 
 /* Face: one expression per mood, cross-faded */
 .mw-x, .mw-lid { opacity: 0; transition: opacity .4s ease; }
@@ -416,7 +422,7 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 32px; }
 @keyframes purr { from { transform: rotate(-1.5deg); } to { transform: rotate(1.5deg); } }
 
 /* Being poured a drink */
-.mw--fill .mw-glass { opacity: 1; transform: none; }
+.mw--fill .mw-glass { opacity: 1; }
 .mw--rev .mw-leg { animation-direction: alternate-reverse; animation-duration: .45s; }
 .mw--rev .mw-tail-s { animation-duration: .7s; }
 .mw.mw--sip .mw-eo, .mw.mw--sip .mw-ek, .mw.mw--sip .mw-mf, .mw.mw--sip .mw-mw, .mw.mw--sip .mw-ms, .mw.mw--sip .mw-sweat { opacity: 0; }
@@ -431,14 +437,51 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 32px; }
 .mw--yawn .mw-sit .mw-head { animation: yawnHead 1.6s ease-in-out; }
 @keyframes yawnHead { 0%, 100% { transform: none; } 40%, 70% { transform: rotate(6deg) translateY(-6px); } }
 
-/* Action 1: drink */
-.mw--drink .mw-glass { opacity: 1; transform: none; }
-.mw--drink .mw-sit .mw-head { animation: drinkDip 1.5s ease-in-out; }
-@keyframes drinkDip { 0%, 100% { transform: none; } 20%, 80% { transform: rotate(-14deg) translate(-8px, 16px); } }
-.mw--drink .mw-tongue { animation: lap .3s ease-in-out .3s 4; }
+/* Action 1: drink. The glass sits between his paws; he bows his hood into it (the shark face
+   and fin tip towards us), laps with his tongue, comes up with a happy squint and licks his lips. */
+.mw--drink .mw-glass, .mw--glass .mw-glass { opacity: 1; transform: none; }
+.mw--drink .mw-sit .mw-head { animation: drinkBow 2.3s cubic-bezier(.45, 0, .3, 1); }
+@keyframes drinkBow {
+  0% { transform: none; }
+  16% { transform: translateY(60px) scale(1.02, .95); }
+  28% { transform: translateY(54px) scale(1, .97); }
+  40% { transform: translateY(60px) scale(1.02, .95); }
+  52% { transform: translateY(54px) scale(1, .97); }
+  64% { transform: translateY(60px) scale(1.02, .95); }
+  76% { transform: translateY(56px) scale(1, .96); }
+  90% { transform: translateY(-8px) scale(.97, 1.04); }
+  100% { transform: none; }
+}
+.mw--drink .mw-sit .mw-face { animation: faceBow 2.3s cubic-bezier(.45, 0, .3, 1); }
+@keyframes faceBow { 0%, 100% { transform: none; } 16%, 76% { transform: translateY(14px) scale(.96, .84); } 90% { transform: none; } }
+.mw--drink .mw-sit .mw-shark { animation: sharkBow 2.3s cubic-bezier(.45, 0, .3, 1); }
+@keyframes sharkBow { 0%, 100% { transform: none; } 16%, 76% { transform: translateY(14px); } 90% { transform: none; } }
+.mw--drink .mw-sit .mw-sheye { animation: sharkEye 2.3s cubic-bezier(.45, 0, .3, 1); transform-origin: 0 -30px; }
+@keyframes sharkEye { 0%, 100% { transform: none; } 16%, 76% { transform: scale(.9, 1.15); } 90% { transform: none; } }
+.mw--drink .mw-sit .mw-fin { animation: finBow 2.3s cubic-bezier(.45, 0, .3, 1); }
+@keyframes finBow { 0%, 100% { transform: none; } 16%, 76% { transform: scale(1.1, 1.55); } 86% { transform: scale(1, .85); } 94% { transform: scale(1, 1.06); } }
+.mw--drink .mw-sit .mw-tongue { animation: lap .3s ease-in-out .45s 5; }
 @keyframes lap { 0%, 100% { transform: scaleY(0); } 50% { transform: scaleY(1); } }
-.mw--drink .mw-glass-water { animation: sip 1.5s ease-in forwards; }
+.mw--drink .mw-sit .mw-squish { animation: drinkSquish 2.3s ease-in-out; }
+@keyframes drinkSquish { 0%, 100% { transform: none; } 16%, 76% { transform: scale(1.04, .95); } }
+.mw.mw--drink .mw-sit .mw-eo, .mw.mw--drink .mw-sit .mw-lid, .mw.mw--drink .mw-sit .mw-ms { opacity: 1; }
+.mw.mw--drink .mw-sit .mw-eh, .mw.mw--drink .mw-sit .mw-ek, .mw.mw--drink .mw-sit .mw-mo, .mw.mw--drink .mw-sit .mw-mf, .mw.mw--drink .mw-sit .mw-mw, .mw.mw--drink .mw-sit .mw-sweat { opacity: 0; }
+.mw--drink .mw-glass-water { animation: sip 2.3s ease-in forwards; }
 @keyframes sip { to { transform: translateY(24px); } }
+.mw--lick.mw--glass .mw-glass-water { transform: translateY(24px); }
+.mw--lick .mw-lick { animation: lick 1.1s cubic-bezier(.3, 1.4, .5, 1); }
+@keyframes lick {
+  0% { transform: scale(0); }
+  22% { transform: scale(1) rotate(8deg); }
+  44% { transform: scale(1.05) rotate(-10deg); }
+  66% { transform: scale(1) rotate(6deg); }
+  86% { transform: scale(.4) rotate(0); }
+  100% { transform: scale(0); }
+}
+.mw--lick .mw-sit .mw-head { animation: lickHead 1.1s ease-in-out; }
+@keyframes lickHead { 0%, 100% { transform: none; } 25% { transform: rotate(-6deg) translateY(-4px); } 60% { transform: rotate(4deg) translateY(-2px); } }
+.mw.mw--lick .mw-eo, .mw.mw--lick .mw-ek, .mw.mw--lick .mw-mf, .mw.mw--lick .mw-mw, .mw.mw--lick .mw-mo, .mw.mw--lick .mw-sweat { opacity: 0; }
+.mw.mw--lick .mw-eh, .mw.mw--lick .mw-ms, .mw.mw--lick .mw-blush { opacity: 1; }
 .mw--drink .mw-stretch .mw-head { animation: gulp .5s ease-in-out 3; }
 @keyframes gulp { 50% { transform: translateY(-6px) rotate(-8deg); } }
 

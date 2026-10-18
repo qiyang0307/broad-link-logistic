@@ -4,12 +4,14 @@
 // His face changes with the day's progress: thirsty → meh → content → happy → in love.
 (function () {
   let uid = 0;
-  const LINE = '#4a5059';
-  const FUR = '#a9afb6';
-  const FUR_DARK = '#6b7179';
-  const CREAM = '#f6f2ec';
-  const HOOD = '#9ea8b3';
-  const HOOD_DARK = '#87919c';
+  const LINE = '#454b54';
+  const FUR = '#a3a9b0';
+  const FUR_DARK = '#565c64';
+  const CREAM = '#f7f5f2';
+  const HOOD = '#8f979f';
+  const HOOD_DARK = '#79818a';
+  const HOOD_LIGHT = '#a4acb4';
+  const EYE = '#7cc43c';
 
   // Scene geometry (viewBox 0 0 400 320). No frame: the water fades out at the sides.
   const W = 400;
@@ -21,98 +23,126 @@
   // 0 thirsty, 1 meh, 2 content, 3 happy, 4 over the moon
   const moodFor = (p) => (p >= 1 ? 4 : p >= .75 ? 3 : p >= .45 ? 2 : p >= .2 ? 1 : 0);
 
-  // Hood teeth around the face opening (ellipse rx 44, ry 40 centred at 0,14), leaving the chin clear.
+  // The face opening of the hood: an ellipse centred at (0, FY).
+  const FY = 10;
+  const FRX = 52;
+  const FRY = 50;
+
+  // A full ring of white felt teeth around the face opening, the bottom centre left clear for the mouth.
   function teeth() {
     let out = '';
-    for (let a = 168; a <= 372; a += 17) {
-      const r = (d) => (d * Math.PI) / 180;
-      const p = (deg, k) => [(Math.cos(r(deg)) * 44 * k).toFixed(1), (14 + Math.sin(r(deg)) * 40 * k).toFixed(1)];
-      const [x1, y1] = p(a - 7, 1);
-      const [x2, y2] = p(a + 7, 1);
-      const [tx, ty] = p(a, .78);
-      out += `<path d="M${x1} ${y1} L${tx} ${ty} L${x2} ${y2} Z" fill="#fff" stroke="#cdd2d8" stroke-width="1.2" stroke-linejoin="round"/>`;
+    const r = (d) => (d * Math.PI) / 180;
+    const p = (deg, k) => [(Math.cos(r(deg)) * FRX * k).toFixed(1), (FY + Math.sin(r(deg)) * FRY * k).toFixed(1)];
+    for (let a = 11.25; a < 360; a += 22.5) {
+      const [x1, y1] = p(a - 9.5, 1.02);
+      const [x2, y2] = p(a + 9.5, 1.02);
+      const [tx, ty] = p(a, .79);
+      out += `<path d="M${x1} ${y1} L${tx} ${ty} L${x2} ${y2} Z" fill="#fff" stroke="#c9ced4" stroke-width="1.2" stroke-linejoin="round"/>`;
     }
     return out;
   }
 
   function openEye(x) {
-    return `<ellipse cx="${x}" cy="15" rx="11" ry="12" fill="#cfd36b"/>
-      <g class="mw-pupil"><ellipse cx="${x}" cy="16" rx="8" ry="10" fill="#1d1f22"/>
-      <circle cx="${x + 3.6}" cy="11" r="3.6" fill="#fff"/><circle cx="${x - 3.4}" cy="20" r="1.7" fill="#fff"/></g>`;
+    return `<ellipse cx="${x}" cy="15" rx="12.5" ry="13" fill="#fff" stroke="${LINE}" stroke-width="1.6"/>
+      <ellipse cx="${x}" cy="15.5" rx="10.5" ry="11.5" fill="${EYE}"/>
+      <g class="mw-pupil"><ellipse cx="${x}" cy="16" rx="6.6" ry="8.6" fill="#16181b"/>
+      <circle cx="${x + 3.4}" cy="11" r="3.4" fill="#fff"/><circle cx="${x - 3.2}" cy="20" r="1.6" fill="#fff"/></g>`;
   }
   const heart = (x) => `<path d="M${x} 24 C${x - 15} 13 ${x - 10} 2 ${x} 9 C${x + 10} 2 ${x + 15} 13 ${x} 24 Z" fill="#ff6b8b" stroke="#d94f70" stroke-width="1.4"/>
       <circle cx="${x - 4}" cy="10" r="2" fill="#fff"/>`;
   const star = (x, y, s) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0 -10 L2.6 -2.6 L10 0 L2.6 2.6 L0 10 L-2.6 2.6 L-10 0 L-2.6 -2.6 Z" fill="#ffd54a"/>`;
 
-  // Head with hood, centred on (0,0). Every expression is drawn; CSS shows the one for the mood.
+  // Head in a felt shark hood, centred on (0,0). Every expression is drawn; CSS shows the one for the mood.
+  // .mw-face holds everything inside the hood opening so a head bow can sink it and show the shark face above.
   function head(id) {
+    const hood = 'M0 -78 C46 -78 80 -46 80 2 C80 50 50 80 0 80 C-50 80 -80 50 -80 2 C-80 -46 -46 -78 0 -78 Z';
     return `<g class="mw-head">
-      <path d="M-56 22 Q-92 26 -98 52 Q-70 50 -48 38 Z" fill="${HOOD_DARK}" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>
-      <path d="M56 22 Q92 26 98 52 Q70 50 48 38 Z" fill="${HOOD_DARK}" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>
-      <path d="M-16 -58 Q0 -102 28 -112 Q20 -84 22 -56 Z" fill="${HOOD}" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>
-      <path d="M0 -66 C40 -66 68 -38 68 6 C68 46 38 68 0 68 C-38 68 -68 46 -68 6 C-68 -38 -40 -66 0 -66 Z" fill="${HOOD}" stroke="${LINE}" stroke-width="3"/>
-      <path d="M-46 -40 Q0 -62 46 -40" fill="none" stroke="#b4bdc7" stroke-width="6" stroke-linecap="round" opacity=".7"/>
-      <circle cx="-32" cy="-34" r="6.5" fill="#1d2026"/><circle cx="-30" cy="-36.5" r="2" fill="#fff"/>
-      <circle cx="32" cy="-34" r="6.5" fill="#1d2026"/><circle cx="34" cy="-36.5" r="2" fill="#fff"/>
-      <clipPath id="${id}-face"><ellipse cx="0" cy="14" rx="44" ry="40"/></clipPath>
-      <ellipse cx="0" cy="14" rx="44" ry="40" fill="${CREAM}"/>
-      <g clip-path="url(#${id}-face)">
-        <path d="M-50 -30 H50 V0 Q24 -8 0 -4 Q-24 -8 -50 0 Z" fill="${FUR}"/>
-        <path d="M-12 -24 Q-10 -14 -13 -5 M0 -26 V-7 M12 -24 Q10 -14 13 -5" stroke="${FUR_DARK}" stroke-width="3.6" stroke-linecap="round" fill="none"/>
+      <g class="mw-fin"><path d="M-15 -70 Q-8 -104 4 -124 Q6 -98 17 -70 Z" fill="${HOOD}" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M-6 -78 Q-2 -96 2 -108" stroke="${HOOD_LIGHT}" stroke-width="4" stroke-linecap="round" fill="none"/></g>
+      <path d="${hood}" fill="${HOOD}" stroke="${LINE}" stroke-width="3"/>
+      <path d="M-50 -52 Q0 -80 50 -52" fill="none" stroke="${HOOD_LIGHT}" stroke-width="8" stroke-linecap="round" opacity=".75"/>
+      <path d="M-74 30 Q-70 62 -40 76 M74 30 Q70 62 40 76" fill="none" stroke="${HOOD_DARK}" stroke-width="5" stroke-linecap="round" opacity=".7"/>
+      <g class="mw-shark">
+        <g class="mw-sheye"><circle cx="-52" cy="-30" r="8.5" fill="#fff" stroke="${LINE}" stroke-width="2"/><circle cx="-51" cy="-29" r="5.6" fill="#1d2026"/><circle cx="-49.5" cy="-31.5" r="1.8" fill="#fff"/></g>
+        <g class="mw-sheye"><circle cx="52" cy="-30" r="8.5" fill="#fff" stroke="${LINE}" stroke-width="2"/><circle cx="51" cy="-29" r="5.6" fill="#1d2026"/><circle cx="49.5" cy="-31.5" r="1.8" fill="#fff"/></g>
+        <circle cx="-13" cy="-50" r="3" fill="${LINE}"/><circle cx="13" cy="-50" r="3" fill="${LINE}"/>
       </g>
-      <ellipse cx="0" cy="14" rx="44" ry="40" fill="none" stroke="${LINE}" stroke-width="3"/>
+      <g class="mw-face">
+      <clipPath id="${id}-face"><ellipse cx="0" cy="${FY}" rx="${FRX}" ry="${FRY}"/></clipPath>
+      <ellipse cx="0" cy="${FY}" rx="${FRX}" ry="${FRY}" fill="${FUR}"/>
+      <g clip-path="url(#${id}-face)">
+        <path d="M-16 -34 Q-13 -20 -17 -6 M0 -38 V-10 M16 -34 Q13 -20 17 -6 M-30 -28 Q-26 -18 -30 -10 M30 -28 Q26 -18 30 -10" stroke="${FUR_DARK}" stroke-width="4" stroke-linecap="round" fill="none"/>
+        <path d="M-56 12 Q-46 15 -36 11 M-56 24 Q-46 27 -38 23 M56 12 Q46 15 36 11 M56 24 Q46 27 38 23" stroke="${FUR_DARK}" stroke-width="3.6" stroke-linecap="round" fill="none"/>
+        <ellipse cx="-18" cy="15" rx="17" ry="16" fill="#c4c9ce"/><ellipse cx="18" cy="15" rx="17" ry="16" fill="#c4c9ce"/>
+        <path d="M-38 34 Q-34 18 -14 26 Q0 30 14 26 Q34 18 38 34 Q38 66 0 70 Q-38 66 -38 34 Z" fill="${CREAM}"/>
+      </g>
+      <ellipse cx="0" cy="${FY}" rx="${FRX}" ry="${FRY}" fill="none" stroke="${LINE}" stroke-width="3"/>
       ${teeth()}
-      <g class="mw-blush"><ellipse cx="-29" cy="32" rx="8.5" ry="5" fill="#ff9db4"/><ellipse cx="29" cy="32" rx="8.5" ry="5" fill="#ff9db4"/></g>
+      <g class="mw-blush"><ellipse cx="-31" cy="34" rx="8.5" ry="5" fill="#ff9db4"/><ellipse cx="31" cy="34" rx="8.5" ry="5" fill="#ff9db4"/></g>
       <g class="mw-x mw-eo">${openEye(-18)}${openEye(18)}
         <g class="mw-lid">
-          <path d="M-31 2 H-5 V14 Q-18 10 -31 14 Z M31 2 H5 V14 Q18 10 31 14 Z" fill="${CREAM}"/>
+          <path d="M-31 1 H-5 V14 Q-18 10 -31 14 Z M31 1 H5 V14 Q18 10 31 14 Z" fill="#c4c9ce"/>
           <path d="M-30 14 Q-18 10 -6 14 M30 14 Q18 10 6 14" stroke="${LINE}" stroke-width="2.4" stroke-linecap="round" fill="none"/>
         </g>
       </g>
-      <g class="mw-x mw-eh"><path d="M-27 18 Q-18 6 -9 18 M27 18 Q18 6 9 18" stroke="#33363d" stroke-width="3.6" stroke-linecap="round" fill="none"/></g>
+      <g class="mw-x mw-eh"><path d="M-28 18 Q-18 5 -8 18 M28 18 Q18 5 8 18" stroke="#2c2f35" stroke-width="3.8" stroke-linecap="round" fill="none"/></g>
       <g class="mw-x mw-ek">${heart(-18)}${heart(18)}</g>
-      <ellipse cx="-9" cy="36" rx="10.5" ry="7.5" fill="#fff"/><ellipse cx="9" cy="36" rx="10.5" ry="7.5" fill="#fff"/>
-      <path class="mw-tongue" d="M-5.5 39 Q-6 51 0 52 Q6 51 5.5 39 Z" fill="#ef8296" stroke="#c75d72" stroke-width="1.2"/>
+      <path class="mw-tongue" d="M-6.5 39 Q-8 64 0 70 Q8 64 6.5 39 Z" fill="#ef8296" stroke="#c75d72" stroke-width="1.2"/>
       <g class="mw-x mw-mf"><path d="M-6 42.5 Q0 37.5 6 42.5" stroke="#6d5f60" stroke-width="2.4" stroke-linecap="round" fill="none"/></g>
       <g class="mw-x mw-mw"><path d="M0 33.5 V37 M0 37 Q-5 42 -10 38.5 M0 37 Q5 42 10 38.5" fill="none" stroke="#6d5f60" stroke-width="2.4" stroke-linecap="round"/></g>
       <g class="mw-x mw-ms"><path d="M0 33.5 V36 M-12 36 Q-6 45 0 37 Q6 45 12 36" fill="none" stroke="#6d5f60" stroke-width="2.6" stroke-linecap="round"/></g>
       <g class="mw-x mw-mo"><path d="M-10 36 Q0 38 10 36 Q9 51 0 51 Q-9 51 -10 36 Z" fill="#7a2f3b" stroke="#5a2430" stroke-width="1.6" stroke-linejoin="round"/>
         <path d="M-6 46 Q0 41 6 46 Q5 51 0 51 Q-5 51 -6 46 Z" fill="#ef8296"/></g>
       <circle class="mw-mouth-pt" cx="0" cy="40" r="1" fill="none"/>
-      <path d="M-5 28 L5 28 L0 33.5 Z" fill="#f0a1b0" stroke="#c97a8a" stroke-width="1.2" stroke-linejoin="round"/>
-      <g stroke="#cfcac3" stroke-width="1.6" stroke-linecap="round">
-        <path d="M-24 34 L-58 28 M-24 39 L-58 42"/><path d="M24 34 L58 28 M24 39 L58 42"/>
+      <path d="M-6 27 Q0 25.5 6 27 L0 33.5 Z" fill="#f28c9c" stroke="#c97a8a" stroke-width="1.2" stroke-linejoin="round"/>
+      <g class="mw-lick"><path d="M-3 38 C-12 44 -27 40 -29 28 C-31 17 -19 12 -11 19 C-6 23 -3 31 4 37 Z" fill="#f07b92" stroke="#c75d72" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M-6 34 Q-14 30 -18 22" stroke="#d9667e" stroke-width="1.6" stroke-linecap="round" fill="none"/></g>
+      <g stroke="#eef0f2" stroke-width="1.6" stroke-linecap="round" opacity=".9">
+        <path d="M-26 36 L-64 30 M-26 41 L-64 44"/><path d="M26 36 L64 30 M26 41 L64 44"/>
       </g>
-      <path class="mw-x mw-sweat" d="M50 -14 Q58 -2 54 4 Q49 8 45 3 Q43 -3 50 -14 Z" fill="#8fd3ff" stroke="#4fa8de" stroke-width="1.4"/>
-      <g class="mw-x mw-spark">${star(-74, -54, 1)}${star(78, -40, .8)}${star(-66, 48, .7)}${star(74, 58, 1)}</g>
+      </g>
+      <path class="mw-x mw-sweat" d="M58 -14 Q66 -2 62 4 Q57 8 53 3 Q51 -3 58 -14 Z" fill="#8fd3ff" stroke="#4fa8de" stroke-width="1.4"/>
+      <g class="mw-x mw-spark">${star(-84, -58, 1)}${star(88, -44, .8)}${star(-80, 52, .7)}${star(86, 62, 1)}</g>
     </g>`;
   }
 
-  // Sitting pose. Origin = between the feet.
+  // Sitting pose: a round, chubby tabby with a white bib and paws. Origin = between the feet.
   function sitPose(id) {
+    const body = 'M-40 -150 C-72 -146 -86 -92 -86 -48 C-86 -14 -72 0 -50 0 H50 C72 0 86 -14 86 -48 C86 -92 72 -146 40 -150 Z';
+    const stripes = [-128, -104, -80, -56, -32].map((y, i) => {
+      const w = i % 2 ? 8 : 10;
+      return `<path d="M-96 ${y} Q-64 ${y + 9} -34 ${y - 2} M96 ${y} Q64 ${y + 9} 34 ${y - 2}" stroke="${FUR_DARK}" stroke-width="${w}" stroke-linecap="round" fill="none"/>`;
+    }).join('');
+    const paw = (x, y, rx, ry) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${CREAM}" stroke="${LINE}" stroke-width="2.6"/>
+      <path d="M${x - rx * .32} ${y + ry * .1} V${y + ry * .8} M${x + rx * .32} ${y + ry * .1} V${y + ry * .8}" stroke="#bfc3c8" stroke-width="2" stroke-linecap="round"/>`;
     return `<g class="mw-sit">
-      <g class="mw-bodyfit">
+      <g class="mw-bodyfit"><g class="mw-squish">
       <g class="mw-tail-sit">
-        <path d="M38 -14 C92 -8 108 -44 86 -74" fill="none" stroke="${LINE}" stroke-width="19" stroke-linecap="round"/>
-        <path d="M38 -14 C92 -8 108 -44 86 -74" fill="none" stroke="${FUR}" stroke-width="13" stroke-linecap="round"/>
-        <path d="M38 -14 C92 -8 108 -44 86 -74" fill="none" stroke="${FUR_DARK}" stroke-width="13" stroke-dasharray="7 11" stroke-dashoffset="4"/>
+        <path d="M60 -12 C112 -6 124 -46 100 -78" fill="none" stroke="${LINE}" stroke-width="21" stroke-linecap="round"/>
+        <path d="M60 -12 C112 -6 124 -46 100 -78" fill="none" stroke="${FUR}" stroke-width="15" stroke-linecap="round"/>
+        <path d="M60 -12 C112 -6 124 -46 100 -78" fill="none" stroke="${FUR_DARK}" stroke-width="15" stroke-dasharray="8 10" stroke-dashoffset="4"/>
       </g>
-      <ellipse cx="0" cy="-52" rx="58" ry="52" fill="${FUR}" stroke="${LINE}" stroke-width="3"/>
-      <path d="M-50 -66 Q-40 -58 -44 -44 M-54 -40 Q-44 -32 -48 -20 M50 -66 Q40 -58 44 -44 M54 -40 Q44 -32 48 -20" stroke="${FUR_DARK}" stroke-width="4.5" stroke-linecap="round" fill="none"/>
-      <ellipse cx="0" cy="-42" rx="31" ry="40" fill="${CREAM}"/>
-      <g><ellipse cx="-21" cy="-6" rx="16" ry="10" fill="#fff" stroke="${LINE}" stroke-width="2.6"/>
-        <ellipse cx="21" cy="-6" rx="16" ry="10" fill="#fff" stroke="${LINE}" stroke-width="2.6"/></g>
-      <path d="M-34 -98 Q0 -84 34 -98" fill="none" stroke="#56606b" stroke-width="7" stroke-linecap="round"/>
-      <circle cx="0" cy="-88" r="6" fill="#d7dbe0" stroke="${LINE}" stroke-width="2"/>
+      <clipPath id="${id}-body"><path d="${body}"/></clipPath>
+      <path d="${body}" fill="${FUR}"/>
+      <g clip-path="url(#${id}-body)">${stripes}
+        <path d="M-84 -40 Q-60 -78 -36 -30 M84 -40 Q60 -78 36 -30" stroke="${FUR_DARK}" stroke-width="4" stroke-linecap="round" fill="none" opacity=".55"/>
+        <path d="M-30 -150 Q0 -138 30 -150 Q40 -84 26 -26 Q0 -14 -26 -26 Q-40 -84 -30 -150 Z" fill="#e9eaec"/>
+        <path d="M-12 -96 Q-6 -90 0 -96 Q6 -90 12 -96 M-14 -70 Q-7 -64 0 -70 Q7 -64 14 -70" stroke="#cfd2d6" stroke-width="2.4" stroke-linecap="round" fill="none"/>
       </g>
+      <path d="${body}" fill="none" stroke="${LINE}" stroke-width="3"/>
+      ${paw(-66, -8, 19, 10)}${paw(66, -8, 19, 10)}
+      ${paw(-26, -7, 16, 11)}${paw(26, -7, 16, 11)}
+      </g></g>
+      <g class="mw-headpos" transform="translate(0 -184)">${head(id + 's')}</g>
       <g class="mw-glass">
-        <path d="M-84 -46 H-50 L-53 -2 Q-54 2 -58 2 H-76 Q-80 2 -81 -2 Z" fill="rgba(210,236,255,.6)" stroke="#8fb4cf" stroke-width="2.4" stroke-linejoin="round"/>
-        <clipPath id="${id}-gl"><path d="M-84 -46 H-50 L-53 -2 Q-54 2 -58 2 H-76 Q-80 2 -81 -2 Z"/></clipPath>
-        <g clip-path="url(#${id}-gl)"><rect class="mw-glass-water" x="-90" y="-32" width="50" height="40" fill="#7cc8f5"/></g>
-        <path d="M-78 -40 L-76 -8" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".8"/>
+        <path d="M-21 -52 H21 L18 -2 Q17.5 2 13 2 H-13 Q-17.5 2 -18 -2 Z" fill="rgba(214,238,255,.45)" stroke="#8fb4cf" stroke-width="2.4" stroke-linejoin="round"/>
+        <clipPath id="${id}-gl"><path d="M-21 -52 H21 L18 -2 Q17.5 2 13 2 H-13 Q-17.5 2 -18 -2 Z"/></clipPath>
+        <g clip-path="url(#${id}-gl)"><g class="mw-glass-water"><rect x="-26" y="-34" width="52" height="40" fill="#7cc8f5" opacity=".85"/>
+          <path d="M-26 -34 H26" stroke="#d8f0ff" stroke-width="2.4"/></g></g>
+        <path d="M-14 -45 L-12 -8" stroke="#fff" stroke-width="2.6" stroke-linecap="round" opacity=".85"/>
+        <ellipse cx="0" cy="-52" rx="21" ry="3.2" fill="none" stroke="#a9c8de" stroke-width="1.6"/>
       </g>
-      <g class="mw-headpos" transform="translate(0 -150)">${head(id + 's')}</g>
-      <g class="mw-ball" transform="translate(0 -232)"><g class="mw-ball-in">
+      <g class="mw-ball" transform="translate(-34 -272)"><g class="mw-ball-in">
         <circle r="17" fill="#fff" stroke="${LINE}" stroke-width="2.6"/>
         <path d="M-17 0 A17 17 0 0 1 0 -17 L0 0 Z" fill="#e8453c"/><path d="M17 0 A17 17 0 0 1 0 17 L0 0 Z" fill="#e8453c"/>
         <path d="M0 -17 A17 17 0 0 1 17 0 L0 0 Z" fill="#ffc93c"/><path d="M0 17 A17 17 0 0 1 -17 0 L0 0 Z" fill="#2f7fe0"/>
@@ -122,22 +152,27 @@
 
   // Stretched pose for swimming and jumping. Origin = middle of the body.
   function stretchPose(id) {
-    const leg = (cls, d) => `<g class="mw-leg ${cls}"><path d="${d}" stroke="${LINE}" stroke-width="20" stroke-linecap="round" fill="none"/><path d="${d}" stroke="#fff" stroke-width="14" stroke-linecap="round" fill="none"/></g>`;
+    const leg = (cls, d, [ex, ey]) => `<g class="mw-leg ${cls}"><path d="${d}" stroke="${LINE}" stroke-width="22" stroke-linecap="round" fill="none"/>
+      <path d="${d}" stroke="${FUR}" stroke-width="16" stroke-linecap="round" fill="none"/>
+      <circle cx="${ex}" cy="${ey}" r="9.5" fill="${CREAM}" stroke="${LINE}" stroke-width="2.4"/></g>`;
     return `<g class="mw-stretch">
       <g class="mw-tail-s">
-        <path d="M-88 -4 C-122 -16 -138 8 -176 -12" fill="none" stroke="${LINE}" stroke-width="19" stroke-linecap="round"/>
-        <path d="M-88 -4 C-122 -16 -138 8 -176 -12" fill="none" stroke="${FUR}" stroke-width="13" stroke-linecap="round"/>
-        <path d="M-88 -4 C-122 -16 -138 8 -176 -12" fill="none" stroke="${FUR_DARK}" stroke-width="13" stroke-dasharray="7 11"/>
+        <path d="M-92 -4 C-126 -16 -142 8 -180 -12" fill="none" stroke="${LINE}" stroke-width="21" stroke-linecap="round"/>
+        <path d="M-92 -4 C-126 -16 -142 8 -180 -12" fill="none" stroke="${FUR}" stroke-width="15" stroke-linecap="round"/>
+        <path d="M-92 -4 C-126 -16 -142 8 -180 -12" fill="none" stroke="${FUR_DARK}" stroke-width="15" stroke-dasharray="8 10"/>
       </g>
-      ${leg('mw-leg-b2', 'M-62 20 Q-82 40 -96 44')}
-      ${leg('mw-leg-f2', 'M30 22 Q50 42 66 46')}
-      <ellipse cx="-16" cy="4" rx="82" ry="38" fill="${FUR}" stroke="${LINE}" stroke-width="3"/>
-      <path d="M-16 30 Q-60 30 -84 16 Q-60 42 -16 42 Q30 42 54 20 Q30 30 -16 30 Z" fill="${CREAM}"/>
-      <path d="M-70 -24 Q-62 -6 -68 10 M-46 -32 Q-38 -10 -44 8 M-22 -34 Q-14 -12 -20 6 M2 -32 Q10 -12 4 4" stroke="${FUR_DARK}" stroke-width="5" stroke-linecap="round" fill="none"/>
-      ${leg('mw-leg-b1', 'M-50 26 Q-66 48 -78 56')}
-      ${leg('mw-leg-f1', 'M40 24 Q58 48 76 54')}
-      <path d="M40 -26 Q58 2 44 30" fill="none" stroke="#56606b" stroke-width="7" stroke-linecap="round"/>
-      <g transform="translate(78 -14) scale(.92)">${head(id + 'w')}</g>
+      ${leg('mw-leg-b2', 'M-62 20 Q-82 40 -96 44', [-96, 44])}
+      ${leg('mw-leg-f2', 'M30 22 Q50 42 66 46', [66, 46])}
+      <clipPath id="${id}-sb"><ellipse cx="-16" cy="4" rx="86" ry="44"/></clipPath>
+      <ellipse cx="-16" cy="4" rx="86" ry="44" fill="${FUR}"/>
+      <g clip-path="url(#${id}-sb)">
+        <path d="M-80 -44 Q-70 -14 -78 14 M-56 -48 Q-46 -14 -54 12 M-32 -48 Q-22 -14 -30 10 M-8 -48 Q2 -16 -6 8 M16 -46 Q26 -18 18 4" stroke="${FUR_DARK}" stroke-width="8" stroke-linecap="round" fill="none"/>
+        <path d="M-96 26 Q-56 36 -16 34 Q30 34 70 18 V60 H-96 Z" fill="#e9eaec"/>
+      </g>
+      <ellipse cx="-16" cy="4" rx="86" ry="44" fill="none" stroke="${LINE}" stroke-width="3"/>
+      ${leg('mw-leg-b1', 'M-50 26 Q-66 48 -78 56', [-78, 56])}
+      ${leg('mw-leg-f1', 'M40 24 Q58 48 76 54', [76, 54])}
+      <g transform="translate(80 -16) scale(.9)">${head(id + 'w')}</g>
     </g>`;
   }
 
@@ -334,7 +369,7 @@
     const head = wrap.querySelector('.mw-sit .mw-headpos');
     if (!body || !head) return;
     body.style.transform = `scale(${sx.toFixed(3)}, ${sy.toFixed(3)})`;
-    head.style.transform = `translate(0px, ${(-150 + 104 * (1 - sy)).toFixed(1)}px) scale(${hx.toFixed(3)}, 1)`;
+    head.style.transform = `translate(0px, ${(-184 + 140 * (1 - sy)).toFixed(1)}px) scale(${hx.toFixed(3)}, 1)`;
   }
 
   // Activity moods: relax (eyes shut, slow breathing), walk (strolls about), hyper (hops and juggles a ball).
@@ -394,13 +429,37 @@
     }
   }
 
-  // Lap from a glass (sitting) or gulp at the surface (swimming). Hearts float up while drinking.
+  // Sitting: bow into the glass, lap it up with the tongue, come up with a happy squint and lick his lips.
+  // Swimming: gulp at the surface. Hearts float up while drinking.
   async function drink(wrap) {
     const svg = wrap.querySelector('svg');
+    if (reduced()) return;
+    if (wrap._mw.mode === 'sit') { await lapGlass(wrap); return; }
     svg.classList.add('mw--drink');
-    if (!reduced()) floatHearts(wrap, 3);
-    await wait(reduced() ? 50 : 1500);
+    floatHearts(wrap, 3);
+    await wait(1500);
     svg.classList.remove('mw--drink');
+  }
+
+  async function lapGlass(wrap) {
+    const svg = wrap.querySelector('svg');
+    svg.classList.add('mw--glass');
+    await wait(420);
+    lookAtSvg(wrap, 200, 320);
+    svg.classList.add('mw--drink');
+    await wait(2300);
+    svg.classList.remove('mw--drink');
+    await lick(wrap, true);
+    svg.classList.remove('mw--glass');
+  }
+
+  // Big sideways lick of the lips with a happy squint.
+  async function lick(wrap, hearts) {
+    const svg = wrap.querySelector('svg');
+    svg.classList.add('mw--lick');
+    if (hearts) floatHearts(wrap, 3);
+    await wait(1150);
+    svg.classList.remove('mw--lick');
   }
 
   function floatHearts(wrap, n) {
@@ -408,7 +467,7 @@
     const ns = 'http://www.w3.org/2000/svg';
     const swim = wrap._mw.mode === 'swim';
     const x0 = swim ? 250 : 200;
-    const y0 = swim ? levelY(wrap._mw.level) + 10 : 150;
+    const y0 = swim ? levelY(wrap._mw.level) + 10 : 120;
     for (let i = 0; i < n; i++) {
       const h = document.createElementNS(ns, 'path');
       h.setAttribute('d', 'M0 6 C-9 0 -6 -7 0 -3 C6 -7 9 0 0 6 Z');
@@ -614,11 +673,12 @@
         if (!document.hidden && !st.busy) {
           const r = Math.random();
           if (st.level >= .2 && r < .5) fishPass(wrap);
-          else if (st.mode === 'sit' && r < .75) yawn(wrap);
+          else if (st.mode === 'sit' && r < .65) lick(wrap);
+          else if (st.mode === 'sit' && r < .8) yawn(wrap);
           else lookAround(wrap);
         }
         next();
-      }, 6000 + Math.random() * 5000);
+      }, 4500 + Math.random() * 4500);
     })();
   }
 
@@ -763,7 +823,7 @@
   function pourTarget(wrap) {
     const st = wrap._mw;
     const svg = wrap.querySelector('svg');
-    if (st.mode === 'sit') return toClient(svg, 148, Math.max(-40, 257 - 190) - 2);
+    if (st.mode === 'sit') return toClient(svg, GLASS_X + 2, Math.max(-40, GLASS_RIM - 190) - 2);
     const mouth = mouthPoint(wrap);
     return toClient(svg, mouth.x + 2, Math.max(-40, levelY(st.level) - 196) - 2);
   }
@@ -871,6 +931,11 @@
     })();
   }
 
+  // While being filled the glass waits to his side; rim in scene coordinates
+  // (sit pose at (200, FLOOR + 4) scaled .8, glass shifted 100 right, rim at y -52 locally).
+  const GLASS_X = 200 + 100 * .8;
+  const GLASS_RIM = FLOOR + 4 - 52 * .8;
+
   // Pour a drink for Meowie and let him enjoy it.
   // Sitting: the cup fills his glass and he laps it up.
   // Swimming: he rises to the surface, catches the stream in his mouth and looks blissful.
@@ -886,15 +951,14 @@
         const gw = wrap.querySelector('.mw-sit .mw-glass-water');
         const fill = gw.animate([{ transform: 'translateY(26px)' }, { transform: 'translateY(0)' }],
           { duration: 800, delay: (o.cup === false ? 0 : 260) + 300, easing: 'ease-out', fill: 'both' });
-        // Glass rim in scene coordinates: sit pose sits at (200, FLOOR + 4) scaled .8; rim is at (-67, -46) locally.
-        await pour(wrap, color, { x: 146, end: 257, cup: o.cup, surface: false });
-        await wait(900);
-        svg.classList.add('mw--drink');
-        fill.cancel();
+        await pour(wrap, color, { x: GLASS_X, end: GLASS_RIM, cup: o.cup, surface: false });
+        await wait(800);
+        // The full glass slides in between his paws, then he laps it up.
+        svg.classList.add('mw--glass');
         svg.classList.remove('mw--fill');
-        floatHearts(wrap, 3);
-        await wait(1500);
-        svg.classList.remove('mw--drink');
+        await wait(150);
+        fill.cancel();
+        await lapGlass(wrap);
       } else {
         // He keeps swimming at his depth and gulps the fresh water happily, blowing bubbles.
         const mouth = mouthPoint(wrap);
