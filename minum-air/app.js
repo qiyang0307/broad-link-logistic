@@ -1052,8 +1052,8 @@
           <span>${dayName(x.k)}</span></button>`).join('')}</div>
         <p class="tap-hint">${t('tapDay')}</p></div>
       <div class="tiles stagger">
-        <div class="tile"><div class="v">🔥 ${streakCount()}</div><div class="l">${t('streakNow')}</div></div>
-        <div class="tile"><div class="v">🏆 ${best}</div><div class="l">${t('streakBest')}</div></div>
+        <button type="button" class="tile tap" data-streak><div class="v">🔥 ${streakCount()}</div><div class="l">${t('streakNow')} <span class="tile-go">›</span></div></button>
+        <button type="button" class="tile tap" data-streak><div class="v">🏆 ${best}</div><div class="l">${t('streakBest')} <span class="tile-go">›</span></div></button>
         <div class="tile"><div class="v">${fmt(avg)}</div><div class="l">${t('avg')}</div></div>
         <div class="tile"><div class="v">${hit}</div><div class="l">${t('daysHit')}</div></div>
         <div class="tile"><div class="v">${cups}</div><div class="l">${t('logged')}</div></div>
@@ -1063,6 +1063,8 @@
         el.classList.add('home');
         setTimeout(() => el.querySelectorAll('.week i').forEach((i) => { i.style.height = i.dataset.h + '%'; }), 120);
         el.querySelectorAll('[data-day]').forEach((b) => b.addEventListener('click', () => openDaySheet(b.dataset.day)));
+        // The streak tiles open the same milestones and rewards sheet as the streak pill on Today.
+        el.querySelectorAll('[data-streak]').forEach((b) => b.addEventListener('click', openStreakSheet));
       },
     });
   }

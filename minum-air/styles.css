@@ -727,3 +727,9 @@ button.pill.fire:active { transform: scale(.94); }
 .gc-chip { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; padding: 8px 10px; border-radius: 12px; font-size: 13px; font-weight: 800; }
 .gc-chip.sip { background: color-mix(in srgb, #3fd39a 20%, var(--card)); color: color-mix(in srgb, #0f7a5c 70%, var(--ink)); }
 .gc-chip.cups { background: color-mix(in srgb, #ffb02e 22%, var(--card)); color: color-mix(in srgb, #8a5a00 60%, var(--ink)); }
+
+/* Tappable stat tiles (streaks open the rewards sheet) */
+.tile.tap { font: inherit; color: inherit; text-align: left; cursor: pointer; transition: transform .15s ease, box-shadow .2s ease; }
+.tile.tap:active { transform: scale(.96); }
+.tile.tap:hover { box-shadow: 0 8px 20px -14px rgba(10, 60, 110, .5); }
+.tile-go { float: right; font-size: 16px; line-height: 1; color: var(--brand); }
