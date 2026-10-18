@@ -321,10 +321,24 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 32px; }
 .toast.show { transform: translate(-50%, 0); visibility: visible; }
 
 /* ---------- Meowie ---------- */
+.cat-wrap { position: relative; -webkit-tap-highlight-color: transparent; }
 .cat-wrap svg { width: 100%; height: auto; display: block; overflow: visible; -webkit-tap-highlight-color: transparent; }
+/* The water fades out at the sides (a CSS mask is far cheaper on phones than an SVG one). */
+.mw-scene, .mw-hl, .mw-front { -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+.cat-wrap .mw-top { position: absolute; inset: 0; height: 100%; pointer-events: none; }
+/* Meowie's own layer, laid out in scene units and scaled to fit */
+.mw-hl { position: absolute; inset: 0; pointer-events: none; }
+.mw-hl-in { position: absolute; left: 0; top: 0; width: 400px; height: 320px; transform: scale(var(--k, 1)); transform-origin: 0 0; }
+.mw-par3, .mw-pos, .mw-drift, .mw-actor, .mw-sit, .mw-bodyfit, .mw-look, .mw-squish, .mw-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
+.mw-pos, .mw-drift, .mw-actor { will-change: transform; }
+.mw-cell { position: absolute; overflow: hidden; }
+.mw-cell img { position: absolute; left: 0; top: 0; max-width: none; height: auto; will-change: transform; user-select: none; -webkit-user-drag: none; }
+.mw-hit { position: absolute; pointer-events: auto; cursor: pointer; touch-action: pan-y; }
+.mw-pt { position: absolute; width: 1px; height: 1px; }
+.cat-wrap .mw-deco { position: absolute; left: -160px; top: -340px; width: 320px; height: 360px; overflow: visible; pointer-events: none; }
 .mw-sand { fill: #f1dcaa; }
 .mw-pebbles { fill: #e0c48d; }
-.mw-glow { fill: color-mix(in srgb, var(--water-1) 30%, transparent); filter: blur(12px); }
+.mw-glow { stop-color: var(--water-1); }
 .mw-rays { opacity: .14; animation: rays 7s ease-in-out infinite alternate; }
 @keyframes rays { from { opacity: .08; transform: translateX(-8px); } to { opacity: .2; transform: translateX(8px); } }
 .mw-water { transition: transform 1.6s cubic-bezier(.34, 1.45, .64, 1); }
@@ -370,7 +384,8 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 32px; }
 /* Sky: sun, sunset or moon with stars, by Malaysian time */
 .mw-sunrays { animation: spin 24s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.mw-sun { animation: sunPulse 4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.mw-sun > circle:first-child { animation: sunGlow 4s ease-in-out infinite; }
+@keyframes sunGlow { 0%, 100% { opacity: .2; } 50% { opacity: .35; } }
 @keyframes sunPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 .mw-cloud { animation: cloud 26s linear infinite; }
 .mw-cloud-2 { animation-duration: 38s; animation-delay: -12s; }

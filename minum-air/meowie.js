@@ -18,15 +18,16 @@
   const SWIM_AT = .5;
 
   // Meowie is cut out of his video clips frame by frame (background removed, camera zoom undone)
-  // and packed into one sprite sheet per action, 8 frames per row. Cells are 300 pose units tall
-  // at 1.1 px per unit; his feet sit at y 292 (swimming: his middle at y 172), centred across.
+  // and packed into one sprite sheet per action (each under 4096 px for phone GPUs). Cells are
+  // 300 pose units tall at 1.1 px per unit; his feet sit at y 292 (swimming: his middle at y 172), centred across.
   // A second "ghost" layer holds the previous frame and fades out, so switching clips dissolves.
   const CELL_H = 300;
   const PX = 1.1;
   const COLS = 8;
   const SHEETS = {
-    idle: { n: 61, w: 360 }, pet: { n: 35, w: 660 }, drink: { n: 28, w: 360 },
-    happy: { n: 26, w: 360 }, swim: { n: 15, w: 360 }, roll: { n: 13, w: 360 },
+    idle: { n: 61, w: 360, x: 180, cols: 8 }, pet: { n: 35, w: 520, x: 180, cols: 7 },
+    drink: { n: 28, w: 360, x: 180, cols: 8 }, happy: { n: 26, w: 360, x: 180, cols: 8 },
+    swim: { n: 15, w: 360, x: 180, cols: 8 }, roll: { n: 13, w: 360, x: 180, cols: 8 },
   };
   const sheetUrl = (name) => `meowie-${name}.webp`;
   const range = (a, b) => Array.from({ length: Math.abs(b - a) + 1 }, (_, i) => (a < b ? a + i : a - i));
@@ -61,45 +62,42 @@
 
   const star = (x, y, s) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0 -10 L2.6 -2.6 L10 0 L2.6 2.6 L0 10 L-2.6 2.6 L-10 0 L-2.6 -2.6 Z" fill="#ffd54a"/>`;
 
-  function layer(id, cls) {
-    return `<g class="mw-layer ${cls}">${Object.entries(SHEETS).map(([n, s]) => `<g class="mw-cell" data-sheet="${n}" transform="translate(${-s.w / 2} ${-292}) scale(${1 / PX})" clip-path="url(#${id}-c${s.w})" style="display:none">
-      <image href="${sheetUrl(n)}" width="${s.w * PX * COLS}" height="${CELL_H * PX * Math.ceil(s.n / COLS)}"/></g>`).join('')}</g>`;
+  // Meowie lives in an HTML layer over the drawn scene, so stepping his frames only moves an image
+  // (a GPU transform) instead of repainting the whole SVG tank.
+  function layer(cls) {
+    return `<div class="mw-layer ${cls}">${Object.entries(SHEETS).map(([n, s]) => `<div class="mw-cell" data-sheet="${n}" style="left:${-s.x}px;top:-292px;width:${s.w}px;height:${CELL_H}px;display:none">
+      <img src="${sheetUrl(n)}" alt="" draggable="false" style="width:${s.w * s.cols}px"></div>`).join('')}</div>`;
   }
 
   // Meowie. Origin = between his feet when sitting.
-  function sitPose(id) {
-    const widths = [...new Set(Object.values(SHEETS).map((s) => s.w))];
-    return `<g class="mw-sit">
-      ${widths.map((w) => `<clipPath id="${id}-c${w}"><rect width="${w * PX}" height="${CELL_H * PX}"/></clipPath>`).join('')}
-      <g class="mw-bodyfit"><g class="mw-look"><g class="mw-squish">
-        ${layer(id, 'mw-main')}${layer(id, 'mw-ghost')}
-        <rect class="mw-hit" x="-90" y="-210" width="180" height="210" fill="transparent"/>
-        <circle class="mw-mouth-pt" cx="10" cy="-95" r="1" fill="none"/>
-        <circle class="mw-head-pt" cx="0" cy="-150" r="1" fill="none"/>
-      </g></g></g>
-      <path class="mw-x mw-sweat" d="M62 -196 Q70 -184 66 -178 Q61 -174 57 -179 Q55 -185 62 -196 Z" fill="#8fd3ff" stroke="#4fa8de" stroke-width="1.4"/>
-      <g class="mw-x mw-spark">${star(-100, -200, 1)}${star(105, -180, .8)}${star(-115, -90, .7)}${star(115, -70, 1)}</g>
-      <g class="mw-ball" transform="translate(-60 -240)"><g class="mw-ball-in">
-        <circle r="17" fill="#fff" stroke="${LINE}" stroke-width="2.6"/>
-        <path d="M-17 0 A17 17 0 0 1 0 -17 L0 0 Z" fill="#e8453c"/><path d="M17 0 A17 17 0 0 1 0 17 L0 0 Z" fill="#e8453c"/>
-        <path d="M0 -17 A17 17 0 0 1 17 0 L0 0 Z" fill="#ffc93c"/><path d="M0 17 A17 17 0 0 1 -17 0 L0 0 Z" fill="#2f7fe0"/>
-        <circle r="17" fill="none" stroke="${LINE}" stroke-width="2.6"/><circle cx="-6" cy="-7" r="4" fill="#fff" opacity=".7"/></g></g>
-    </g>`;
+  function sitPose() {
+    return `<div class="mw-sit"><div class="mw-bodyfit"><div class="mw-look"><div class="mw-squish">
+        ${layer('mw-main')}${layer('mw-ghost')}
+        <div class="mw-hit" style="left:-90px;top:-210px;width:180px;height:210px"></div>
+        <i class="mw-pt mw-mouth-pt"></i><i class="mw-pt mw-head-pt"></i>
+      </div></div></div>
+      <svg class="mw-deco" viewBox="-160 -340 320 360" aria-hidden="true">
+        <path class="mw-x mw-sweat" d="M62 -196 Q70 -184 66 -178 Q61 -174 57 -179 Q55 -185 62 -196 Z" fill="#8fd3ff" stroke="#4fa8de" stroke-width="1.4"/>
+        <g class="mw-x mw-spark">${star(-100, -200, 1)}${star(105, -180, .8)}${star(-115, -90, .7)}${star(115, -70, 1)}</g>
+        <g class="mw-ball" transform="translate(-60 -240)"><g class="mw-ball-in">
+          <circle r="17" fill="#fff" stroke="${LINE}" stroke-width="2.6"/>
+          <path d="M-17 0 A17 17 0 0 1 0 -17 L0 0 Z" fill="#e8453c"/><path d="M17 0 A17 17 0 0 1 0 17 L0 0 Z" fill="#e8453c"/>
+          <path d="M0 -17 A17 17 0 0 1 17 0 L0 0 Z" fill="#ffc93c"/><path d="M0 17 A17 17 0 0 1 -17 0 L0 0 Z" fill="#2f7fe0"/>
+          <circle r="17" fill="none" stroke="${LINE}" stroke-width="2.6"/><circle cx="-6" cy="-7" r="4" fill="#fff" opacity=".7"/></g></g>
+      </svg>
+    </div>`;
   }
 
   function show(layerEl, [sheet, i]) {
     if (layerEl._key === sheet + i) return;
-    layerEl._key = sheet + i;
     const s = SHEETS[sheet];
-    layerEl.querySelectorAll('.mw-cell').forEach((g) => {
-      const me = g.dataset.sheet === sheet;
-      g.style.display = me ? '' : 'none';
-      if (me) {
-        const im = g.firstElementChild;
-        im.setAttribute('x', -(i % COLS) * s.w * PX);
-        im.setAttribute('y', -Math.floor(i / COLS) * CELL_H * PX);
-      }
-    });
+    if (layerEl._sheet !== sheet) {
+      layerEl.querySelectorAll('.mw-cell').forEach((g) => { g.style.display = g.dataset.sheet === sheet ? '' : 'none'; });
+      layerEl._sheet = sheet;
+    }
+    layerEl._key = sheet + i;
+    const im = layerEl.querySelector(`.mw-cell[data-sheet="${sheet}"] img`);
+    im.style.transform = `translate3d(${-(i % s.cols) * s.w}px, ${-Math.floor(i / s.cols) * CELL_H}px, 0)`;
   }
 
   // Show one frame: [sheet, index]. Changing to a different clip dissolves from the last frame.
@@ -107,6 +105,11 @@
     const st = wrap._mw;
     const main = wrap.querySelector('.mw-main');
     if (!main) return;
+    // Hold the current frame until the next sheet has loaded, so there is never a blank frame.
+    if (st.sheet !== f[0]) {
+      const im = main.querySelector(`.mw-cell[data-sheet="${f[0]}"] img`);
+      if (!im.complete || !im.naturalWidth) return;
+    }
     if (st.sheet && st.sheet !== f[0] && !reduced()) {
       const ghost = wrap.querySelector('.mw-ghost');
       show(ghost, st.last);
@@ -124,7 +127,7 @@
     if (st.hold) return st.hold;
     if (reduced()) return [st.mode === 'swim' ? 'swim' : 'idle', 0];
     if (st.mode === 'swim') return ['swim', Math.floor((now / 1000) * SWIM_FPS) % SHEETS.swim.n];
-    const relax = wrap.querySelector('svg').classList.contains('mw--relax');
+    const relax = wrap.classList.contains('mw--relax');
     return ['idle', Math.floor((now / 1000) * IDLE_FPS * (relax ? .7 : 1)) % SHEETS.idle.n];
   }
 
@@ -212,21 +215,17 @@
       `<circle class="mw-bub" cx="${x}" cy="250" r="${2.5 + (i % 3) * 1.5}" style="animation-delay:${i * .8}s;animation-duration:${3.6 + (i % 3) * .9}s"/>`).join('');
     const weed = (x, h, c, cls) => `<g class="mw-weed ${cls}"><path d="M${x} ${FLOOR + 2} C${x - 10} ${FLOOR - h * .3} ${x + 12} ${FLOOR - h * .5} ${x} ${FLOOR - h * .75} C${x - 8} ${FLOOR - h * .9} ${x + 6} ${FLOOR - h} ${x + 2} ${FLOOR - h}" fill="none" stroke="${c}" stroke-width="7" stroke-linecap="round"/></g>`;
     const svg = `
-<svg class="mw mw--m0 mw--${sky} ${opts.intro ? 'mw--intro' : ''}" viewBox="0 0 ${W} 320" role="img" aria-label="Meowie, a cat in a shark hood, in the water">
+<svg class="mw-scene" viewBox="0 0 ${W} 320" role="img" aria-label="Meowie, a cat in a shark hood, in the water">
   <defs>
+    <radialGradient id="${id}-glow"><stop offset="0" class="mw-glow" stop-opacity=".45"/><stop offset="1" class="mw-glow" stop-opacity="0"/></radialGradient>
     <linearGradient id="${id}-wb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--water-1)"/><stop offset="1" stop-color="var(--water-2)"/></linearGradient>
     <linearGradient id="${id}-mix" class="mw-mix" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color: var(--water-1)"/><stop offset="1" style="stop-color: var(--water-2)"/></linearGradient>
-    <linearGradient id="${id}-fade" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".12" stop-color="#fff"/><stop offset=".88" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
-    </linearGradient>
-    <mask id="${id}-mask" maskUnits="userSpaceOnUse" x="0" y="-400" width="${W}" height="760"><rect x="0" y="-400" width="${W}" height="760" fill="url(#${id}-fade)"/></mask>
     <clipPath id="${id}-box"><rect x="0" y="-400" width="${W}" height="${320 + 400}"/></clipPath>
     <linearGradient id="${id}-bfade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--bg)" stop-opacity="0"/><stop offset="1" stop-color="var(--bg)"/></linearGradient>
-    <clipPath id="${id}-above"><path d="M0 -400 H${W} V283 Q310 293 200 288 Q90 276 0 289 Z"/></clipPath>
   </defs>
   ${skyMarkup(id, sky)}
-  <g mask="url(#${id}-mask)" clip-path="url(#${id}-box)">
-    <ellipse cx="200" cy="${FLOOR + 6}" rx="190" ry="26" class="mw-glow"/>
+  <g clip-path="url(#${id}-box)">
+    <ellipse cx="200" cy="${FLOOR + 6}" rx="190" ry="26" fill="url(#${id}-glow)"/>
     <g class="mw-water mw-water-back"><g class="mw-slosh"><g class="mw-layers"><g class="mw-wave mw-wave-back"><path d="${wave(9)}" fill="url(#${id}-mix)"/></g></g></g>
       <g class="mw-bubs" fill="#fff" opacity=".75">${bubbles}</g></g>
     <g class="mw-par1"><g class="mw-rays"><path d="M90 0 L50 330 H86 L130 0 Z M220 0 L196 330 H240 L262 0 Z M320 0 L310 330 H338 L350 0 Z" fill="#fff"/></g></g>
@@ -242,21 +241,29 @@
     <g class="mw-pebbles"><circle cx="110" cy="298" r="5"/><circle cx="246" cy="300" r="6"/><circle cx="276" cy="295" r="3.5"/><circle cx="150" cy="303" r="3"/></g>
     <rect x="0" y="298" width="${W}" height="24" fill="url(#${id}-bfade)"/>
   </g>
-  <g class="mw-par3"><g class="mw-pos" style="transform: translate(200px, ${FLOOR + 4}px) scale(.8)">
-    <g class="mw-drift"><g class="mw-actor">
-      ${sitPose(id)}
-    </g></g>
-  </g></g>
-  <g mask="url(#${id}-mask)" clip-path="url(#${id}-above)" pointer-events="none">
-    <g class="mw-water mw-water-front"><g class="mw-slosh"><g class="mw-wave"><path d="${wave(6)}" fill="var(--water-2)" opacity=".2"/></g></g>
-</g>
+</svg>
+<div class="mw-hl"><div class="mw-hl-in"><div class="mw-par3"><div class="mw-pos" style="transform: translate(200px, ${FLOOR + 4}px) scale(.8)">
+  <div class="mw-drift"><div class="mw-actor">${sitPose()}</div></div>
+</div></div></div></div>
+<svg class="mw-top mw-front" viewBox="0 0 ${W} 320" aria-hidden="true">
+  <defs><clipPath id="${id}-above"><path d="M0 -400 H${W} V283 Q310 293 200 288 Q90 276 0 289 Z"/></clipPath></defs>
+  <g clip-path="url(#${id}-above)" pointer-events="none">
+    <g class="mw-water mw-water-front"><g class="mw-slosh"><g class="mw-wave"><path d="${wave(6)}" fill="var(--water-2)" opacity=".2"/></g></g></g>
   </g>
+</svg>
+<svg class="mw-top" viewBox="0 0 ${W} 320" aria-hidden="true">
   <g class="mw-fx" pointer-events="none"></g>
 </svg>`;
     const wrap = document.createElement('div');
-    wrap.className = 'cat-wrap';
+    wrap.className = `cat-wrap mw mw--m0 mw--${sky}${opts.intro ? ' mw--intro' : ''}`;
     wrap.innerHTML = svg;
     wrap._mw = { id, level: 0, mode: 'sit', mood: 0, busy: false, layers: [], sx: 0, sy: 0, face: 1, frame: -1 };
+    // The HTML layer is laid out in scene units (400 x 320) and scaled to the width on screen.
+    // Decode every sheet up front so switching clips is instant.
+    wrap.querySelectorAll('.mw-main img').forEach((im) => { if (im.decode) im.decode().catch(() => {}); });
+    const fit = () => wrap.style.setProperty('--k', ((wrap.clientWidth || W) / W).toFixed(4));
+    if ('ResizeObserver' in window) new ResizeObserver(fit).observe(wrap);
+    requestAnimationFrame(fit);
     place(wrap, 0, true);
     run(wrap);
     return wrap;
@@ -273,12 +280,12 @@
     const swim = st.forceSwim || pct >= SWIM_AT;
     if (!swim && st.mode === 'swim') stopSwim(wrap);
     st.mode = swim ? 'swim' : 'sit';
-    const mark = (sel, x, y) => { const m = wrap.querySelector(sel); m.setAttribute('cx', x); m.setAttribute('cy', y); };
+    const mark = (sel, x, y) => { const m = wrap.querySelector(sel); m.style.left = x + 'px'; m.style.top = y + 'px'; };
     mark('.mw-mouth-pt', swim ? 86 : 10, swim ? -118 : -95);
     mark('.mw-head-pt', swim ? 70 : 0, swim ? -150 : -150);
     if (swim !== (st.lastMode === 'swim') && st.placed && !reduced()) sfx('splash', .6);
     st.lastMode = st.mode;
-    svg.classList.toggle('mw--swim', swim);
+    wrap.classList.toggle('mw--swim', swim);
     // Once swimming, Meowie keeps his depth when more water pours in; he only
     // moves down if the surface drops too close to him.
     if (swim) {
@@ -362,18 +369,18 @@
   // Activity moods: relax (eyes shut, slow breathing), walk (strolls about), hyper (hops and juggles a ball).
   function setVibe(wrap, vibe) {
     const svg = wrap.querySelector('svg');
-    ['relax', 'walk', 'hyper'].forEach((v) => svg.classList.toggle('mw--' + v, v === vibe));
+    ['relax', 'walk', 'hyper'].forEach((v) => wrap.classList.toggle('mw--' + v, v === vibe));
   }
 
   function setMood(wrap, mood, instant) {
     const st = wrap._mw;
     const svg = wrap.querySelector('svg');
-    if (mood === st.mood && svg.classList.contains('mw--m' + mood)) return;
-    for (let i = 0; i <= 4; i++) svg.classList.toggle('mw--m' + i, i === mood);
+    if (mood === st.mood && wrap.classList.contains('mw--m' + mood)) return;
+    for (let i = 0; i <= 4; i++) wrap.classList.toggle('mw--m' + i, i === mood);
     if (!instant && mood !== st.mood) {
-      svg.classList.remove('mw--moodpop');
+      wrap.classList.remove('mw--moodpop');
       svg.getBoundingClientRect();
-      svg.classList.add('mw--moodpop');
+      wrap.classList.add('mw--moodpop');
     }
     st.mood = mood;
   }
@@ -466,7 +473,7 @@
     if (st.mode !== 'swim') { await happy(wrap); return; }
     const svg = wrap.querySelector('svg');
     const actor = wrap.querySelector('.mw-actor');
-    svg.classList.add('mw--jump');
+    wrap.classList.add('mw--jump');
     sfx('splash', .6);
     play(wrap, 'roll', { fps: 11 });
     const anim = actor.animate([
@@ -476,7 +483,7 @@
     ], { duration: 1200, easing: 'cubic-bezier(.33,.1,.3,1)' });
     setTimeout(() => splash(wrap, 206), 1050);
     await anim.finished.catch(() => {});
-    svg.classList.remove('mw--jump');
+    wrap.classList.remove('mw--jump');
   }
 
   // Swim a lap even when the water is low.
@@ -626,7 +633,7 @@
     const st = wrap._mw;
     if (st.busy || st.clip || reduced() || st.mode === 'swim') return;
     const svg = wrap.querySelector('svg');
-    if (svg.classList.contains('mw--hyper') || (st.mood >= 3 && Math.random() < .5)) happy(wrap);
+    if (wrap.classList.contains('mw--hyper') || (st.mood >= 3 && Math.random() < .5)) happy(wrap);
     else if (Math.random() < .35) sfx('meow', .45);
   }
 
@@ -659,13 +666,13 @@
     let down = null;
     let rub = 0;
     let last = null;
-    svg.addEventListener('pointerdown', (e) => {
+    wrap.addEventListener('pointerdown', (e) => {
       down = { x: e.clientX, y: e.clientY, cat: !!e.target.closest('.mw-actor') };
       last = { x: e.clientX, y: e.clientY };
       rub = 0;
       lookAt(wrap, e.clientX, e.clientY);
     });
-    svg.addEventListener('pointermove', (e) => {
+    wrap.addEventListener('pointermove', (e) => {
       lookAt(wrap, e.clientX, e.clientY);
       if (!down || !last) return;
       const onCat = !!e.target.closest('.mw-actor') || down.cat;
@@ -686,9 +693,9 @@
       down = null;
       last = null;
     };
-    svg.addEventListener('pointerup', end);
-    svg.addEventListener('pointercancel', () => { down = null; });
-    svg.addEventListener('pointerleave', () => { down = null; });
+    wrap.addEventListener('pointerup', end);
+    wrap.addEventListener('pointercancel', () => { down = null; });
+    wrap.addEventListener('pointerleave', () => { down = null; });
     startIdle(wrap);
     startSwimLoop(wrap);
   }
@@ -799,10 +806,7 @@
   function pourTarget(wrap) {
     const st = wrap._mw;
     const svg = wrap.querySelector('svg');
-    if (st.mode === 'sit') {
-      const t = (GLASS_TILT * Math.PI) / 180;
-      return toClient(svg, GLASS_X + GLASS_DROP * Math.sin(t), GLASS_RIM - GLASS_DROP * Math.cos(t));
-    }
+    if (st.mode === 'sit') return toClient(svg, GLASS_X + 2, GLASS_RIM - GLASS_DROP - 2);
     const mouth = mouthPoint(wrap);
     return toClient(svg, mouth.x + 2, Math.max(-40, levelY(st.level) - 196) - 2);
   }
