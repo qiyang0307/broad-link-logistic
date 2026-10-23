@@ -51,7 +51,7 @@ window.MA_I18N = {
     logged: 'Drinks logged', baseGoal: 'Base goal (ml)',
     avPick: 'Pick your Meowie', avChange: 'Change', avSub: 'Tap one you love, it saves right away 💕', avSaved: ({ name }) => `${name} Meowie is yours! 💖`,
     avNames: ['Curious', 'Comfy', 'Yawn', 'Hi there', 'Grumpy', 'Beach day', 'Sleepy', 'Too cool', 'Box cat', 'Zoomies', 'Butterfly', 'Sunset', 'Belly up', 'Pretty please', 'Fish nap', 'So happy'],
-    profTitle: 'Profile 😺', profSay: [
+    profTitle: 'Profile', secAbout: 'About you', secRoutine: 'Daily routine', secPrefs: 'App preferences', sndSfxLong: 'Meowie sounds', profSay: [
       ({ name }) => `Hi ${name}! Tap <b>Save</b> when done 🐾`,
       ({ name }) => `Meow ${name}~ don't forget <b>Save</b> 💾`,
       ({ name }) => `Psst ${name}, <b>Save</b> before you go 🦈`,
@@ -80,7 +80,7 @@ window.MA_I18N = {
     cancel: 'Cancel', del2Title: 'Are you really sure?', del2Body: 'This can’t be undone. Meowie will forget everything.',
     del2Wait: ({ s }) => `Delete for good (${s})`, del2Yes: 'Delete for good', deleted: 'Deleted',
     moreTips: ({ n }) => `+${n} more tip${n > 1 ? 's' : ''} · tap to see`,
-    streakPill: ({ n }) => (n ? `${n} day streak!` : 'Start a streak'),
+    streakPill: ({ n }) => (n ? `${n} day streak` : 'Streak'),
     track: ['Let’s go 💪', 'Warming up 🐾', 'Pawsome track 🐾', 'Almost there ✨', 'Hydro hero 🏆'],
     hydGoal: 'Today’s hydration goal', gcCompleted: 'completed!', gcStart: 'let’s start!', gcDone: 'goal hit! 🎉',
     gcLeft: ({ ml }) => `${ml} ml left to go! ✨`, gcOver: ({ ml }) => `+${ml} ml extra 🌊`, gcCups: ({ n }) => `Goal: ${n} cups`,
@@ -170,7 +170,7 @@ window.MA_I18N = {
     logged: 'Jumlah minuman dicatat', baseGoal: 'Target asas (ml)',
     avPick: 'Pilih Meowie kamu', avChange: 'Tukar', avSub: 'Tekan yang kamu suka, terus disimpan 💕', avSaved: ({ name }) => `Meowie ${name} milik kamu! 💖`,
     avNames: ['Ingin tahu', 'Selesa', 'Menguap', 'Hai', 'Merajuk', 'Hari pantai', 'Mengantuk', 'Cool habis', 'Kucing kotak', 'Berlari', 'Rama-rama', 'Senja', 'Tunjuk perut', 'Tolonglah', 'Tidur ikan', 'Gembira'],
-    profTitle: 'Profil 😺', profSay: [
+    profTitle: 'Profil', secAbout: 'Tentang kamu', secRoutine: 'Rutin harian', secPrefs: 'Tetapan aplikasi', sndSfxLong: 'Bunyi Meowie', profSay: [
       ({ name }) => `Hai ${name}! Siap, tekan <b>Simpan</b> 🐾`,
       ({ name }) => `Meow ${name}~ jangan lupa <b>Simpan</b> 💾`,
       ({ name }) => `Psst ${name}, <b>Simpan</b> dulu ya 🦈`,
@@ -198,7 +198,7 @@ window.MA_I18N = {
     cancel: 'Batal', del2Title: 'Betul-betul pasti?', del2Body: 'Tindakan ini tak boleh diundur. Meowie akan lupa semuanya.',
     del2Wait: ({ s }) => `Padam terus (${s})`, del2Yes: 'Padam terus', deleted: 'Dipadam',
     moreTips: ({ n }) => `+${n} tip lagi · tekan untuk lihat`,
-    streakPill: ({ n }) => (n ? `${n} hari berturut!` : 'Mula streak'),
+    streakPill: ({ n }) => (n ? `${n} hari berturut` : 'Streak'),
     track: ['Jom mula 💪', 'Panaskan badan 🐾', 'Hebat meow 🐾', 'Hampir sampai ✨', 'Hero air 🏆'],
     hydGoal: 'Target minum hari ini', gcCompleted: 'siap!', gcStart: 'jom mula!', gcDone: 'target capai! 🎉',
     gcLeft: ({ ml }) => `${ml} ml lagi! ✨`, gcOver: ({ ml }) => `+${ml} ml lebih 🌊`, gcCups: ({ n }) => `Target: ${n} cawan`,
@@ -288,7 +288,7 @@ window.MA_I18N = {
     logged: '记录的饮料', baseGoal: '基本目标（毫升）',
     avPick: '选择你的 Meowie', avChange: '更换', avSub: '点你喜欢的，马上保存 💕', avSaved: ({ name }) => `「${name}」Meowie 是你的了！💖`,
     avNames: ['好奇', '舒服', '打哈欠', '你好', '生气', '海滩日', '想睡', '超酷', '纸箱猫', '暴冲', '蝴蝶', '夕阳', '翻肚子', '拜托嘛', '鱼枕头', '好开心'],
-    profTitle: '我的 😺', profSay: [
+    profTitle: '我的', secAbout: '关于你', secRoutine: '日常作息', secPrefs: '应用设置', sndSfxLong: 'Meowie 声音', profSay: [
       ({ name }) => `嗨 ${name}！改完点<b>保存</b> 🐾`,
       ({ name }) => `喵～${name}，别忘了<b>保存</b> 💾`,
       ({ name }) => `嘘 ${name}，记得<b>保存</b>哦 🦈`,
@@ -316,7 +316,7 @@ window.MA_I18N = {
     cancel: '取消', del2Title: '真的确定吗？', del2Body: '此操作无法撤销，Meowie 会忘记一切。',
     del2Wait: ({ s }) => `永久删除（${s}）`, del2Yes: '永久删除', deleted: '已删除',
     moreTips: ({ n }) => `还有 ${n} 条建议 · 点击查看`,
-    streakPill: ({ n }) => (n ? `连续 ${n} 天！` : '开始连续打卡'),
+    streakPill: ({ n }) => (n ? `连续 ${n} 天` : '连续打卡'),
     track: ['开始吧 💪', '热身中 🐾', '喵喵棒 🐾', '快到了 ✨', '补水英雄 🏆'],
     hydGoal: '今日补水目标', gcCompleted: '已完成！', gcStart: '开始吧！', gcDone: '达标啦！🎉',
     gcLeft: ({ ml }) => `还差 ${ml} 毫升 ✨`, gcOver: ({ ml }) => `多喝了 ${ml} 毫升 🌊`, gcCups: ({ n }) => `每日目标：${n} 杯`,

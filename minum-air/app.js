@@ -79,6 +79,7 @@
   // Built-in drinks plus the ones the user made.
   const allDrinks = () => DRINKS.concat(state.customDrinks || []);
   const findDrink = (id) => allDrinks().find((k) => k.id === id) || DRINKS[0];
+  const PAW_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><ellipse cx="6.2" cy="10.2" rx="2.1" ry="2.6" transform="rotate(-18 6.2 10.2)"/><ellipse cx="17.8" cy="10.2" rx="2.1" ry="2.6" transform="rotate(18 17.8 10.2)"/><ellipse cx="9.6" cy="6.2" rx="2.1" ry="2.7"/><ellipse cx="14.4" cy="6.2" rx="2.1" ry="2.7"/><path d="M12 11.6c-2.6 0-5.4 3.4-5.4 5.6 0 1.6 1.2 2.4 2.6 2.4 1.1 0 1.8-.6 2.8-.6s1.7.6 2.8.6c1.4 0 2.6-.8 2.6-2.4 0-2.2-2.8-5.6-5.4-5.6Z"/></svg>';
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const friend = () => state.profile.name || t('friend');
   function applyLang() {
@@ -1119,21 +1120,31 @@
     // Edits go into a draft; nothing changes until Save.
     const draft = { ...p, lang: state.lang };
     const opt = (labels, v) => Object.entries(labels).map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${Array.isArray(l) ? l[0] : l}</option>`).join('');
-    show('profile', `<h2 style="font-size:28px;margin-top:6px">${t('profTitle')}</h2>
+    const row = (ic, bg, label, ctl, forId) => `<div class="set-row"><span class="set-ic" style="--ic:${bg}">${ic}</span>
+      ${forId ? `<label for="${forId}">${label}</label>` : `<span class="set-l">${label}</span>`}<span class="set-ctl">${ctl}</span></div>`;
+    const sw = (id, on, label) => `<button type="button" class="switch" id="${id}" role="switch" aria-pressed="${on}" aria-checked="${on}" aria-label="${label}"><i></i></button>`;
+    show('profile', `<h2 class="prof-title">${t('profTitle')} <span class="ttl-ic">${PAW_SVG}</span></h2>
       <div class="prof-hero"><div class="bubble-say">${pick(L().profSay || I18N.en.profSay)({ name: esc(p.name || t('friend')) })}</div><button type="button" class="av-btn" id="avBtn" aria-label="${t('avPick')}"><span class="av-float"><img src="${avatarSrc()}" alt="Meowie" width="320" height="320"></span><span class="av-edit">✏️ ${t('avChange')}</span></button></div>
-      <div class="card">
-        <div class="prof-row"><label for="pLang">${t('pLang')}</label><select id="pLang">${LANGS.map((k) => `<option value="${k}" ${k === state.lang ? 'selected' : ''}>${I18N[k]._label}</option>`).join('')}</select></div>
-        <div class="prof-row"><span>${t('pSound')}</span><span class="snd-toggles">
-          <button type="button" class="snd" id="sMusic" aria-pressed="${MASound.music}">🎵 ${t('sndMusic')}</button>
-          <button type="button" class="snd" id="sSfx" aria-pressed="${MASound.sfx}">🔊 ${t('sndSfx')}</button></span></div>
-        <div class="prof-row"><label for="pName">${t('pName')}</label><input id="pName" value="${esc(p.name)}" maxlength="20"></div>
-        <div class="prof-row"><label for="pGender">${t('pGender')}</label><select id="pGender">${opt(L().gender, p.gender)}</select></div>
-        <div class="prof-row"><label for="pAge">${t('pAge')}</label><input id="pAge" type="number" min="10" max="90" value="${p.age}" style="width:90px"></div>
-        <div class="prof-row"><label for="pWeight">${t('pWeight')}</label><input id="pWeight" type="number" min="30" max="150" value="${p.weight}" style="width:90px"></div>
-        <div class="prof-row"><label for="pAct">${t('pActivity')}</label><select id="pAct">${opt(L().activity, p.activity)}</select></div>
-        <div class="prof-row"><label for="pCity">${t('pCity')}</label><select id="pCity">${CITIES.map(([c]) => `<option ${c === p.city ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
-        <div class="prof-row"><span>${t('pTimes')}</span><span><input id="pWake" type="time" value="${p.wake}" aria-label="${t('wake')}"> <input id="pSleep" type="time" value="${p.sleep}" aria-label="${t('sleep')}"></span></div>
-        <div class="prof-row"><span>${t('pBase')}</span><b id="pGoal">${fmt(baseGoal())} ml</b></div>
+      <h3 class="set-head">${t('secAbout')}</h3>
+      <div class="set-group">
+        ${row('👤', '#5aa9ff', t('pName'), `<input id="pName" value="${esc(p.name)}" maxlength="20">`, 'pName')}
+        ${row('🧑', '#b18cff', t('pGender'), `<select id="pGender">${opt(L().gender, p.gender)}</select>`, 'pGender')}
+        ${row('🎂', '#ff8fb1', t('pAge'), `<input id="pAge" type="number" inputmode="numeric" min="10" max="90" value="${p.age}">`, 'pAge')}
+        ${row('⚖️', '#ffb02e', t('pWeight'), `<input id="pWeight" type="number" inputmode="numeric" min="30" max="150" value="${p.weight}">`, 'pWeight')}
+      </div>
+      <h3 class="set-head">${t('secRoutine')}</h3>
+      <div class="set-group">
+        ${row('🏃', '#3fd39a', t('pActivity'), `<select id="pAct">${opt(L().activity, p.activity)}</select>`, 'pAct')}
+        ${row('📍', '#ff7a6b', t('pCity'), `<select id="pCity">${CITIES.map(([c]) => `<option ${c === p.city ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>`, 'pCity')}
+        ${row('🌅', '#ffc23d', t('wake'), `<input id="pWake" type="time" value="${p.wake}">`, 'pWake')}
+        ${row('🌙', '#6b7bff', t('sleep'), `<input id="pSleep" type="time" value="${p.sleep}">`, 'pSleep')}
+        <div class="set-row goal"><span class="set-ic" style="--ic:#0a84d6">💧</span><span class="set-l">${t('pBase')}</span><b id="pGoal">${fmt(baseGoal())} ml</b></div>
+      </div>
+      <h3 class="set-head">${t('secPrefs')}</h3>
+      <div class="set-group">
+        ${row('🌐', '#2fb7c4', t('pLang'), `<select id="pLang">${LANGS.map((k) => `<option value="${k}" ${k === state.lang ? 'selected' : ''}>${I18N[k]._label}</option>`).join('')}</select>`, 'pLang')}
+        ${row('🎵', '#f06aa8', t('sndMusic'), sw('sMusic', MASound.music, t('sndMusic')))}
+        ${row('🔊', '#8c7bff', t('sndSfxLong'), sw('sSfx', MASound.sfx, t('sndSfxLong')))}
       </div>
       <div class="save-bar"><span id="pDirty" class="dirty" hidden>${t('unsaved')}</span>
         <button class="cta" id="pSave" disabled>${t('save')}</button></div>
@@ -1182,6 +1193,7 @@
         const toggle = (id, get, set) => $(id, el).addEventListener('click', (e) => {
           set(!get());
           e.currentTarget.setAttribute('aria-pressed', get());
+          e.currentTarget.setAttribute('aria-checked', get());
         });
         toggle('#sMusic', () => MASound.music, MASound.setMusic);
         toggle('#sSfx', () => MASound.sfx, MASound.setSfx);

@@ -76,7 +76,7 @@
   // Meowie. Origin = between his feet when sitting.
   function sitPose() {
     return `<div class="mw-sit"><div class="mw-bodyfit"><div class="mw-look"><div class="mw-squish">
-        ${layer('mw-main')}${layer('mw-ghost')}
+        ${layer('mw-main')}${layer('mw-tween')}${layer('mw-ghost')}
         <div class="mw-hit" style="left:-90px;top:-210px;width:180px;height:210px"></div>
         <i class="mw-pt mw-mouth-pt"></i><i class="mw-pt mw-head-pt"></i>
       </div></div></div>
@@ -105,7 +105,7 @@
   }
 
   // Show one frame: [sheet, index]. Changing to a different clip dissolves from the last frame.
-  function frame(wrap, f) {
+  function frame(wrap, f, nf, a) {
     const st = wrap._mw;
     const main = wrap.querySelector('.mw-main');
     if (!main) return;
@@ -125,16 +125,38 @@
     st.sheet = f[0];
     st.last = f;
     show(main, f);
+    // In-between: the next frame laid over at the fraction we are past this one, so a 12 fps
+    // clip moves as smoothly as the screen refreshes.
+    const tw = wrap.querySelector('.mw-tween');
+    if (nf && a > .02 && !reduced()) { show(tw, nf); tw.style.opacity = a.toFixed(3); }
+    else if (tw.style.opacity !== '0') tw.style.opacity = '0';
   }
 
   // What he shows when nothing is playing: the idle loop on the sand, the swim cycle in the water.
+  // On the sand a little director keeps the idle from looking like a loop: every few seconds it
+  // changes the pace, sometimes lingers on a moment, sometimes lets a bit play backwards.
   function idleFrame(wrap, now) {
     const st = wrap._mw;
-    if (st.hold) return st.hold;
-    if (reduced()) return [st.mode === 'swim' ? 'swim' : 'idle', 0];
-    if (st.mode === 'swim') return ['swim', Math.floor((now / 1000) * SWIM_FPS) % SHEETS.swim.n];
-    const relax = wrap.classList.contains('mw--relax');
-    return ['idle', Math.floor((now / 1000) * IDLE_FPS * (relax ? .7 : 1)) % SHEETS.idle.n];
+    if (st.hold) return [st.hold];
+    if (reduced()) return [[st.mode === 'swim' ? 'swim' : 'idle', 0]];
+    if (st.mode === 'swim') return [['swim', Math.floor((now / 1000) * SWIM_FPS) % SHEETS.swim.n]];
+    const n = SHEETS.idle.n;
+    const dt = Math.min(.1, (now - (st.idleT || now)) / 1000);
+    st.idleT = now;
+    if (st.idlePos == null) st.idlePos = Math.random() * n;
+    if (!st.idlePlan || now > st.idlePlan.until) {
+      const r = Math.random();
+      const relax = wrap.classList.contains('mw--relax');
+      st.idlePlan = r < .14 ? { speed: 0, until: now + 900 + Math.random() * 900 }              // a still moment
+        : r < .3 ? { speed: -(.7 + Math.random() * .3), until: now + 700 + Math.random() * 900 } // rewind a touch
+        : { speed: (relax ? .55 : .8) + Math.random() * .35, until: now + 1800 + Math.random() * 2600 };
+    }
+    // Ease the pace towards the plan so changes never jerk.
+    st.idleSpeed = (st.idleSpeed ?? 1) + (st.idlePlan.speed - (st.idleSpeed ?? 1)) * Math.min(1, dt * 4);
+    st.idlePos = ((st.idlePos + st.idleSpeed * IDLE_FPS * dt) % n + n) % n;
+    const i = Math.floor(st.idlePos);
+    const frac = st.idlePos - i;
+    return st.idleSpeed >= 0 ? [['idle', i], ['idle', (i + 1) % n], frac] : [['idle', (i + 1) % n], ['idle', i], 1 - frac];
   }
 
   // One animation loop per Meowie steps whatever is playing.
@@ -154,10 +176,16 @@
       // A clip filmed on the sand ends if the water rises around him mid-way (and vice versa).
       if (c && WATER_SHEETS.has(c.frames[0][0]) !== (st.mode === 'swim')) { st.clip = null; c.done(); c = null; }
       if (c) {
-        const k = Math.max(0, Math.floor(((now - c.t0) / 1000) * c.fps));
-        if (k >= c.frames.length) { st.clip = null; c.done(); frame(wrap, idleFrame(wrap, now)); }
-        else frame(wrap, c.frames[k]);
-      } else frame(wrap, idleFrame(wrap, now));
+        const pos = Math.max(0, ((now - c.t0) / 1000) * c.fps);
+        const k = Math.floor(pos);
+        if (k >= c.frames.length) { st.clip = null; c.done(); frame(wrap, ...idleFrame(wrap, now)); }
+        else {
+          // Sand clips blend between frames; the water clips already run at full speed.
+          const nf = c.frames[k + 1];
+          const blend = nf && nf[0] === c.frames[k][0] && !WATER_SHEETS.has(nf[0]);
+          frame(wrap, c.frames[k], blend ? nf : null, pos - k);
+        }
+      } else frame(wrap, ...idleFrame(wrap, now));
       requestAnimationFrame(tick);
     })(performance.now());
   }
@@ -288,6 +316,8 @@
     const swim = st.forceSwim || pct >= SWIM_AT;
     if (!swim && st.mode === 'swim') stopSwim(wrap);
     st.mode = swim ? 'swim' : 'sit';
+    // In the water the swim loop sets his direction; drop any turn he made on the sand.
+    if (swim && st.facing === -1) { st.facing = 1; const sit = wrap.querySelector('.mw-sit'); if (sit) sit.style.transform = ''; }
     const mark = (sel, x, y) => { const m = wrap.querySelector(sel); m.style.left = x + 'px'; m.style.top = y + 'px'; };
     mark('.mw-mouth-pt', swim ? 86 : 10, swim ? -118 : -95);
     mark('.mw-head-pt', swim ? 70 : 0, swim ? -150 : -150);
@@ -706,12 +736,29 @@
   }
 
   // Idle: he keeps idling; now and then a meow, and a happy prance when the day is going well.
+  // Now and then he turns to face the other way, with a little squash as he spins.
+  function turnAround(wrap) {
+    const st = wrap._mw;
+    const sit = wrap.querySelector('.mw-sit');
+    st.facing = -(st.facing || 1);
+    sit.animate([
+      { transform: `scale(${-st.facing}, 1)` },
+      { transform: `scale(${-st.facing * .1}, .94)`, offset: .45 },
+      { transform: `scale(${st.facing * .1}, .94)`, offset: .55 },
+      { transform: `scale(${st.facing * 1.04}, .98)`, offset: .85 },
+      { transform: `scale(${st.facing}, 1)` },
+    ], { duration: 520, easing: 'ease-in-out' });
+    sit.style.transform = `scale(${st.facing}, 1)`;
+  }
+
   function idleMove(wrap) {
     const st = wrap._mw;
     if (st.busy || st.clip || reduced() || st.mode === 'swim') return;
     const svg = wrap.querySelector('svg');
-    if (wrap.classList.contains('mw--hyper') || (st.mood >= 3 && Math.random() < .5)) happy(wrap);
-    else if (Math.random() < .35) sfx('meow', .45);
+    const r = Math.random();
+    if (wrap.classList.contains('mw--hyper') || (st.mood >= 3 && r < .4)) happy(wrap);
+    else if (r < .7) turnAround(wrap);
+    else if (r < .85) sfx('meow', .45);
   }
 
   function lookAround(wrap) {
@@ -733,7 +780,7 @@
           else idleMove(wrap);
         }
         next();
-      }, 8000 + Math.random() * 6000);
+      }, 6000 + Math.random() * 5000);
     })();
   }
 
