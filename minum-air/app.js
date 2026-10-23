@@ -1120,7 +1120,7 @@
     const draft = { ...p, lang: state.lang };
     const opt = (labels, v) => Object.entries(labels).map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${Array.isArray(l) ? l[0] : l}</option>`).join('');
     show('profile', `<h2 style="font-size:28px;margin-top:6px">${t('profTitle')}</h2>
-      <div class="prof-hero"><div class="bubble-say">${pick(L().profSay || I18N.en.profSay)({ name: esc(p.name || t('friend')) })}</div><img src="meowie-photo.jpg" alt="Meowie" width="720" height="720"></div>
+      <div class="prof-hero"><div class="bubble-say">${pick(L().profSay || I18N.en.profSay)({ name: esc(p.name || t('friend')) })}</div><button type="button" class="av-btn" id="avBtn" aria-label="${t('avPick')}"><span class="av-float"><img src="${avatarSrc()}" alt="Meowie" width="320" height="320"></span><span class="av-edit">✏️ ${t('avChange')}</span></button></div>
       <div class="card">
         <div class="prof-row"><label for="pLang">${t('pLang')}</label><select id="pLang">${LANGS.map((k) => `<option value="${k}" ${k === state.lang ? 'selected' : ''}>${I18N[k]._label}</option>`).join('')}</select></div>
         <div class="prof-row"><span>${t('pSound')}</span><span class="snd-toggles">
@@ -1177,6 +1177,7 @@
           toast(t('saved'));
         });
         $('#pReset', el).addEventListener('click', openDeleteSheet);
+        $('#avBtn', el).addEventListener('click', openAvatarSheet);
         // Sound switches apply straight away; they are device settings, not part of the profile draft.
         const toggle = (id, get, set) => $(id, el).addEventListener('click', (e) => {
           set(!get());
@@ -1231,6 +1232,56 @@
       </div>`;
     openSheetEl();
     requestAnimationFrame(() => { const bar = $('.next-bar i', sheet); if (bar) bar.classList.add('go'); });
+  }
+
+  // ---------- Avatar: pick your favourite Meowie ----------
+  const AVATARS = 16;
+  const avatarSrc = (i = state.avatar || 1) => `av/${String(i).padStart(2, '0')}.jpg`;
+  function burstHearts(el, n = 7) {
+    const r = el.getBoundingClientRect();
+    for (let i = 0; i < n; i++) {
+      const h = document.createElement('div');
+      h.className = 'av-heart';
+      h.textContent = ['💖', '💕', '✨', '🐾'][i % 4];
+      h.style.left = r.left + r.width / 2 + 'px';
+      h.style.top = r.top + r.height / 2 + 'px';
+      document.body.appendChild(h);
+      const a = (i / n) * Math.PI * 2;
+      const d = 70 + Math.random() * 50;
+      h.animate([
+        { transform: 'translate(-50%, -50%) scale(.3)', opacity: 0 },
+        { transform: `translate(calc(-50% + ${Math.cos(a) * d * .6}px), calc(-50% + ${Math.sin(a) * d * .6}px)) scale(1.2)`, opacity: 1, offset: .4 },
+        { transform: `translate(calc(-50% + ${Math.cos(a) * d}px), calc(-50% + ${Math.sin(a) * d - 40}px)) scale(.8)`, opacity: 0 },
+      ], { duration: 1100, easing: 'cubic-bezier(.22,1,.36,1)' }).onfinish = () => h.remove();
+    }
+  }
+  function openAvatarSheet() {
+    const names = t('avNames');
+    const cur = state.avatar || 1;
+    sheet.innerHTML = `<div class="grab"></div><div class="av-sheet">
+      <h3>${t('avPick')}</h3><p class="av-sub">${t('avSub')}</p>
+      <div class="av-grid">${Array.from({ length: AVATARS }, (_, k) => k + 1).map((i) => `
+        <button type="button" class="av-opt ${i === cur ? 'sel' : ''}" data-av="${i}" style="animation-delay:${(i - 1) * 30}ms" aria-label="${names[i - 1]}">
+          <img src="${avatarSrc(i)}" alt="" loading="lazy"><span>${names[i - 1]}</span></button>`).join('')}</div></div>`;
+    openSheetEl();
+    sheet.querySelectorAll('[data-av]').forEach((b) => b.addEventListener('click', () => {
+      const i = Number(b.dataset.av);
+      sheet.querySelectorAll('.av-opt').forEach((o) => o.classList.toggle('sel', o === b));
+      b.animate([{ transform: 'scale(1)' }, { transform: 'scale(.86) rotate(-4deg)' }, { transform: 'scale(1.08) rotate(3deg)' }, { transform: 'scale(1)' }], { duration: 420, easing: 'ease-out' });
+      if (navigator.vibrate) navigator.vibrate(12);
+      state.avatar = i;
+      save();
+      setTimeout(() => {
+        closeSheet();
+        const img = document.querySelector('#avBtn img');
+        if (!img) return;
+        const btn = img.closest('.av-btn');
+        btn.classList.remove('swap'); void btn.offsetWidth; btn.classList.add('swap');
+        setTimeout(() => { img.src = avatarSrc(i); }, 220);
+        setTimeout(() => burstHearts(btn), 380);
+        toast(t('avSaved', { name: names[i - 1] }));
+      }, 380);
+    }));
   }
 
   // Weather right now in your city: conditions, temperature, heat level, humidity and haze.

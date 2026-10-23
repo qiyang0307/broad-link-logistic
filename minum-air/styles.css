@@ -662,7 +662,7 @@ button.pill.fire:active { transform: scale(.94); }
 
 /* Profile header photo and tab avatar */
 .prof-hero { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 4px 0 14px; }
-.prof-hero img { width: min(240px, 64vw); height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 32px; box-shadow: 0 16px 34px -18px rgba(10, 60, 110, .55); animation: popIn .5s cubic-bezier(.3, 1.4, .5, 1) both; }
+
 .tab-av { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto; box-shadow: 0 0 0 2px var(--card); }
 
 /* Opening film and the goal-calculation clip */
@@ -765,3 +765,26 @@ html { overflow-x: hidden; }
 html, body { overscroll-behavior-x: none; }
 .screen { overflow-x: hidden; overscroll-behavior-x: none; }
 .stage, .ob-hero, .splash, .calc, .cat-wrap { overflow-x: clip; }
+
+/* Profile avatar: floats gently, tap to pick another */
+.av-btn { position: relative; border: 0; padding: 0; background: none; cursor: pointer; animation: popIn .5s cubic-bezier(.3, 1.4, .5, 1) both; }
+.av-float { display: block; width: min(220px, 60vw); aspect-ratio: 1; border-radius: 50%; overflow: hidden; background: #fff;
+  border: 5px solid var(--card); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 35%, transparent), 0 18px 34px -18px rgba(10, 60, 110, .6);
+  animation: avBob 3.4s ease-in-out infinite; }
+.av-float img { width: 100%; height: 100%; object-fit: cover; display: block; }
+@keyframes avBob { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-8px) rotate(2deg); } }
+.av-btn:active .av-float { transform: scale(.94); }
+.av-btn.swap .av-float { animation: avSwap .7s cubic-bezier(.3, 1.4, .5, 1), avBob 3.4s ease-in-out .7s infinite; }
+@keyframes avSwap { 0% { transform: scale(1) rotateY(0); } 30% { transform: scale(.85) rotateY(90deg); } 31% { transform: scale(.85) rotateY(-90deg); } 70% { transform: scale(1.08) rotateY(0); } 100% { transform: scale(1); } }
+.av-edit { position: absolute; right: 2px; bottom: 6px; padding: 7px 11px; border-radius: 99px; background: var(--brand); color: var(--brand-ink); font-weight: 800; font-size: 13px;
+  box-shadow: 0 6px 14px -6px rgba(10, 60, 110, .6); animation: avNudge 3.4s ease-in-out infinite; }
+@keyframes avNudge { 0%, 85%, 100% { transform: none; } 90% { transform: rotate(-8deg) scale(1.08); } 95% { transform: rotate(6deg) scale(1.04); } }
+.av-heart { position: fixed; z-index: 90; font-size: 22px; pointer-events: none; }
+.av-sheet h3 { margin: 0; font-size: 22px; text-align: center; }
+.av-sub { margin: 4px 0 12px; text-align: center; color: var(--muted); font-weight: 700; font-size: 14px; }
+.av-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.av-opt { border: 0; background: none; padding: 0; display: grid; justify-items: center; gap: 4px; cursor: pointer; animation: popIn .4s cubic-bezier(.3, 1.4, .5, 1) both; }
+.av-opt img { width: 100%; aspect-ratio: 1; border-radius: 50%; object-fit: cover; background: #fff; border: 3px solid var(--card); box-shadow: 0 0 0 2px var(--line); transition: box-shadow .2s, transform .2s; }
+.av-opt span { font-size: 11px; font-weight: 800; color: var(--muted); text-align: center; line-height: 1.15; }
+.av-opt.sel img { box-shadow: 0 0 0 3px var(--brand), 0 8px 18px -10px rgba(10, 60, 110, .7); transform: scale(1.04); }
+.av-opt.sel span { color: var(--brand); }

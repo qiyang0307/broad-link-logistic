@@ -49,6 +49,8 @@ window.MA_I18N = {
     histTitle: 'History 📊', last7: 'Last 7 days', pctGoal: '% of goal',
     streakNow: 'Current streak', streakBest: 'Best streak', avg: 'Avg ml / day (7 days)', daysHit: 'Days goal reached',
     logged: 'Drinks logged', baseGoal: 'Base goal (ml)',
+    avPick: 'Pick your Meowie', avChange: 'Change', avSub: 'Tap one you love, it saves right away 💕', avSaved: ({ name }) => `${name} Meowie is yours! 💖`,
+    avNames: ['Curious', 'Comfy', 'Yawn', 'Hi there', 'Grumpy', 'Beach day', 'Sleepy', 'Too cool', 'Box cat', 'Zoomies', 'Butterfly', 'Sunset', 'Belly up', 'Pretty please', 'Fish nap', 'So happy'],
     profTitle: 'Profile 😺', profSay: [
       ({ name }) => `Hi ${name}! Tap <b>Save</b> when done 🐾`,
       ({ name }) => `Meow ${name}~ don't forget <b>Save</b> 💾`,
@@ -166,6 +168,8 @@ window.MA_I18N = {
     histTitle: 'Sejarah 📊', last7: '7 hari lepas', pctGoal: '% target',
     streakNow: 'Streak sekarang', streakBest: 'Streak terbaik', avg: 'Purata ml / hari (7 hari)', daysHit: 'Hari capai target',
     logged: 'Jumlah minuman dicatat', baseGoal: 'Target asas (ml)',
+    avPick: 'Pilih Meowie kamu', avChange: 'Tukar', avSub: 'Tekan yang kamu suka, terus disimpan 💕', avSaved: ({ name }) => `Meowie ${name} milik kamu! 💖`,
+    avNames: ['Ingin tahu', 'Selesa', 'Menguap', 'Hai', 'Merajuk', 'Hari pantai', 'Mengantuk', 'Cool habis', 'Kucing kotak', 'Berlari', 'Rama-rama', 'Senja', 'Tunjuk perut', 'Tolonglah', 'Tidur ikan', 'Gembira'],
     profTitle: 'Profil 😺', profSay: [
       ({ name }) => `Hai ${name}! Siap, tekan <b>Simpan</b> 🐾`,
       ({ name }) => `Meow ${name}~ jangan lupa <b>Simpan</b> 💾`,
@@ -282,6 +286,8 @@ window.MA_I18N = {
     histTitle: '记录 📊', last7: '过去 7 天', pctGoal: '目标 %',
     streakNow: '目前连续天数', streakBest: '最长连续天数', avg: '平均毫升 / 天（7 天）', daysHit: '达标天数',
     logged: '记录的饮料', baseGoal: '基本目标（毫升）',
+    avPick: '选择你的 Meowie', avChange: '更换', avSub: '点你喜欢的，马上保存 💕', avSaved: ({ name }) => `「${name}」Meowie 是你的了！💖`,
+    avNames: ['好奇', '舒服', '打哈欠', '你好', '生气', '海滩日', '想睡', '超酷', '纸箱猫', '暴冲', '蝴蝶', '夕阳', '翻肚子', '拜托嘛', '鱼枕头', '好开心'],
     profTitle: '我的 😺', profSay: [
       ({ name }) => `嗨 ${name}！改完点<b>保存</b> 🐾`,
       ({ name }) => `喵～${name}，别忘了<b>保存</b> 💾`,
