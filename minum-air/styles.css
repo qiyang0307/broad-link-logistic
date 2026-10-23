@@ -762,8 +762,10 @@ button.pill.fire:active { transform: scale(.94); }
 /* Never let a screen slide sideways: the tank's waves and Meowie's frames reach past the edge,
    so clip them across (but not up, where he jumps and the sky sits). */
 html { overflow-x: hidden; }
-html, body { overscroll-behavior-x: none; }
-.screen { overflow-x: hidden; overscroll-behavior-x: none; }
+/* No pull-to-refresh or bounce: dragging down at the top of a screen does nothing. */
+html, body { overscroll-behavior: none; }
+.screen, .sheet { overflow-x: hidden; overscroll-behavior: none; }
+.drinks { overscroll-behavior: contain; }
 .stage, .ob-hero, .splash, .calc, .cat-wrap { overflow-x: clip; }
 
 /* Profile avatar: floats gently, tap to pick another */
