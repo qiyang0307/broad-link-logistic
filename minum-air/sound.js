@@ -213,7 +213,10 @@
     else if (prefs.music) ctx.resume();
   });
   // The first tap anywhere starts the music.
-  ['pointerdown', 'keydown'].forEach((ev) => window.addEventListener(ev, unlock, { capture: true, passive: true }));
+  // Try straight away: installed apps and often-visited sites are allowed to play sound without a
+  // tap. Otherwise the first touch of any kind (tap, scroll, key) starts it; iOS counts touchend.
+  setTimeout(unlock, 0);
+  ['pointerdown', 'touchstart', 'touchend', 'click', 'keydown'].forEach((ev) => window.addEventListener(ev, unlock, { capture: true, passive: true }));
 
   window.MASound = {
     get music() { return prefs.music; },

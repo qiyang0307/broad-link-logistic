@@ -5,15 +5,22 @@
   const HEAT_STEP = 250;      // +250 ml at 32 °C, and again for every 2 °C above
   const HEAT_MAX = 1250;
 
+  // Where you stay: the Malaysian states and federal territories, and Singapore. The weather is
+  // read at each one's capital.
   const CITIES = [
-    ['Kuala Lumpur', 3.139, 101.687], ['Putrajaya', 2.926, 101.696], ['Shah Alam', 3.073, 101.519],
-    ['Petaling Jaya', 3.107, 101.607], ['George Town', 5.414, 100.329], ['Ipoh', 4.597, 101.090],
-    ['Alor Setar', 6.121, 100.367], ['Kangar', 6.441, 100.198], ['Kota Bharu', 6.125, 102.238],
-    ['Kuala Terengganu', 5.329, 103.137], ['Kuantan', 3.817, 103.326], ['Seremban', 2.726, 101.938],
-    ['Melaka', 2.189, 102.250], ['Johor Bahru', 1.493, 103.741], ['Kota Kinabalu', 5.980, 116.073],
-    ['Sandakan', 5.840, 118.117], ['Tawau', 4.245, 117.891], ['Kuching', 1.553, 110.359],
-    ['Miri', 4.399, 113.991], ['Sibu', 2.288, 111.831], ['Labuan', 5.280, 115.242],
+    ['Johor', 1.493, 103.741], ['Kedah', 6.121, 100.367], ['Kelantan', 6.125, 102.238],
+    ['Melaka', 2.189, 102.250], ['Negeri Sembilan', 2.726, 101.938], ['Pahang', 3.817, 103.326],
+    ['Penang', 5.414, 100.329], ['Perak', 4.597, 101.090], ['Perlis', 6.441, 100.198],
+    ['Sabah', 5.980, 116.073], ['Sarawak', 1.553, 110.359], ['Selangor', 3.073, 101.519],
+    ['Terengganu', 5.329, 103.137], ['Kuala Lumpur', 3.139, 101.687], ['Putrajaya', 2.926, 101.696],
+    ['Labuan', 5.280, 115.242], ['Singapore', 1.352, 103.820],
   ];
+  // Profiles saved before states replaced cities.
+  const OLD_CITY = {
+    'Shah Alam': 'Selangor', 'Petaling Jaya': 'Selangor', 'George Town': 'Penang', Ipoh: 'Perak', 'Alor Setar': 'Kedah',
+    Kangar: 'Perlis', 'Kota Bharu': 'Kelantan', 'Kuala Terengganu': 'Terengganu', Kuantan: 'Pahang', Seremban: 'Negeri Sembilan',
+    'Johor Bahru': 'Johor', 'Kota Kinabalu': 'Sabah', Sandakan: 'Sabah', Tawau: 'Sabah', Kuching: 'Sarawak', Miri: 'Sarawak', Sibu: 'Sarawak',
+  };
 
   // hyd = how much of the drink counts as water.
   const DRINKS = [
@@ -57,6 +64,8 @@
     lastSize: 250,
     lang: 'en',
   }, load());
+  if (OLD_CITY[state.profile.city]) { state.profile.city = OLD_CITY[state.profile.city]; state.weather = null; }
+  if (!state.profile.age) state.profile.age = 30;
 
   // ---------- i18n ----------
   const I18N = window.MA_I18N;
@@ -85,10 +94,12 @@
   const myHour = () => Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kuala_Lumpur', hour: '2-digit', hour12: false }).format(new Date()));
   const timeStr = (t) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kuala_Lumpur', hour: '2-digit', minute: '2-digit' }).format(new Date(t));
 
+  // Water per kg of body weight by age: younger bodies need a little more, over 55 a little less.
+  const mlPerKg = (age) => (age < 30 ? 35 : age <= 55 ? 33 : 30);
   function baseGoal(p = state.profile) {
     const g = GENDER[p.gender] || GENDER.rahsia;
     const a = ACTIVITY[p.activity] || ACTIVITY.santai;
-    const raw = p.weight * 33 * g.f + a.add;
+    const raw = p.weight * mlPerKg(p.age || 30) * g.f + a.add;
     return Math.min(4500, Math.max(1500, Math.round(raw / 50) * 50));
   }
   function heatBonus(feels) {
@@ -181,8 +192,8 @@
   }
 
   // ---------- onboarding ----------
-  const STEPS = ['welcome', 'name', 'gender', 'weight', 'activity', 'city', 'times', 'calc', 'goal', 'notify'];
-  const PROGRESS_STEPS = ['name', 'gender', 'weight', 'activity', 'city', 'times', 'goal', 'notify'];
+  const STEPS = ['welcome', 'name', 'gender', 'age', 'weight', 'activity', 'city', 'times', 'calc', 'goal', 'notify'];
+  const PROGRESS_STEPS = ['name', 'gender', 'age', 'weight', 'activity', 'city', 'times', 'goal', 'notify'];
   let stepIdx = 0;
 
   function chrome(step, { skip = false } = {}) {
@@ -265,6 +276,28 @@
         mount = (el) => mountCat(el, { level: fill });
         break;
 
+      case 'age':
+        html = `${chrome(step)}${hero(t('ageSay'))}
+          <div class="ob-body"><h1 class="ob-title">${t('ageTitle')}</h1><p class="ob-sub">${t('ageSub')}</p>
+          <div class="big-num"><span id="aNum">${p.age}</span> <small>${t('years')}</small></div>
+          <div class="stepper"><button type="button" data-a="-1" aria-label="${t('less')}">−</button>
+          <input type="range" id="aRange" min="10" max="90" value="${p.age}" aria-label="${t('ageTitle')}" style="max-width:200px">
+          <button type="button" data-a="1" aria-label="${t('more')}">+</button></div></div>
+          <div class="ob-foot"><button class="cta" data-act="next">${t('next')}</button></div>`;
+        mount = (el) => {
+          mountCat(el, { level: fill });
+          const range = $('#aRange', el);
+          const setA = (v) => {
+            p.age = Math.max(10, Math.min(90, v));
+            range.value = p.age;
+            $('#aNum', el).textContent = p.age;
+            save();
+          };
+          range.addEventListener('input', () => setA(Number(range.value)));
+          el.querySelectorAll('[data-a]').forEach((b) => b.addEventListener('click', () => setA(p.age + Number(b.dataset.a))));
+        };
+        break;
+
       case 'weight':
         html = `${chrome(step)}${hero(t('weightSay'))}
           <div class="ob-body"><h1 class="ob-title">${t('weightTitle')}</h1>
@@ -311,7 +344,7 @@
         mount = (el) => {
           el.classList.add('fixed-foot');
           const sel = $('.option.sel', el);
-          if (sel) sel.scrollIntoView({ block: 'center' });
+          if (sel) sel.scrollIntoView({ block: 'center', inline: 'nearest' });
         };
         break;
 
@@ -334,7 +367,7 @@
         html = `<div class="screen-inner calc" style="flex:1;display:flex;flex-direction:column">
           <div class="orbit-wrap"><div class="clip-card"><video class="clip-vid" muted playsinline autoplay preload="auto" disablepictureinpicture loop><source src="meowie-look.mp4" type="video/mp4"><source src="meowie-look.webm" type="video/webm"></video></div><div class="orbit" aria-hidden="true">${orbitDots()}</div></div><div class="pct" id="calcPct">0%</div>
           <ul class="checks" id="checks">
-            ${L().calc.map((f) => `<li>${f({ w: p.weight, city: esc(p.city) })}</li>`).join('')}
+            ${L().calc.map((f) => `<li>${f({ w: p.weight, a: p.age, city: esc(p.city) })}</li>`).join('')}
           </ul></div>`;
         mount = (el) => {
           el.classList.add('calc');
@@ -364,7 +397,8 @@
               <div class="big-num"><span id="goalNum">0</span> <small>ml</small></div>
               <div style="text-align:center;color:var(--muted);font-weight:700">${t('glasses', { n: Math.ceil(baseGoal() / 250) })}</div>
               <ul class="breakdown">
-                <li>${t('weightRow', { w: p.weight })}${g.f !== 1 ? ` × ${g.f}` : ''}<b>${fmt(p.weight * 33 * g.f)} ml</b></li>
+                <li>${t('ageRow', { a: p.age })}<b>${mlPerKg(p.age)} ml/kg</b></li>
+                <li>${t('weightRow', { w: p.weight, k: mlPerKg(p.age) })}${g.f !== 1 ? ` × ${g.f}` : ''}<b>${fmt(p.weight * mlPerKg(p.age) * g.f)} ml</b></li>
                 <li>${t('activityRow', { a: aLabel })}<b>+${a.add} ml</b></li>
                 <li>${t('weatherRow', { f: w ? Math.round(w.feels) : 0 })}<b>${bonus ? '+' + bonus : '+0'} ml</b></li>
               </ul></div>
@@ -468,13 +502,13 @@
     const drops = Array.from({ length: 14 }, (_, i) =>
       `<span style="left:${(i * 7.3 + 3) % 100}%;animation-duration:${1.6 + (i % 5) * .35}s;animation-delay:${(i % 7) * .25}s"></span>`).join('');
     // Opening scene: Meowie's intro film with its own music and sound, and the title under it.
-    // Phones only allow sound after a tap, so if it starts muted a small button turns it on.
-    show('splash', `<button type="button" class="splash-snd" hidden>🔊 ${t('tapSound')}</button><video class="clip-vid" playsinline autoplay preload="auto" disablepictureinpicture><source src="meowie-intro.mp4" type="video/mp4"><source src="meowie-intro.webm" type="video/webm"></video><div class="splash-shade"></div><div class="drops">${drops}</div>
+    // It plays with sound when the browser allows; if not, the first touch anywhere turns the
+    // sound on (without skipping), and a later tap skips the film.
+    show('splash', `<video class="clip-vid" playsinline autoplay preload="auto" disablepictureinpicture><source src="meowie-intro.mp4" type="video/mp4"><source src="meowie-intro.webm" type="video/webm"></video><div class="splash-shade"></div><div class="drops">${drops}</div>
       <div class="splash-title"><h1>Meowie</h1><p class="splash-app">Minum Air</p><p>${t('splashSub')}</p></div>`, {
       onMount: (el) => {
         el.classList.add('splash');
         const v = $('video', el);
-        const snd = $('.splash-snd', el);
         const wantSound = !window.MASound || MASound.music || MASound.sfx;
         let left = false;
         let timer = 0;
@@ -489,21 +523,31 @@
         }
         if (window.MASound) MASound.hush(true);
         v.muted = !wantSound;
-        v.play().catch(() => { v.muted = true; if (wantSound) snd.hidden = false; return v.play().catch(() => {}); });
-        snd.addEventListener('click', (e) => {
-          e.stopPropagation();
-          snd.hidden = true;
+        let waitingForTouch = false;
+        v.play().catch(() => { v.muted = true; waitingForTouch = wantSound; return v.play().catch(() => {}); });
+        let swallow = false;
+        const unmute = () => {
+          if (!waitingForTouch || left) return;
+          waitingForTouch = false;
+          swallow = true;
           v.muted = false;
-          v.currentTime = 0;
           v.play().catch(() => {});
-          arm(5200);
-        });
-        el.addEventListener('click', () => leave());
+          arm(Math.max(1500, ((v.duration || 4.1) - v.currentTime) * 1000 + 300));
+        };
+        ['pointerdown', 'touchstart', 'keydown'].forEach((ev) => document.addEventListener(ev, unmute, { capture: true, passive: true, once: false }));
+        el.addEventListener('click', () => { if (swallow) { swallow = false; return; } leave(); });
         v.addEventListener('ended', leave);
         arm(5200);
       },
     });
   }
+  // A screen can still be nudged sideways by scrollIntoView or a stray swipe; snap it back.
+  document.addEventListener('scroll', (e) => {
+    const el = e.target;
+    if (el && el.classList && el.classList.contains('screen') && el.scrollLeft) el.scrollLeft = 0;
+  }, true);
+  window.addEventListener('scroll', () => { if (window.scrollX) window.scrollTo(0, window.scrollY); });
+
   function enterHome() {
     $('#tabbar').hidden = false;
     renderHome(true);
@@ -1084,6 +1128,7 @@
           <button type="button" class="snd" id="sSfx" aria-pressed="${MASound.sfx}">🔊 ${t('sndSfx')}</button></span></div>
         <div class="prof-row"><label for="pName">${t('pName')}</label><input id="pName" value="${esc(p.name)}" maxlength="20"></div>
         <div class="prof-row"><label for="pGender">${t('pGender')}</label><select id="pGender">${opt(L().gender, p.gender)}</select></div>
+        <div class="prof-row"><label for="pAge">${t('pAge')}</label><input id="pAge" type="number" min="10" max="90" value="${p.age}" style="width:90px"></div>
         <div class="prof-row"><label for="pWeight">${t('pWeight')}</label><input id="pWeight" type="number" min="30" max="150" value="${p.weight}" style="width:90px"></div>
         <div class="prof-row"><label for="pAct">${t('pActivity')}</label><select id="pAct">${opt(L().activity, p.activity)}</select></div>
         <div class="prof-row"><label for="pCity">${t('pCity')}</label><select id="pCity">${CITIES.map(([c]) => `<option ${c === p.city ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
@@ -1101,7 +1146,7 @@
         el.classList.add('home');
         const saveBtn = $('#pSave', el);
         const dirtyNote = $('#pDirty', el);
-        const isDirty = () => draft.lang !== state.lang || ['name', 'gender', 'weight', 'activity', 'city', 'wake', 'sleep'].some((k) => String(draft[k]) !== String(p[k]));
+        const isDirty = () => draft.lang !== state.lang || ['name', 'gender', 'age', 'weight', 'activity', 'city', 'wake', 'sleep'].some((k) => String(draft[k]) !== String(p[k]));
         const refresh = () => {
           const dirty = isDirty();
           saveBtn.disabled = !dirty;
@@ -1111,18 +1156,19 @@
         const bind = (id, key, num) => {
           const inp = $(id, el);
           const update = () => {
-            draft[key] = num ? Math.max(30, Math.min(150, Number(inp.value) || p[key])) : (key === 'name' ? inp.value.trim() : inp.value);
+            const [lo, hi] = key === 'age' ? [10, 90] : [30, 150];
+            draft[key] = num ? Math.max(lo, Math.min(hi, Number(inp.value) || p[key])) : (key === 'name' ? inp.value.trim() : inp.value);
             refresh();
           };
           inp.addEventListener('input', update);
           inp.addEventListener('change', update);
         };
-        bind('#pLang', 'lang'); bind('#pName', 'name'); bind('#pGender', 'gender'); bind('#pWeight', 'weight', true);
+        bind('#pLang', 'lang'); bind('#pName', 'name'); bind('#pGender', 'gender'); bind('#pWeight', 'weight', true); bind('#pAge', 'age', true);
         bind('#pAct', 'activity'); bind('#pCity', 'city'); bind('#pWake', 'wake'); bind('#pSleep', 'sleep');
         saveBtn.addEventListener('click', () => {
           const cityChanged = draft.city !== p.city;
           const langChanged = draft.lang !== state.lang;
-          ['name', 'gender', 'weight', 'activity', 'city', 'wake', 'sleep'].forEach((k) => { p[k] = draft[k]; });
+          ['name', 'gender', 'age', 'weight', 'activity', 'city', 'wake', 'sleep'].forEach((k) => { p[k] = draft[k]; });
           if (cityChanged) state.weather = null;
           save();
           if (cityChanged) fetchWeather();
