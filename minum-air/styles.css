@@ -814,3 +814,11 @@ html, body { overscroll-behavior-x: none; }
 .switch[aria-pressed="true"] { background: #34c27a; }
 .switch[aria-pressed="true"] i { transform: translateX(22px); }
 .save-bar { margin-top: 16px; }
+
+/* Reminders come from a random Meowie */
+.notify-card { display: flex; gap: 12px; align-items: center; }
+.notify-av { width: 52px; height: 52px; border-radius: 14px; object-fit: cover; flex-shrink: 0; background: #fff; box-shadow: 0 4px 12px -6px rgba(10, 60, 110, .5); }
+.notify-av.pop { animation: avPop .45s cubic-bezier(.3, 1.4, .5, 1); }
+@keyframes avPop { 0% { transform: scale(1); } 35% { transform: scale(.7) rotate(-8deg); } 100% { transform: none; } }
+.toast.with-av { display: flex; align-items: center; gap: 10px; }
+.toast.with-av img { width: 34px; height: 34px; border-radius: 10px; object-fit: cover; background: #fff; flex-shrink: 0; }

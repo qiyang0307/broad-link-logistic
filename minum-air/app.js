@@ -80,6 +80,7 @@
   const allDrinks = () => DRINKS.concat(state.customDrinks || []);
   const findDrink = (id) => allDrinks().find((k) => k.id === id) || DRINKS[0];
   const PAW_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><ellipse cx="6.2" cy="10.2" rx="2.1" ry="2.6" transform="rotate(-18 6.2 10.2)"/><ellipse cx="17.8" cy="10.2" rx="2.1" ry="2.6" transform="rotate(18 17.8 10.2)"/><ellipse cx="9.6" cy="6.2" rx="2.1" ry="2.7"/><ellipse cx="14.4" cy="6.2" rx="2.1" ry="2.7"/><path d="M12 11.6c-2.6 0-5.4 3.4-5.4 5.6 0 1.6 1.2 2.4 2.6 2.4 1.1 0 1.8-.6 2.8-.6s1.7.6 2.8.6c1.4 0 2.6-.8 2.6-2.4 0-2.2-2.8-5.6-5.4-5.6Z"/></svg>';
+  const CHART_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M8.5 16.5v-3M12 16.5v-7M15.5 16.5v-5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>';
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const friend = () => state.profile.name || t('friend');
   function applyLang() {
@@ -420,7 +421,7 @@
         html = `${chrome(step)}${hero(t('notifySay'))}
           <div class="ob-body stagger"><h1 class="ob-title">${t('notifyTitle')}</h1>
           <p class="ob-sub">${t('notifySub', { wake: p.wake, sleep: p.sleep })}</p>
-          <div class="card" style="display:flex;gap:12px;align-items:center"><span style="font-size:30px">🦈</span>
+          <div class="card notify-card"><img class="notify-av" id="notifyAv" src="${avatarSrc(randomAvatar())}" alt="">
             <div><b>Meowie</b><div class="notify-line" id="notifyLine">${t('notifySample', { name: esc(name) })}</div></div></div></div>
           <div class="ob-foot"><button class="cta" data-act="allow">${t('allow')}</button>
           <button class="cta ghost" data-act="finish">${t('later')}</button></div>`;
@@ -437,6 +438,8 @@
               const line = $('#notifyLine', el);
               line.classList.remove('swap'); void line.offsetWidth; line.classList.add('swap');
               setTimeout(() => { line.textContent = lines[i]; }, 180);
+              const av = $('#notifyAv', el);
+              if (av) { av.classList.remove('pop'); void av.offsetWidth; av.classList.add('pop'); setTimeout(() => { av.src = avatarSrc(randomAvatar(av)); }, 160); }
               Meowie.act(cat, acts[i % acts.length]);
               cycle();
             }, 2800);
@@ -1091,7 +1094,7 @@
     const cups = all.reduce((s, r) => s + r.log.length, 0);
     let best = 0, run = 0;
     Object.keys(state.days).sort().forEach((k) => { const r = state.days[k]; run = r.goal && total(r) >= r.goal ? run + 1 : 0; best = Math.max(best, run); });
-    show('history', `<h2 style="font-size:28px;margin-top:6px">${t('histTitle')}</h2>
+    show('history', `<h2 class="prof-title">${t('histTitle')} <span class="ttl-ic">${CHART_SVG}</span></h2>
       <div class="card"><div class="section-title" style="margin:0 0 14px">${t('last7')} <small>${t('pctGoal')}</small></div>
         <div class="week">${days.map((x) => `<button type="button" class="bar ${x.i === 0 ? 'today' : ''}" data-day="${x.k}" aria-label="${x.k}: ${fmt(x.ml)} / ${fmt(x.goal)} ml">
           <div class="b ${x.ml >= x.goal ? 'hit' : ''}"><i data-h="${Math.min(100, Math.round(x.ml / x.goal * 100))}"></i></div>
@@ -1248,6 +1251,13 @@
 
   // ---------- Avatar: pick your favourite Meowie ----------
   const AVATARS = 16;
+  // A random Meowie, different from the one an <img> is showing now.
+  const randomAvatar = (img) => {
+    const cur = img && Number((img.getAttribute('src') || '').match(/(\d+)\.jpg/)?.[1]);
+    let i;
+    do i = 1 + Math.floor(Math.random() * AVATARS); while (i === cur);
+    return i;
+  };
   const avatarSrc = (i = state.avatar || 1) => `av/${String(i).padStart(2, '0')}.jpg`;
   function burstHearts(el, n = 7) {
     const r = el.getBoundingClientRect();
@@ -1610,9 +1620,11 @@
   });
 
   let toastTimer;
-  function toast(msg) {
+  function toast(msg, avatar) {
     const t = $('#toast');
     t.textContent = msg;
+    t.classList.toggle('with-av', !!avatar);
+    if (avatar) t.insertAdjacentHTML('afterbegin', `<img src="${avatar}" alt="">`);
     t.classList.add('show');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
@@ -1637,8 +1649,10 @@
     lastNudge = Date.now();
     const body = t('remind', { name: friend() });
     if (state.profile.remind && 'Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker) {
-      navigator.serviceWorker.ready.then((r) => r.showNotification('Meowie 🦈', { body, icon: '/icon.svg', tag: 'minum' })).catch(() => {});
-    } else if (!document.hidden) toast(body);
+      // Each reminder comes from a different Meowie.
+      const icon = '/' + avatarSrc(randomAvatar());
+      navigator.serviceWorker.ready.then((r) => r.showNotification('Meowie 🦈', { body, icon, badge: '/icon-192.png', tag: 'minum', renotify: true })).catch(() => {});
+    } else if (!document.hidden) toast(body, avatarSrc(randomAvatar()));
   }, 60e3);
 
   // New day while open → refresh.
