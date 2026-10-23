@@ -25,7 +25,7 @@
   const PX = 1.1;
   const COLS = 8;
   const SHEETS = {
-    idle: { n: 61, w: 360, x: 180, cols: 8 }, pet: { n: 18, w: 520, x: 180, cols: 7 },
+    idle: { n: 62, w: 440, x: 230, cols: 8 }, pet: { n: 18, w: 520, x: 180, cols: 7 },
     happy: { n: 26, w: 360, x: 180, cols: 8 },
     swim: { n: 27, w: 360, x: 180, cols: 8 }, peek: { n: 57, w: 360, x: 180, cols: 8 },
     turn: { n: 15, w: 360, x: 180, cols: 8 },
