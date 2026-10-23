@@ -26,7 +26,6 @@
   const COLS = 8;
   const SHEETS = {
     idle: { n: 62, w: 440, x: 230, cols: 8 }, pet: { n: 18, w: 520, x: 180, cols: 7 },
-    happy: { n: 26, w: 360, x: 180, cols: 8 },
     swim: { n: 27, w: 360, x: 180, cols: 8 }, peek: { n: 57, w: 360, x: 180, cols: 8 },
     turn: { n: 15, w: 360, x: 180, cols: 8 },
   };
@@ -37,7 +36,6 @@
     // The hand comes in and pats his head, rubs back and forth while he squints, then goes back
     // out the way it came (the arrival played in reverse) as he opens his eyes again.
     pet: on('pet', range(0, 17).concat(range(16, 10), range(11, 17), range(16, 10), range(11, 17), range(16, 0))),
-    happy: on('happy', range(0, 25)),
     // In the water (his full shark suit): a seamless 27-frame swim loop, turning round from
     // facing right to facing left, and stopping to look at you with a little "oh!".
     peek: on('peek', range(0, 56)),
@@ -180,10 +178,8 @@
         const k = Math.floor(pos);
         if (k >= c.frames.length) { st.clip = null; c.done(); frame(wrap, ...idleFrame(wrap, now)); }
         else {
-          // Sand clips blend between frames; the water clips already run at full speed.
           const nf = c.frames[k + 1];
-          const blend = nf && nf[0] === c.frames[k][0] && !WATER_SHEETS.has(nf[0]);
-          frame(wrap, c.frames[k], blend ? nf : null, pos - k);
+          frame(wrap, c.frames[k]);
         }
       } else frame(wrap, ...idleFrame(wrap, now));
       requestAnimationFrame(tick);
@@ -541,13 +537,22 @@
     setTimeout(() => box.remove(), 500);
   }
 
-  // A happy prance with a meow.
+  // A happy moment: on the sand he keeps his idle and gives a springy little hop with hearts;
+  // in the water he turns to look at you.
   async function happy(wrap) {
     const st = wrap._mw;
     if (st.clip || reduced()) return;
     if (st.mode === 'swim') { await play(wrap, 'peek', { fps: 24 }); return; }
-    sfx('happy', .6);
-    await play(wrap, 'happy');
+    sfx('happy', .5);
+    floatHearts(wrap, 3);
+    const actor = wrap.querySelector('.mw-actor');
+    await actor.animate([
+      { transform: 'translateY(0) scale(1, 1)' },
+      { transform: 'translateY(2px) scale(1.06, .93)', offset: .18 },
+      { transform: 'translateY(-26px) scale(.97, 1.04)', offset: .48 },
+      { transform: 'translateY(1px) scale(1.05, .95)', offset: .78 },
+      { transform: 'translateY(0) scale(1, 1)' },
+    ], { duration: 900, easing: 'cubic-bezier(.45, 0, .3, 1)' }).finished.catch(() => {});
   }
 
   function floatHearts(wrap, n) {

@@ -623,7 +623,7 @@
         <div class="gc-main">
           <div class="pct"><span id="pctNum">${Math.round(shownPct * 100)}</span>%<small>${pct >= 1 ? t('gcDone') : drunk ? t('gcCompleted') : t('gcStart')}</small></div>
           <div class="gc-side"><span class="ml"><b id="mlNum">${fmt(drunk)}</b> / ${fmt(d.goal)} ml</span>
-            <small>${pct >= 1 ? t('gcOver', { ml: fmt(drunk - d.goal) }) : t('gcLeft', { ml: fmt(d.goal - drunk) })}</small></div>
+            <small>${pct >= 1 ? (drunk > d.goal ? t('gcOver', { ml: fmt(drunk - d.goal) }) : t('gcExact')) : t('gcLeft', { ml: fmt(d.goal - drunk) })}</small></div>
         </div>
         <div class="gc-bar"><span style="width:${Math.min(100, shownPct * 100)}%"></span></div>
         <div class="gc-chips"><span class="gc-chip sip">⏰ ${nextSip(d)}</span>

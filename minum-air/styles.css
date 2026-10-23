@@ -137,11 +137,11 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 32px; }
 .city-list .option { padding: 12px; font-weight: 700; font-size: 15px; }
 .city-list .option.sel::after { font-size: 16px; }
 
-.time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.time-card { background: var(--card); border: 2px solid var(--line); border-radius: 18px; padding: 14px; text-align: center; }
+.time-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.time-card { min-width: 0; background: var(--card); border: 2px solid var(--line); border-radius: 18px; padding: 14px 10px; text-align: center; }
 .time-card .ic { font-size: 30px; }
 .time-card label { display: block; color: var(--muted); font-weight: 700; font-size: 14px; margin: 2px 0 8px; }
-.time-card input { border: 0; background: var(--bg); color: var(--ink); border-radius: 12px; padding: 10px; font: inherit; font-size: 22px; font-weight: 800; width: 100%; text-align: center; }
+.time-card input { border: 0; background: var(--bg); color: var(--ink); border-radius: 12px; padding: 10px 6px; font: inherit; font-size: clamp(16px, 5vw, 22px); font-weight: 800; width: 100%; min-width: 0; box-sizing: border-box; text-align: center; }
 
 /* Speech bubble */
 .bubble-say {
@@ -822,3 +822,12 @@ html, body { overscroll-behavior-x: none; }
 @keyframes avPop { 0% { transform: scale(1); } 35% { transform: scale(.7) rotate(-8deg); } 100% { transform: none; } }
 .toast.with-av { display: flex; align-items: center; gap: 10px; }
 .toast.with-av img { width: 34px; height: 34px; border-radius: 10px; object-fit: cover; background: #fff; flex-shrink: 0; }
+
+/* Goal card: never cut words off on narrow phones */
+.gc-side .ml { white-space: nowrap; }
+.gc-chip { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.25; display: flex; align-items: center; justify-content: center; }
+@media (max-width: 380px) {
+  .goal-card .pct { font-size: 44px; }
+  .gc-chips { flex-direction: column; }
+  .gc-chip { min-width: 0; }
+}
