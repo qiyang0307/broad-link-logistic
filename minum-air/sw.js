@@ -1,7 +1,7 @@
 // Offline shell for Minum Air. Weather calls go straight to the network.
-const CACHE = 'minum-air-v33';
-const SHELL = ['/', '/styles.css', '/meowie.js', '/i18n.js', '/app.js', '/manifest.webmanifest', '/sound.js', '/favicon.png', '/icon-192.png', '/meowie-photo.jpg', '/meowie-avatar.jpg',
-  '/meowie-idle.webp', '/meowie-pet.webp', '/meowie-swim.webp', '/meowie-peek.webp', '/meowie-turn.webp', '/meowie-drink-mask.webp',
+const CACHE = 'minum-air-v34';
+const SHELL = ['/', '/styles.css?v=34', '/meowie.js?v=34', '/i18n.js?v=34', '/app.js?v=34', '/manifest.webmanifest', '/sound.js?v=34', '/favicon.png', '/icon-192.png', '/meowie-photo.jpg', '/meowie-avatar.jpg',
+  '/meowie-sit.webp', '/meowie-pet.webp', '/meowie-swim.webp', '/meowie-peek.webp', '/meowie-turn.webp', '/meowie-drink-mask.webp',
   ...Array.from({ length: 16 }, (_, i) => `/av/${String(i + 1).padStart(2, '0')}.jpg`)];
 
 self.addEventListener('install', (e) => {

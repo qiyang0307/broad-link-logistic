@@ -29,7 +29,8 @@
     swim: { n: 27, w: 360, x: 180, cols: 8 }, peek: { n: 57, w: 360, x: 180, cols: 8 },
     turn: { n: 15, w: 360, x: 180, cols: 8 },
   };
-  const sheetUrl = (name) => `meowie-${name}.webp`;
+  // The idle sheet is meowie-sit.webp: a new name so phones can't show an old cached idle.
+  const sheetUrl = (name) => `meowie-${name === 'idle' ? 'sit' : name}.webp`;
   const range = (a, b) => Array.from({ length: Math.abs(b - a) + 1 }, (_, i) => (a < b ? a + i : a - i));
   const on = (sheet, frames) => frames.map((i) => [sheet, i]);
   const CLIPS = {

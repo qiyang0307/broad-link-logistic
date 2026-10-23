@@ -1667,6 +1667,14 @@
   splash();
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js').then((r) => r.update()).catch(() => {});
+    // When a new version takes over, reload once so the phone never keeps running old code.
+    let reloading = false;
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || reloading) return;
+      reloading = true;
+      location.reload();
+    });
   }
 })();
