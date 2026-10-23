@@ -43,10 +43,11 @@
   };
   // How Meowie behaves for each activity level on the setup screen.
   const VIBE = { santai: 'relax', sederhana: 'walk', aktif: 'hyper' };
+  // Each choice gets a Meowie: the cool one, the lovey one, and the one hiding in his box.
   const GENDER = {
-    lelaki: { ic: '👨', f: 1 },
-    perempuan: { ic: '👩', f: .92 },
-    rahsia: { ic: '🤐', f: .96 },
+    lelaki: { ic: '<img class="ic-av" src="av/08.jpg" alt="">', f: 1 },
+    perempuan: { ic: '<img class="ic-av" src="av/16.jpg" alt="">', f: .92 },
+    rahsia: { ic: '<img class="ic-av" src="av/09.jpg" alt="">', f: .96 },
   };
 
   // ---------- state ----------
@@ -214,7 +215,8 @@
   function mountCat(el, { size = 240, level = 0, intro = false } = {}) {
     const holder = $('.hero-cat', el);
     if (!holder) return null;
-    const cat = Meowie.create({ intro: intro || holder.dataset.intro === '1' });
+    // On the setup screens Meowie just idles: no swimming, tricks or mood moves.
+    const cat = Meowie.create({ intro: intro || holder.dataset.intro === '1', calm: true });
     cat.style.width = size + 'px';
     holder.appendChild(cat);
     Meowie.interact(cat);
@@ -257,15 +259,23 @@
         break;
 
       case 'name':
-        html = `${chrome(step, { skip: true })}${hero(t('nameSay'))}
+        // A name is needed: Meowie greets you by it everywhere, so Next waits for one.
+        html = `${chrome(step)}${hero(t('nameSay'))}
           <div class="ob-body stagger"><h1 class="ob-title">${t('nameTitle')}</h1><p class="ob-sub">${t('nameSub')}</p>
-          <input class="field" id="nameIn" maxlength="20" placeholder="${t('namePh')}" value="${esc(p.name)}" autocomplete="given-name"></div>
-          <div class="ob-foot"><button class="cta" data-act="next">${t('next')}</button></div>`;
+          <input class="field" id="nameIn" maxlength="20" placeholder="${t('namePh')}" value="${esc(p.name)}" autocomplete="given-name">
+          <p class="field-hint" id="nameHint" hidden>${t('nameNeed')}</p></div>
+          <div class="ob-foot"><button class="cta" data-act="next" ${p.name ? '' : 'disabled'}>${t('next')}</button></div>`;
         mount = (el) => {
           mountCat(el, { level: fill });
           const inp = $('#nameIn', el);
-          inp.addEventListener('input', () => { p.name = inp.value.trim(); save(); });
-          inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') next(); });
+          const btn = $('[data-act=next]', el);
+          const hint = $('#nameHint', el);
+          inp.addEventListener('input', () => { p.name = inp.value.trim(); save(); btn.disabled = !p.name; if (p.name) hint.hidden = true; });
+          inp.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            if (p.name) next();
+            else { hint.hidden = false; inp.classList.remove('shake'); void inp.offsetWidth; inp.classList.add('shake'); }
+          });
         };
         break;
 

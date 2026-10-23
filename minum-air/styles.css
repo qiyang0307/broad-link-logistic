@@ -831,3 +831,12 @@ html, body { overscroll-behavior-x: none; }
   .gc-chips { flex-direction: column; }
   .gc-chip { min-width: 0; }
 }
+
+/* Cat avatars as option icons; a nudge when a required field is empty */
+.option .ic-av { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; display: block; background: #fff; box-shadow: 0 0 0 2px var(--card), 0 4px 10px -6px rgba(10, 60, 110, .5); transition: transform .3s cubic-bezier(.3, 1.4, .5, 1); }
+.option.sel .ic-av { transform: scale(1.12) rotate(-6deg); box-shadow: 0 0 0 3px var(--brand), 0 6px 14px -6px rgba(10, 60, 110, .6); }
+.option:active .ic-av { transform: scale(.9); }
+.option .ic:has(.ic-av) { width: 48px; display: grid; place-items: center; }
+.field-hint { margin: 8px 4px 0; color: #e8673c; font-weight: 800; font-size: 14px; text-align: center; }
+.field.shake { animation: shake .4s ease; border-color: #e8673c; }
+@keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }

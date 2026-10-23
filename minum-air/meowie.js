@@ -143,6 +143,11 @@
     const dt = Math.min(.1, (now - (st.idleT || now)) / 1000);
     st.idleT = now;
     if (st.idlePos == null) st.idlePos = Math.random() * n;
+    // He opens his mouth to meow in frames 34-42: play that stretch at normal speed, forwards,
+    // with the meow from the same clip starting as his mouth opens.
+    const MEW_FROM = 30, MEW_OPEN = 34, MEW_TO = 46;
+    const inMew = st.idlePos >= MEW_FROM && st.idlePos < MEW_TO;
+    if (inMew && (!st.idlePlan || st.idlePlan.speed !== 1)) st.idlePlan = { speed: 1, until: now + 1500 };
     if (!st.idlePlan || now > st.idlePlan.until) {
       const r = Math.random();
       const relax = wrap.classList.contains('mw--relax');
@@ -152,7 +157,13 @@
     }
     // Ease the pace towards the plan so changes never jerk.
     st.idleSpeed = (st.idleSpeed ?? 1) + (st.idlePlan.speed - (st.idleSpeed ?? 1)) * Math.min(1, dt * 4);
+    if (inMew) st.idleSpeed = 1;
+    const prev = st.idlePos;
     st.idlePos = ((st.idlePos + st.idleSpeed * IDLE_FPS * dt) % n + n) % n;
+    if (prev < MEW_OPEN && st.idlePos >= MEW_OPEN && st.idlePos < MEW_OPEN + 2 && now - (st.mewAt || 0) > 4000) {
+      st.mewAt = now;
+      sfx('mew', .55);
+    }
     const i = Math.floor(st.idlePos);
     const frac = st.idlePos - i;
     return st.idleSpeed >= 0 ? [['idle', i], ['idle', (i + 1) % n], frac] : [['idle', (i + 1) % n], ['idle', i], 1 - frac];
@@ -290,7 +301,7 @@
     const wrap = document.createElement('div');
     wrap.className = `cat-wrap mw mw--m0 mw--${sky}${opts.intro ? ' mw--intro' : ''}`;
     wrap.innerHTML = svg;
-    wrap._mw = { id, level: 0, mode: 'sit', mood: 0, busy: false, layers: [], sx: 0, sy: 0, face: 1, frame: -1 };
+    wrap._mw = { id, level: 0, mode: 'sit', mood: 0, busy: false, layers: [], sx: 0, sy: 0, face: 1, frame: -1, calm: !!opts.calm };
     // The HTML layer is laid out in scene units (400 x 320) and scaled to the width on screen.
     // Decode every sheet up front so switching clips is instant.
     wrap.querySelectorAll('.mw-main img').forEach((im) => { if (im.decode) im.decode().catch(() => {}); });
@@ -310,11 +321,10 @@
     if (instant) moving.forEach((g) => { g.style.transition = 'none'; });
     wrap.querySelectorAll('.mw-water').forEach((g) => { g.style.transform = `translateY(${y}px)`; });
     renderLayers(wrap);
-    const swim = st.forceSwim || pct >= SWIM_AT;
+    // A calm Meowie (setup screens) always sits and idles, whatever the water level.
+    const swim = !st.calm && (st.forceSwim || pct >= SWIM_AT);
     if (!swim && st.mode === 'swim') stopSwim(wrap);
     st.mode = swim ? 'swim' : 'sit';
-    // In the water the swim loop sets his direction; drop any turn he made on the sand.
-    if (swim && st.facing === -1) { st.facing = 1; const sit = wrap.querySelector('.mw-sit'); if (sit) sit.style.transform = ''; }
     const mark = (sel, x, y) => { const m = wrap.querySelector(sel); m.style.left = x + 'px'; m.style.top = y + 'px'; };
     mark('.mw-mouth-pt', swim ? 86 : 10, swim ? -118 : -95);
     mark('.mw-head-pt', swim ? 70 : 0, swim ? -150 : -150);
@@ -403,6 +413,7 @@
 
   // Activity moods: relax (eyes shut, slow breathing), walk (strolls about), hyper (hops and juggles a ball).
   function setVibe(wrap, vibe) {
+    if (wrap._mw.calm) return;
     const svg = wrap.querySelector('svg');
     ['relax', 'walk', 'hyper'].forEach((v) => wrap.classList.toggle('mw--' + v, v === vibe));
   }
@@ -602,7 +613,7 @@
   }
 
   async function act(wrap, name) {
-    if (!wrap || !wrap._mw || wrap._mw.busy) return;
+    if (!wrap || !wrap._mw || wrap._mw.busy || wrap._mw.calm) return;
     wrap._mw.busy = true;
     try {
       if (name === 'drink') await drink(wrap);
@@ -742,29 +753,12 @@
   }
 
   // Idle: he keeps idling; now and then a meow, and a happy prance when the day is going well.
-  // Now and then he turns to face the other way, with a little squash as he spins.
-  function turnAround(wrap) {
-    const st = wrap._mw;
-    const sit = wrap.querySelector('.mw-sit');
-    st.facing = -(st.facing || 1);
-    sit.animate([
-      { transform: `scale(${-st.facing}, 1)` },
-      { transform: `scale(${-st.facing * .1}, .94)`, offset: .45 },
-      { transform: `scale(${st.facing * .1}, .94)`, offset: .55 },
-      { transform: `scale(${st.facing * 1.04}, .98)`, offset: .85 },
-      { transform: `scale(${st.facing}, 1)` },
-    ], { duration: 520, easing: 'ease-in-out' });
-    sit.style.transform = `scale(${st.facing}, 1)`;
-  }
-
   function idleMove(wrap) {
     const st = wrap._mw;
-    if (st.busy || st.clip || reduced() || st.mode === 'swim') return;
+    if (st.calm || st.busy || st.clip || reduced() || st.mode === 'swim') return;
     const svg = wrap.querySelector('svg');
     const r = Math.random();
     if (wrap.classList.contains('mw--hyper') || (st.mood >= 3 && r < .4)) happy(wrap);
-    else if (r < .7) turnAround(wrap);
-    else if (r < .85) sfx('meow', .45);
   }
 
   function lookAround(wrap) {

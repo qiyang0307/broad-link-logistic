@@ -14,7 +14,7 @@ window.MA_I18N = {
     namePh: 'e.g. Aisyah, Ah Meng, Kumar',
     genderSay: ({ name }) => `Nice to meet you, ${name}! 🤝`, genderTitle: 'Gender', genderSub: 'Helps estimate how much water your body needs.',
     gender: { lelaki: 'Male', perempuan: 'Female', rahsia: 'Prefer not to say' },
-    ageSay: 'Meowie is 2 in cat years 😼', ageTitle: 'How old are you?', ageSub: 'Younger bodies need a bit more water per kg.', years: 'years', pAge: 'Age',
+    ageSay: 'Meowie is 2 in cat years 😼', nameNeed: 'Meowie needs a name to call you 🐾', ageTitle: 'How old are you?', ageSub: 'Younger bodies need a bit more water per kg.', years: 'years', pAge: 'Age',
     weightSay: 'Your secret is safe with Meowie 🤫', weightTitle: 'Body weight', less: 'Less', more: 'More',
     activitySay: 'Do you sweat a lot? 💦', activityTitle: 'Activity level', activitySub: 'The more active you are, the more water you need.',
     activity: {
@@ -133,7 +133,7 @@ window.MA_I18N = {
     namePh: 'cth. Aisyah, Ah Meng, Kumar',
     genderSay: ({ name }) => `Selamat berkenalan, ${name}! 🤝`, genderTitle: 'Jantina', genderSub: 'Bantu kira keperluan air badan.',
     gender: { lelaki: 'Lelaki', perempuan: 'Perempuan', rahsia: 'Tak nak bagitahu' },
-    ageSay: 'Meowie baru 2 tahun umur kucing 😼', ageTitle: 'Umur berapa?', ageSub: 'Badan muda perlukan sedikit lebih air setiap kg.', years: 'tahun', pAge: 'Umur',
+    ageSay: 'Meowie baru 2 tahun umur kucing 😼', nameNeed: 'Meowie perlukan nama untuk panggil kamu 🐾', ageTitle: 'Umur berapa?', ageSub: 'Badan muda perlukan sedikit lebih air setiap kg.', years: 'tahun', pAge: 'Umur',
     weightSay: 'Rahsia, Meowie tak bagitahu sesiapa 🤫', weightTitle: 'Berat badan', less: 'Kurang', more: 'Tambah',
     activitySay: 'Selalu berpeluh tak? 💦', activityTitle: 'Tahap aktiviti', activitySub: 'Lagi aktif, lagi banyak air diperlukan.',
     activity: {
@@ -251,7 +251,7 @@ window.MA_I18N = {
     namePh: '例如：Aisyah、阿明、Kumar',
     genderSay: ({ name }) => `很高兴认识你，${name}！🤝`, genderTitle: '性别', genderSub: '用来估算身体需要的水量。',
     gender: { lelaki: '男', perempuan: '女', rahsia: '不想透露' },
-    ageSay: 'Meowie 才 2 猫岁 😼', ageTitle: '你几岁？', ageSub: '年轻的身体每公斤需要多一点水。', years: '岁', pAge: '年龄',
+    ageSay: 'Meowie 才 2 猫岁 😼', nameNeed: 'Meowie 需要知道怎么称呼你 🐾', ageTitle: '你几岁？', ageSub: '年轻的身体每公斤需要多一点水。', years: '岁', pAge: '年龄',
     weightSay: '放心，Meowie 帮你保密 🤫', weightTitle: '体重', less: '减少', more: '增加',
     activitySay: '你常常流汗吗？💦', activityTitle: '活动量', activitySub: '越活跃，需要的水越多。',
     activity: {
