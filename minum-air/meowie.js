@@ -30,11 +30,11 @@
     turn: { n: 15, w: 360, x: 180, cols: 8 },
     // Past 100%: too full to swim. He stands on the sand with a round belly, puffing his cheeks
     // (full) or holding his tummy (fullb).
-    full: { n: 9, w: 440, x: 220, cols: 8 }, fullb: { n: 11, w: 440, x: 220, cols: 8 },
+    full: { n: 8, w: 440, x: 220, cols: 8 }, fullb: { n: 11, w: 440, x: 220, cols: 8 },
   };
   // The idle sheet is meowie-sit.webp: a new name so phones can't show an old cached idle.
   // A ?v= tag on sheets that were redrawn (the swim's rear fin) so phones drop the cached copy.
-  const SHEET_V = { swim: 3 };
+  const SHEET_V = { swim: 3, full: 2, fullb: 2 };
   const sheetUrl = (name) => `meowie-${name === 'idle' ? 'sit' : name}.webp${SHEET_V[name] ? `?v=${SHEET_V[name]}` : ''}`;
   const range = (a, b) => Array.from({ length: Math.abs(b - a) + 1 }, (_, i) => (a < b ? a + i : a - i));
   const on = (sheet, frames) => frames.map((i) => [sheet, i]);
@@ -1066,9 +1066,9 @@
     if (st.busy) { slosh(wrap, .8); await wait(600); return; }
     st.busy = true;
     try {
-      // Already full: no more drinking, the water just splashes in and his belly wobbles.
-      if (st.full) { slosh(wrap, .8); wobble(wrap, 2); await wait(1200); }
-      else await drink(wrap, color);
+      await drink(wrap, color);
+      // Already full: after the drink his round belly gives a wobble.
+      if (st.full) wobble(wrap, 2);
     } finally { st.busy = false; }
   }
 

@@ -554,7 +554,7 @@
         let assetsDone = false;
         const t0 = performance.now();
         // Get Meowie's animations and avatar ready while the film plays.
-        const urls = ['meowie-sit.webp', 'meowie-pet.webp', 'meowie-swim.webp?v=3', 'meowie-peek.webp', 'meowie-turn.webp', 'meowie-full.webp', 'meowie-fullb.webp', avatarSrc()];
+        const urls = ['meowie-sit.webp', 'meowie-pet.webp', 'meowie-swim.webp?v=3', 'meowie-peek.webp', 'meowie-turn.webp', 'meowie-full.webp?v=2', 'meowie-fullb.webp?v=2', avatarSrc()];
         let loaded = 0;
         Promise.all(urls.map((u) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => { loaded++; res(); }; im.src = u; })))
           .then(() => { assetsDone = true; maybeLeave(); });
