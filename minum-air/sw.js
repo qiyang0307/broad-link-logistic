@@ -1,6 +1,6 @@
 // Offline shell for Minum Air. Weather calls go straight to the network.
-const CACHE = 'minum-air-v50';
-const SHELL = ['/', '/styles.css?v=50', '/meowie.js?v=50', '/i18n.js?v=50', '/app.js?v=50', '/manifest.webmanifest', '/sound.js?v=50', '/favicon.png', '/icon-192.png', '/meowie-photo.jpg', '/meowie-avatar.jpg',
+const CACHE = 'minum-air-v51';
+const SHELL = ['/', '/styles.css?v=51', '/meowie.js?v=51', '/i18n.js?v=51', '/app.js?v=51', '/manifest.webmanifest', '/sound.js?v=51', '/favicon.png', '/icon-192.png', '/meowie-photo.jpg', '/meowie-avatar.jpg',
   '/meowie-sit.webp', '/meowie-pet.webp', '/meowie-swim.webp?v=3', '/meowie-peek.webp', '/meowie-turn.webp', '/meowie-full.webp?v=2', '/meowie-fullb.webp?v=2', '/meowie-fullc.webp', '/meowie-drink-mask.webp', '/meowie-drink-fg.webp?v=2', '/bg-reef.webp', '/bg-pool.webp', '/bg-reef-s.webp', '/bg-pool-s.webp',
   ...Array.from({ length: 16 }, (_, i) => `/av/${String(i + 1).padStart(2, '0')}.jpg`)];
 
@@ -33,4 +33,23 @@ self.addEventListener('fetch', (e) => {
       })
       .catch(() => caches.match(e.request).then((r) => r || caches.match('/')))
   );
+});
+
+// Lock-screen reminders from the server (pace-based, see api/push-cron.js).
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data && e.data.text() }; }
+  const av = String(d.av || 1).padStart(2, '0');
+  e.waitUntil(self.registration.showNotification(d.title || 'Meowie 🦈', {
+    body: d.body || '', icon: `/av/${av}.jpg`, badge: '/icon-192.png?v=51', tag: d.tag || 'minum', renotify: true, data: { url: '/' },
+  }));
+});
+
+// Tapping a reminder opens the app (or brings it forward if it's already open).
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    const open = list.find((c) => new URL(c.url).origin === location.origin);
+    return open ? open.focus() : self.clients.openWindow('/');
+  }));
 });

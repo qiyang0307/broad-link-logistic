@@ -648,11 +648,11 @@
 
   // A happy moment: on the sand he keeps his idle and gives a springy little hop with hearts;
   // in the water he turns to look at you.
-  async function happy(wrap) {
+  async function happy(wrap, o = {}) {
     const st = wrap._mw;
     if (st.clip || reduced()) return;
     if (st.mode === 'swim') { await play(wrap, 'peek', { fps: 24 }); return; }
-    sfx('happy', .5);
+    if (!o.quiet) sfx('happy', .5);
     floatHearts(wrap, 3);
     const actor = wrap.querySelector('.mw-actor');
     await actor.animate([
@@ -861,7 +861,10 @@
     if (st.calm || st.busy || st.clip || reduced() || st.mode === 'swim') return;
     const svg = wrap.querySelector('svg');
     const r = Math.random();
-    if (wrap.classList.contains('mw--hyper') || (st.mood >= 3 && r < .4)) happy(wrap);
+    // Past 100% he's too full to hop about: just the odd quiet belly wobble.
+    if (st.full) { if (r < .35) wobble(wrap, 1); return; }
+    // Hops he does on his own are silent; the happy sound is kept for real moments (a goal, a pet).
+    if (wrap.classList.contains('mw--hyper') || (st.mood >= 3 && r < .4)) happy(wrap, { quiet: true });
   }
 
   function lookAround(wrap) {

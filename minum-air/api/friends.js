@@ -7,37 +7,14 @@ const ALPHA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const CODE_RE = /^[A-HJ-NP-Z2-9]{6}$/;
 const MAX_FRIENDS = 50;
 
-// Storage: Vercel Blob in production; a folder on disk when MA_FILE_STORE is set (local testing).
-async function makeStore() {
-  if (process.env.MA_FILE_STORE) {
-    const fs = await import('node:fs/promises');
-    const dir = process.env.MA_FILE_STORE;
-    await fs.mkdir(dir, { recursive: true });
-    return {
-      async get(code) { try { return JSON.parse(await fs.readFile(`${dir}/${code}.json`, 'utf8')); } catch { return null; } },
-      async set(code, rec) { await fs.writeFile(`${dir}/${code}.json`, JSON.stringify(rec)); },
-      async del(code) { await fs.rm(`${dir}/${code}.json`, { force: true }); },
-    };
-  }
-  const blob = await import('@vercel/blob');
-  const path = (code) => `players/${code}.json`;
-  return {
-    async get(code) {
-      const meta = await blob.head(path(code)).catch(() => null);
-      if (!meta) return null;
-      const res = await fetch(`${meta.url}?t=${Date.now()}`, { cache: 'no-store' });
-      return res.ok ? res.json() : null;
-    },
-    async set(code, rec) {
-      await blob.put(path(code), JSON.stringify(rec), { access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json', cacheControlMaxAge: 60 });
-    },
-    async del(code) { await blob.del(path(code)).catch(() => {}); },
-  };
-}
-let storeP = null;
-const store = () => (storeP ||= makeStore());
+import { store as baseStore, json } from './_store.js';
 
-const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+// Players live under players/<code>.json.
+const path = (code) => `players/${code}.json`;
+const store = async () => {
+  const s = await baseStore();
+  return { get: (c) => s.get(path(c)), set: (c, r) => s.set(path(c), r), del: (c) => s.del(path(c)) };
+};
 const hash = (s) => createHash('sha256').update(String(s)).digest('hex');
 const int = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(Number(v) || 0)));
 const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '');
@@ -61,7 +38,9 @@ function card(c = {}) {
     streak: int(c.streak, 0, 3650), hits: int(c.hits, 0, 100000),
   };
 }
-const pub = (rec) => ({ code: rec.code, ...card(rec), updated: rec.updated });
+const weekPts = (w) => (w || []).reduce((a, x) => a + Math.min(100, x), 0);
+// Last week's league points stay on the record after a new week starts, for the weekly recap.
+const pub = (rec) => ({ code: rec.code, ...card(rec), prevWeekOf: rec.prevWeekOf || '', prevPts: rec.prevPts || 0, updated: rec.updated });
 
 async function newCode(s) {
   for (let i = 0; i < 8; i++) {
@@ -103,7 +82,9 @@ export async function POST(req) {
   if (!owns(me, secret)) return json({ error: 'forbidden' }, 403);
 
   if (action === 'sync') {
-    Object.assign(me, card(body.card), { updated: Date.now() });
+    const next = card(body.card);
+    if (me.weekOf && next.weekOf && next.weekOf > me.weekOf) { me.prevWeekOf = me.weekOf; me.prevPts = weekPts(me.week); }
+    Object.assign(me, next, { updated: Date.now() });
     await s.set(code, me);
     return json({ me: pub(me) });
   }

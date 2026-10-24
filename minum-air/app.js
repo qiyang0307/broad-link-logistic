@@ -489,9 +489,7 @@
   }
 
   async function finishOnboarding(allow) {
-    if (allow && 'Notification' in window) {
-      try { state.profile.remind = (await Notification.requestPermission()) === 'granted'; } catch {}
-    }
+    if (allow) state.profile.remind = (await enablePush()) !== 'denied';
     state.onboarded = true;
     save();
     fetchWeather();
@@ -616,6 +614,7 @@
     $('#tabbar').hidden = false;
     renderHome(true);
     if (joined()) scheduleSync(800);
+    syncPush(1500);
     if (state.pendingFriend) setTimeout(acceptInvite, 1500);
   }
 
@@ -669,7 +668,8 @@
     const drunk = total(d);
     const pct = drunk / d.goal;
     const w = todaysWeather();
-    const lines = catLine(d, pct);
+    // Back after two days away: Meowie is sad until the first glass.
+    const lines = state.comeback ? t('missLines', { name: esc(friend()) }) : catLine(d, pct);
     const name = esc(friend());
     const dateStr = new Intl.DateTimeFormat(L()._locale, { timeZone: 'Asia/Kuala_Lumpur', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
     const bonus = heatBonus(w && w.feels);
@@ -681,6 +681,7 @@
       <div class="home-head"><div><p class="date">${dateStr} 🌸</p><h2>${greeting()}${t('comma')}${name}!</h2></div>
         <button type="button" class="scene-btn" id="sceneBtn" aria-label="${t('sceneBtn')}">🏝️${sceneIsNew() ? '<i class="dot"></i>' : ''}</button></div>
       <div class="stage"><div class="bubble-say" id="say" data-bracket="${bracket(pct)}">${lines[0]}</div><div class="hero-cat"></div></div>
+      ${homeCard()}
       <div class="goal-card stats-row">
         <p class="gc-label"><i></i>${t('hydGoal')} 💧</p>
         <div class="gc-main">
@@ -786,6 +787,9 @@
     shownPct = pct;
     // Tap adds a glass; press and hold opens the pour sheet to change the amount.
     // The world button sits in the header (rebuilt each time), under the streak pill.
+    homeCat.classList.toggle('mw--sad', !!state.comeback);
+    homeCat.classList.toggle('mw--relax', !!state.comeback);
+    wireHomeCard(el);
     const sb = $('#sceneBtn', el);
     if (sb) sb.addEventListener('click', openSceneSheet);
     const quick = $('#quickAdd', el);
@@ -838,8 +842,11 @@
     const eff = Math.round(ml * drink.hyd);
     lastAddedT = Date.now();
     d.log.push({ drink: drink.id, ml, eff, t: lastAddedT });
+    const welcomeBack = !!state.comeback;
+    delete state.comeback;
     save();
     scheduleSync();
+    syncPush();
     if (navigator.vibrate) navigator.vibrate(20);
     const after = total(d);
     const hit = before < d.goal && after >= d.goal;
@@ -859,6 +866,11 @@
       if (!homeCat || !homeCat.isConnected) return;
       // Sitting Meowie drank from his glass; now the water catches up.
       syncWater();
+      if (welcomeBack) {
+        homeCat.classList.remove('mw--sad', 'mw--relax');
+        sayLine(t('backYay', { name: esc(friend()) }));
+        if (!hit) Meowie.act(homeCat, 'jump');
+      }
       if (hit) {
         confetti(); Meowie.act(homeCat, 'jump');
         // The first time each day the goal is reached, Meowie's victory dance plays as a reward.
@@ -878,6 +890,7 @@
     d.log = d.log.filter((x) => x.t !== t);
     save();
     scheduleSync();
+    syncPush();
     renderHome(false);
   }
 
@@ -1140,6 +1153,7 @@
     if (!I18N[lang] || lang === state.lang) return;
     state.lang = lang;
     save();
+    syncPush(0);
     applyLang();
     // Redraw whatever is on screen in the new language.
     if (current && current.startsWith('ob-')) goStep(stepIdx, true);
@@ -1232,13 +1246,16 @@
         <div class="tile"><div class="v">${hit}</div><div class="l">${t('daysHit')}</div></div>
         <div class="tile"><div class="v">${cups}</div><div class="l">${t('logged')}</div></div>
         <div class="tile"><div class="v">${fmt(baseGoal())}</div><div class="l">${t('baseGoal')}</div></div>
-      </div>`, {
+      </div>
+      ${recapWeek().total ? `<button type="button" class="recap-btn" id="recapBtn">🗓️ ${t('recapOpen')} <span>›</span></button>` : ''}`, {
       onMount: (el) => {
         el.classList.add('home');
         setTimeout(() => el.querySelectorAll('.week i').forEach((i) => { i.style.height = i.dataset.h + '%'; }), 120);
         el.querySelectorAll('[data-day]').forEach((b) => b.addEventListener('click', () => openDaySheet(b.dataset.day)));
         // The streak tiles open the same milestones and rewards sheet as the streak pill on Today.
         el.querySelectorAll('[data-streak]').forEach((b) => b.addEventListener('click', openStreakSheet));
+        const rb = $('#recapBtn', el);
+        if (rb) rb.addEventListener('click', openRecap);
       },
     });
   }
@@ -1284,7 +1301,7 @@
       <div class="set-group">
         ${row('🔔', '#ff9f43', t('rmOn'), sw('sRemind', !!p.remind, t('rmOn')))}
         ${row('⏱️', '#22b8a6', t('rmStyle'), `<select id="pRemind" ${p.remind ? '' : 'disabled'}>${Object.keys(REMIND_STYLES).map((k) => `<option value="${k}" ${k === (p.remindStyle || 'balanced') ? 'selected' : ''}>${t('rmStyles')[k]}</option>`).join('')}</select>`, 'pRemind')}
-        <p class="set-note"><b id="rmInfo">${t('rmInfo', remindStyle())}</b> ${t('rmHint')}</p>
+        <p class="set-note"><b id="rmInfo">${t('rmInfo', remindStyle())}</b> ${t('rmHint')} <span class="rm-where" id="rmWhere"></span></p>
       </div>
       <div class="save-bar"><span id="pDirty" class="dirty" hidden>${t('unsaved')}</span>
         <button class="cta" id="pSave" disabled>${t('save')}</button></div>
@@ -1323,6 +1340,7 @@
           if (cityChanged) state.weather = null;
           save();
           scheduleSync();
+    syncPush();
           if (cityChanged) fetchWeather();
           if (langChanged) setLang(draft.lang);
           else { refresh(); bump($('#pGoal', el)); }
@@ -1356,17 +1374,31 @@
         rs.addEventListener('click', async () => {
           p.remind = !p.remind;
           showRemind();
-          if (p.remind && 'Notification' in window && Notification.permission !== 'granted') {
-            let perm = Notification.permission;
-            try { if (perm === 'default') perm = await Notification.requestPermission(); } catch {}
-            if (perm !== 'granted') toast(t('rmDenied'));
-          }
           save();
-          toast(p.remind ? t('rmOnToast', { s: t('rmStyles')[p.remindStyle || 'balanced'] }) : t('rmOffToast'));
+          if (p.remind) {
+            const how = await enablePush();
+            if (how === 'denied') toast(t('rmDenied'));
+            else toast(t('rmOnToast', { s: t('rmStyles')[p.remindStyle || 'balanced'] }));
+            // On iPhone, reminders reach the lock screen only from the home-screen app.
+            if (how === 'local' && isIOS() && !standalone()) setTimeout(() => toast(t('rmIosHint')), 2600);
+            renderRemindNote();
+          } else {
+            await disablePush();
+            toast(t('rmOffToast'));
+            renderRemindNote();
+          }
         });
+        // Under the reminder settings: whether they reach the lock screen on this phone.
+        function renderRemindNote() {
+          const n = $('#rmWhere', el);
+          if (!n) return;
+          n.textContent = !p.remind ? '' : state.pushOn ? t('rmPush') : isIOS() && !standalone() ? t('rmIosHint') : t('rmLocal');
+        }
+        renderRemindNote();
         styleSel.addEventListener('change', () => {
           p.remindStyle = styleSel.value;
           save();
+          syncPush(0);
           $('#rmInfo', el).textContent = t('rmInfo', remindStyle());
           toast(t('rmOnToast', { s: t('rmStyles')[p.remindStyle] }));
         });
@@ -1476,6 +1508,7 @@
       state.avatar = i;
       save();
       scheduleSync();
+    syncPush();
       setTimeout(() => {
         closeSheet();
         const img = document.querySelector('#avBtn img');
@@ -1508,9 +1541,22 @@
   const LEVEL_COL = ['#3fd39a', '#9bd84a', '#ffb02e', '#f2753a', '#d9435a'];
   async function openWeatherSheet() {
     const city = CITIES.find((c) => c[0] === state.profile.city) || CITIES[0];
-    sheet.innerHTML = `<div class="grab"></div><div class="wx-sheet"><h3>${esc(city[0])}</h3><p class="wx-load">${t('loadingWeather')}</p></div>`;
+    // The sheet slides up straight away at about its full height with a turning circle; when the
+    // weather arrives it grows or shrinks smoothly to fit and the details fade in one by one.
+    sheet.innerHTML = `<div class="grab"></div><div class="wx-sheet"><div class="wx-loading"><span class="spin" aria-hidden="true"></span>
+      <h3>${esc(city[0])}</h3><p class="wx-load">${t('loadingWeather')}</p></div></div>`;
     openSheetEl();
     const box = $('.wx-sheet', sheet);
+    const morph = (html) => {
+      const h0 = box.offsetHeight;
+      box.innerHTML = html;
+      const h1 = box.offsetHeight;
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches && Math.abs(h1 - h0) > 2) {
+        box.style.overflow = 'hidden';
+        box.animate([{ height: h0 + 'px' }, { height: h1 + 'px' }], { duration: 420, easing: 'cubic-bezier(.22, 1, .36, 1)' }).onfinish = () => { box.style.overflow = ''; };
+      }
+    };
+    const started = performance.now();
     try {
       const q = `latitude=${city[1]}&longitude=${city[2]}&timezone=Asia%2FKuala_Lumpur`;
       const [wr, ar] = await Promise.all([
@@ -1527,8 +1573,11 @@
       const hz = air && air.pm2_5 != null ? hazeLevel(air.pm2_5) : -1;
       const row = (ic, label, val, lvl, txt, pct) => `<li><span class="wx-ic">${ic}</span><span class="wx-t"><small>${label}</small><b>${val}</b>
         ${txt ? `<em style="--c:${LEVEL_COL[lvl]}">${txt}</em>` : ''}</span>${pct != null ? `<span class="wx-meter"><i style="--w:${pct}%;--c:${LEVEL_COL[lvl]}"></i></span>` : ''}</li>`;
+      // Let the circle turn at least briefly, so a quick answer doesn't flash.
+      const wait = 450 - (performance.now() - started);
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
       if (sheet.querySelector('.wx-sheet') !== box) return;
-      box.innerHTML = `<div class="wx-hero"><span class="wx-big">${WX_ICON(cur.weather_code, night)}</span>
+      morph(`<div class="wx-hero wx-in"><span class="wx-big">${WX_ICON(cur.weather_code, night)}</span>
           <div><h3>${esc(city[0])}</h3><p>${t('wxKinds')[WX_KIND(cur.weather_code)]}</p></div>
           <div class="wx-temp"><b>${Math.round(cur.temperature_2m)}°</b><small>${Math.round(c.daily.temperature_2m_min[0])}° / ${Math.round(c.daily.temperature_2m_max[0])}°</small></div></div>
         <ul class="wx-list">
@@ -1539,10 +1588,11 @@
           ${row('🍃', t('wxWind'), `${Math.round(cur.wind_speed_10m)} km/h`, 0, '', null)}
         </ul>
         <p class="wx-tip">${hz >= 2 ? t('wxTipHaze') : hl >= 2 ? t('wxTipHot') : t('wxTipOk')}</p>
-        <p class="wx-src">${t('wxSrc')}</p>`;
-      requestAnimationFrame(() => box.querySelectorAll('.wx-meter i').forEach((i) => i.classList.add('go')));
+        <p class="wx-src">${t('wxSrc')}</p>`);
+      box.querySelectorAll('.wx-list li, .wx-tip').forEach((li, i) => { li.classList.add('wx-in'); li.style.animationDelay = `${60 + i * 50}ms`; });
+      setTimeout(() => box.querySelectorAll('.wx-meter i').forEach((i) => i.classList.add('go')), 250);
     } catch {
-      if (sheet.querySelector('.wx-sheet') === box) box.innerHTML = `<h3>${esc(city[0])}</h3><p class="wx-load">${t('wxFail')}</p>`;
+      if (sheet.querySelector('.wx-sheet') === box) morph(`<div class="wx-loading"><span class="wx-oops" aria-hidden="true">🌧️</span><h3>${esc(city[0])}</h3><p class="wx-load">${t('wxFail')}</p></div>`);
     }
   }
 
@@ -1579,6 +1629,7 @@
       btn.addEventListener('click', () => {
         // Leaving the leaderboard too: friends stop seeing you.
         if (state.friends && state.friends.code) friendsApi('POST', { action: 'delete' }).catch(() => {});
+        if (state.pushOn) disablePush();
         try { localStorage.removeItem(STORE_KEY); } catch {}
         btn.textContent = t('deleted');
         setTimeout(() => location.reload(), 600);
@@ -1993,6 +2044,215 @@
     });
   }
 
+  // ---------- cards on Today: add to home screen, weekly recap ----------
+  let installEvt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    installEvt = e;
+    if (current === 'home') renderHome(false);
+  });
+  window.addEventListener('appinstalled', () => {
+    state.installed = true;
+    save();
+    toast(t('instDone'), avatarSrc());
+    if (current === 'home') renderHome(false);
+  });
+  // From the second day of using the app, until it's installed or put off for a week.
+  function installDue() {
+    if (standalone() || state.installed) return false;
+    if (!installEvt && !isIOS()) return false;
+    if (state.installSnooze && Date.now() < state.installSnooze) return false;
+    return dayKey(new Date(state.firstOpen || Date.now())) !== dayKey();
+  }
+  const lastMonday = () => dayKey(new Date(Date.parse(weekDays()[0] + 'T12:00:00+08:00') - 7 * 864e5));
+  // Monday to Wednesday, a card offers last week's recap until you've looked at it.
+  function recapDue() {
+    const dow = weekDays().indexOf(dayKey());
+    return dow >= 0 && dow <= 2 && state.recapSeen !== lastMonday() && recapWeek().total > 0;
+  }
+  function homeCard() {
+    if (!state.onboarded) return '';
+    if (recapDue()) {
+      const r = recapWeek();
+      return `<div class="home-card recap-card"><span class="hc-ic">🗓️</span>
+        <div class="hc-t"><b>${t('recapCard')}</b><small>${t('recapCardSub', { l: (r.total / 1000).toFixed(1), n: r.hits })}</small></div>
+        <button type="button" class="cta hc-go" id="recapGo">${t('recapSee')}</button></div>`;
+    }
+    if (installDue()) {
+      return `<div class="home-card inst-card"><img class="hc-av" src="icon-192.png" alt="">
+        <div class="hc-t"><b>${t('instTitle')}</b><small>${t('instBody')}</small></div>
+        <div class="hc-btns"><button type="button" class="cta hc-go" id="instGo">${t('instAdd')}</button>
+          <button type="button" class="hc-later" id="instLater">${t('instLater')}</button></div></div>`;
+    }
+    return '';
+  }
+  function wireHomeCard(el) {
+    const rg = $('#recapGo', el);
+    if (rg) rg.addEventListener('click', openRecap);
+    const ig = $('#instGo', el);
+    if (ig) ig.addEventListener('click', async () => {
+      if (installEvt) {
+        const e = installEvt;
+        installEvt = null;
+        e.prompt();
+        const choice = await e.userChoice.catch(() => ({}));
+        if (choice.outcome === 'accepted') state.installed = true;
+        else state.installSnooze = Date.now() + 7 * 864e5;
+        save();
+        renderHome(false);
+      } else openInstallSheet();
+    });
+    const il = $('#instLater', el);
+    if (il) il.addEventListener('click', () => {
+      state.installSnooze = Date.now() + 7 * 864e5;
+      save();
+      const card = il.closest('.home-card');
+      card.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.96)' }], { duration: 250, easing: 'ease-in' }).onfinish = () => renderHome(false);
+    });
+  }
+  // iPhone: Safari has no install button, so show the three taps.
+  function openInstallSheet() {
+    sheet.innerHTML = `<div class="grab"></div><div class="inst-sheet">
+      <img class="inst-icon" src="icon-192.png" alt="">
+      <h3>${t('instTitle')}</h3><p class="av-sub">${t('instIosSub')}</p>
+      <ol class="inst-steps">
+        <li><span class="st-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>${t('instStep1')}</li>
+        <li><span class="st-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8.5v7M8.5 12h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>${t('instStep2')}</li>
+        <li><span class="st-ic">✓</span>${t('instStep3')}</li>
+      </ol>
+      <button type="button" class="cta" id="instOk">${t('instGotIt')}</button></div>`;
+    openSheetEl();
+    $('#instOk').addEventListener('click', closeSheet);
+  }
+
+  // Last week (Monday to Sunday) in numbers.
+  function recapWeek() {
+    const mon = Date.parse(lastMonday() + 'T12:00:00+08:00');
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const k = dayKey(new Date(mon + i * 864e5));
+      const r = state.days[k];
+      return { k, ml: r ? total(r) : 0, goal: (r && r.goal) || baseGoal() };
+    });
+    const totalMl = days.reduce((a, x) => a + x.ml, 0);
+    const best = days.reduce((a, x) => (x.ml > a.ml ? x : a), days[0]);
+    const pts = days.reduce((a, x) => a + Math.min(100, Math.round(x.ml / x.goal * 100)), 0);
+    let run = 0, cur = 0;
+    days.forEach((x) => { cur = x.ml >= x.goal ? cur + 1 : 0; run = Math.max(run, cur); });
+    return { mon: lastMonday(), days, total: totalMl, hits: days.filter((x) => x.ml >= x.goal).length, best, pts, run };
+  }
+  // How last week's friends league ended: your place among friends with a score for that week.
+  function recapLeague(r) {
+    const f = state.friends;
+    if (!f || !f.board) return null;
+    const theirs = (f.board.friends || []).map((c) => (c.prevWeekOf === r.mon ? c.prevPts : c.weekOf === r.mon ? c.week.reduce((a, x) => a + Math.min(100, x), 0) : null)).filter((v) => v != null);
+    if (!theirs.length) return null;
+    const rank = 1 + theirs.filter((v) => v > r.pts).length;
+    return { rank, of: theirs.length + 1 };
+  }
+
+  function roundRect(g, x, y, w, h, r) {
+    g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  }
+  // The shareable picture: 1080 x 1350, made on the phone.
+  async function drawRecap(r, league) {
+    const c = document.createElement('canvas');
+    c.width = 1080; c.height = 1350;
+    const g = c.getContext('2d');
+    try { await Promise.all(['800 64px "Baloo 2"', '800 40px Nunito', '700 32px Nunito'].map((f) => document.fonts.load(f))); } catch {}
+    const bg = g.createLinearGradient(0, 0, 0, 1350);
+    bg.addColorStop(0, '#1ea2f0'); bg.addColorStop(.55, '#0a6fc0'); bg.addColorStop(1, '#063a6e');
+    g.fillStyle = bg; g.fillRect(0, 0, 1080, 1350);
+    // Bubbles.
+    // Bubbles along the sides, clear of the numbers.
+    for (let i = 0; i < 22; i++) {
+      const x = i % 2 ? 40 + (i * 37) % 110 : 1040 - (i * 53) % 110, y = (i * 331) % 1350, rr = 8 + (i % 5) * 9;
+      g.beginPath(); g.arc(x, y, rr, 0, Math.PI * 2); g.fillStyle = 'rgba(255,255,255,.07)'; g.fill();
+      g.strokeStyle = 'rgba(255,255,255,.18)'; g.lineWidth = 2; g.stroke();
+    }
+    g.textAlign = 'center';
+    g.fillStyle = 'rgba(255,255,255,.75)';
+    g.font = '800 34px Nunito, system-ui, sans-serif';
+    g.fillText(t('recapHead').toUpperCase(), 540, 92);
+    const fmtD = (k) => new Intl.DateTimeFormat(L()._locale, { day: 'numeric', month: 'short' }).format(new Date(k + 'T12:00:00'));
+    g.fillStyle = '#fff';
+    g.font = '800 54px "Baloo 2", system-ui, sans-serif';
+    g.fillText(`${fmtD(r.days[0].k)} – ${fmtD(r.days[6].k)}`, 540, 158);
+    // Meowie.
+    const av = new Image();
+    av.src = avatarSrc();
+    await (av.decode ? av.decode().catch(() => {}) : new Promise((res) => { av.onload = av.onerror = res; }));
+    g.save(); g.beginPath(); g.arc(540, 330, 125, 0, Math.PI * 2); g.fillStyle = '#fff'; g.fill(); g.clip();
+    if (av.naturalWidth) g.drawImage(av, 415, 205, 250, 250);
+    g.restore();
+    g.beginPath(); g.arc(540, 330, 125, 0, Math.PI * 2); g.lineWidth = 10; g.strokeStyle = '#ffd43b'; g.stroke();
+    // The week's water.
+    g.fillStyle = '#fff';
+    g.font = '800 150px "Baloo 2", system-ui, sans-serif';
+    g.fillText(`${(r.total / 1000).toFixed(1)} L`, 540, 600);
+    g.fillStyle = 'rgba(255,255,255,.85)';
+    g.font = '700 38px Nunito, system-ui, sans-serif';
+    g.fillText(t('recapWater'), 540, 652);
+    // Seven bars, Monday to Sunday.
+    const dayName = (k) => new Intl.DateTimeFormat(L()._locale, { weekday: 'narrow' }).format(new Date(k + 'T12:00:00'));
+    r.days.forEach((d, i) => {
+      const x = 170 + i * 115, h = 210, k = Math.min(1, d.ml / d.goal);
+      g.fillStyle = 'rgba(255,255,255,.16)'; roundRect(g, x, 700, 74, h, 22); g.fill();
+      if (k > 0) { g.fillStyle = d.ml >= d.goal ? '#5be0a8' : '#8fd6ff'; roundRect(g, x, 700 + h * (1 - k), 74, Math.max(22, h * k), 22); g.fill(); }
+      g.fillStyle = 'rgba(255,255,255,.85)'; g.font = '800 30px Nunito, system-ui, sans-serif'; g.fillText(dayName(d.k), x + 37, 952);
+    });
+    // Three tiles.
+    const best = r.best.ml ? `${new Intl.DateTimeFormat(L()._locale, { weekday: 'short' }).format(new Date(r.best.k + 'T12:00:00'))} · ${(r.best.ml / 1000).toFixed(1)} L` : '–';
+    [[`${r.hits}/7`, t('recapHit')], [best, t('recapBest')], [`🔥 ${r.run}`, t('recapStreak')]].forEach(([v, l], i) => {
+      const x = 70 + i * 320;
+      g.fillStyle = 'rgba(255,255,255,.14)'; roundRect(g, x, 995, 300, 150, 30); g.fill();
+      g.fillStyle = '#fff'; g.font = `800 ${v.length > 9 ? 40 : 54}px "Baloo 2", system-ui, sans-serif`; g.fillText(v, x + 150, 1068);
+      g.fillStyle = 'rgba(255,255,255,.8)'; g.font = '700 28px Nunito, system-ui, sans-serif'; g.fillText(l, x + 150, 1112);
+    });
+    // The friends league.
+    if (league) {
+      const txt = league.rank === 1 ? t('recapWon') : t('recapRank', { r: league.rank, n: league.of });
+      g.font = '800 38px Nunito, system-ui, sans-serif';
+      const w = g.measureText(txt).width + 80;
+      g.fillStyle = league.rank === 1 ? '#ffd43b' : 'rgba(255,255,255,.2)'; roundRect(g, 540 - w / 2, 1172, w, 70, 35); g.fill();
+      g.fillStyle = league.rank === 1 ? '#4a3500' : '#fff'; g.fillText(txt, 540, 1220);
+    }
+    g.fillStyle = 'rgba(255,255,255,.7)';
+    g.font = '700 30px Nunito, system-ui, sans-serif';
+    g.fillText(`Minum Air · Meowie 🦈 · ${location.host}`, 540, 1310);
+    return c;
+  }
+
+  async function openRecap() {
+    const r = recapWeek();
+    state.recapSeen = r.mon;
+    save();
+    sheet.innerHTML = `<div class="grab"></div><div class="recap-sheet"><h3>${t('recapTitle')}</h3>
+      <div class="recap-img"><div class="recap-wait">💧</div></div>
+      <div class="recap-btns"><button type="button" class="ghost-btn" id="recapSave">⬇️ ${t('recapSave')}</button><button type="button" class="cta" id="recapShare">📤 ${t('recapShare')}</button></div></div>`;
+    openSheetEl();
+    if (current === 'home') setTimeout(() => renderHome(false), 400);
+    // A fresh look at the friends board first, so the league line is right.
+    if (joined()) { try { await loadBoard(); } catch {} }
+    const canvas = await drawRecap(r, recapLeague(r));
+    const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'));
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const box = $('.recap-img', sheet);
+    if (!box) return;
+    box.innerHTML = `<img src="${url}" alt="${t('recapTitle')}">`;
+    const file = new File([blob], 'meowie-week.png', { type: 'image/png' });
+    const text = t('recapShareText', { l: (r.total / 1000).toFixed(1), url: location.origin });
+    $('#recapShare', sheet).addEventListener('click', async () => {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], text }); } catch {}
+      } else if (navigator.share) {
+        try { await navigator.share({ text, url: location.origin }); } catch {}
+      } else download();
+    });
+    const download = () => { const a = document.createElement('a'); a.href = url; a.download = 'meowie-week.png'; document.body.appendChild(a); a.click(); a.remove(); toast(t('recapSaved')); };
+    $('#recapSave', sheet).addEventListener('click', download);
+  }
+
   // ---------- 100% reward ----------
   // A full-screen celebration: light rays, a ring that fills to 100%, then Meowie's dance video
   // pops in with stars and confetti. Plays once a day when the goal is first reached.
@@ -2201,7 +2461,78 @@
     toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
   }
 
-  // ---------- reminders (only while the app is open or in the background tab) ----------
+  // ---------- lock-screen reminders (web push) ----------
+  // With reminders on, the phone subscribes to push and keeps the server told of its routine and
+  // today's progress; the server's half-hourly job sends pace reminders even when the app is closed.
+  // Where push isn't available (iPhone in Safari, before adding to the home screen), the app falls
+  // back to reminding while it's open.
+  const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const b64ToBytes = (b64) => {
+    const s = atob((b64 + '='.repeat((4 - (b64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from(s, (c) => c.charCodeAt(0));
+  };
+  async function pushSub(create) {
+    if (!pushSupported()) return null;
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub && create) {
+      const { publicKey } = await fetch('/api/push', { cache: 'no-store' }).then((r) => r.json());
+      if (!publicKey) return null;
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(publicKey) });
+    }
+    return sub;
+  }
+  function pushInfo() {
+    const d = today();
+    const p = state.profile;
+    return {
+      remind: !!p.remind, lang: state.lang, name: p.name, wake: p.wake, sleep: p.sleep, style: p.remindStyle || 'balanced',
+      day: dayKey(), ml: total(d), goal: d.goal, lastDrink: d.log.length ? d.log[d.log.length - 1].t : 0, lastOpen: Date.now(),
+    };
+  }
+  let pushTimer = 0;
+  function syncPush(ms = 1200) {
+    if (!state.pushOn) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(async () => {
+      try {
+        const sub = await pushSub(false);
+        if (!sub) { state.pushOn = false; save(); return; }
+        await fetch('/api/push', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'save', sub: sub.toJSON(), info: pushInfo() }), keepalive: true });
+      } catch {}
+    }, ms);
+  }
+  // Turn lock-screen reminders on (asks for permission). Resolves to 'push', 'local' or 'denied'.
+  async function enablePush() {
+    if (!('Notification' in window)) return 'local';
+    let perm = Notification.permission;
+    try { if (perm === 'default') perm = await Notification.requestPermission(); } catch {}
+    if (perm !== 'granted') return 'denied';
+    if (!pushSupported()) return 'local';
+    try {
+      const sub = await pushSub(true);
+      if (!sub) return 'local';
+      state.pushOn = true;
+      save();
+      syncPush(0);
+      return 'push';
+    } catch { return 'local'; }
+  }
+  async function disablePush() {
+    state.pushOn = false;
+    save();
+    try {
+      const sub = await pushSub(false);
+      if (sub) {
+        await fetch('/api/push', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'delete', sub: { endpoint: sub.endpoint } }) }).catch(() => {});
+        await sub.unsubscribe();
+      }
+    } catch {}
+  }
+
+  // ---------- reminders while the app is open (when lock-screen push isn't on) ----------
   function inWakeWindow() {
     const [h, m] = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kuala_Lumpur', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date()).split(':').map(Number);
     const now = h * 60 + m;
@@ -2225,7 +2556,7 @@
     return Math.max(0, Math.min(1, (now - w) / (sl - w)));
   }
   function paceCheck() {
-    if (!state.onboarded || !state.profile.remind || !inWakeWindow()) return;
+    if (!state.onboarded || !state.profile.remind || state.pushOn || !inWakeWindow()) return;
     const d = today();
     const st = remindStyle();
     const goal = d.goal;
@@ -2236,12 +2567,12 @@
     const r = state.remindLog && state.remindLog.day === dayKey() ? state.remindLog : (state.remindLog = { day: dayKey(), n: 0, last: 0, ignored: 0 });
     if (r.n >= st.max) return;
     const lastDrink = d.log.length ? d.log[d.log.length - 1].t : 0;
-    if (lastDrink > r.last) r.ignored = 0;
     const now = Date.now();
     // Never right after a drink, and each ignored reminder doubles the wait (up to 4 hours).
     if (now - lastDrink < 30 * 6e4) return;
-    if (now - r.last < Math.min(240, st.gap * Math.pow(2, r.ignored)) * 6e4) return;
-    if (r.last && lastDrink < r.last) r.ignored++;
+    const ignored = r.last && lastDrink < r.last ? (r.ignored || 0) + 1 : 0;
+    if (now - r.last < Math.min(240, st.gap * Math.pow(2, ignored)) * 6e4) return;
+    r.ignored = ignored;
     r.n++;
     r.last = now;
     save();
@@ -2262,6 +2593,17 @@
   }, 60e3);
 
   // ---------- boot ----------
+  // When you first used the app, and when you last had it open (for the install card and for
+  // Meowie missing you after two days away).
+  if (!state.firstOpen) {
+    const keys = Object.keys(state.days).sort();
+    state.firstOpen = keys.length ? Date.parse(keys[0] + 'T09:00:00+08:00') : Date.now();
+  }
+  if (state.onboarded && state.lastOpen && Date.now() - state.lastOpen > 48 * 3600e3) state.comeback = true;
+  const markOpen = () => { if (!document.hidden && state.onboarded) { state.lastOpen = Date.now(); save(); } };
+  markOpen();
+  document.addEventListener('visibilitychange', markOpen);
+  setInterval(markOpen, 5 * 6e4);
   // An invite link (?f=CODE) adds that friend once you're set up.
   const inviteCode = new URLSearchParams(location.search).get('f');
   if (inviteCode && /^[A-Za-z0-9]{6}$/.test(inviteCode)) {
