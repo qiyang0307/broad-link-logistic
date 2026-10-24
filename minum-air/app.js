@@ -727,7 +727,10 @@
           homeCat = Meowie.create({ intro: first, scene: currentScene() });
           $('.hero-cat', el).appendChild(homeCat);
           Meowie.interact(homeCat, { onTap: onCatTap });
-          shownPct = 0;
+          // Only the very first visit counts up from zero; coming back from another tab shows
+          // today's numbers and water as they are, without replaying.
+          if (first) shownPct = 0;
+          else { Meowie.setLayers(homeCat, layersFor(d)); Meowie.setLevel(homeCat, pct, { instant: true }); }
           wireHome(el, pct);
         },
       });

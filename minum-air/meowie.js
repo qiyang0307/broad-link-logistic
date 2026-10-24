@@ -499,9 +499,11 @@
     const first = !wrap._mw.placed;
     if (!first && p > wrap._mw.level + .001) slosh(wrap);
     wrap._mw.level = p;
-    wrap._mw.placed = true;
     if (!wrap._mw.running) run(wrap);
-    place(wrap, p);
+    // A Meowie put on screen with the level already known (coming back to Today) starts right
+    // there: no water refilling from empty, no change of pose, no splash.
+    place(wrap, p, opts.instant);
+    wrap._mw.placed = true;
     setMood(wrap, moodFor(pct), opts.instant || first);
   }
 
@@ -551,7 +553,7 @@
     const tint = color && color.toLowerCase() !== PLAIN;
     if (!tint && !world) return null;
     if (tint && !maskSheet) { maskSheet = new Image(); maskSheet.src = 'meowie-drink-mask.webp'; }
-    if (world && !fgSheet) { fgSheet = new Image(); fgSheet.src = 'meowie-drink-fg.webp'; }
+    if (world && !fgSheet) { fgSheet = new Image(); fgSheet.src = 'meowie-drink-fg.webp?v=2'; }
     const cv = document.createElement('canvas');
     box.appendChild(cv);
     const ctx = cv.getContext('2d');
