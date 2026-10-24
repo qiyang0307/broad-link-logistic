@@ -1211,6 +1211,12 @@
         ${row('🎵', '#f06aa8', t('sndMusic'), sw('sMusic', MASound.music, t('sndMusic')))}
         ${row('🔊', '#8c7bff', t('sndSfxLong'), sw('sSfx', MASound.sfx, t('sndSfxLong')))}
       </div>
+      <h3 class="set-head">${t('secRemind')}</h3>
+      <div class="set-group">
+        ${row('🔔', '#ff9f43', t('rmOn'), sw('sRemind', !!p.remind, t('rmOn')))}
+        ${row('⏱️', '#22b8a6', t('rmStyle'), `<select id="pRemind" ${p.remind ? '' : 'disabled'}>${Object.keys(REMIND_STYLES).map((k) => `<option value="${k}" ${k === (p.remindStyle || 'balanced') ? 'selected' : ''}>${t('rmStyles')[k]}</option>`).join('')}</select>`, 'pRemind')}
+        <p class="set-note"><b id="rmInfo">${t('rmInfo', remindStyle())}</b> ${t('rmHint')}</p>
+      </div>
       <div class="save-bar"><span id="pDirty" class="dirty" hidden>${t('unsaved')}</span>
         <button class="cta" id="pSave" disabled>${t('save')}</button></div>
       <div class="danger-zone">
@@ -1263,6 +1269,27 @@
         });
         toggle('#sMusic', () => MASound.music, MASound.setMusic);
         toggle('#sSfx', () => MASound.sfx, MASound.setSfx);
+        // Reminder settings also apply straight away. Turning them on asks for permission to notify.
+        const rs = $('#sRemind', el);
+        const styleSel = $('#pRemind', el);
+        const showRemind = () => { rs.setAttribute('aria-pressed', !!p.remind); rs.setAttribute('aria-checked', !!p.remind); styleSel.disabled = !p.remind; };
+        rs.addEventListener('click', async () => {
+          p.remind = !p.remind;
+          showRemind();
+          if (p.remind && 'Notification' in window && Notification.permission !== 'granted') {
+            let perm = Notification.permission;
+            try { if (perm === 'default') perm = await Notification.requestPermission(); } catch {}
+            if (perm !== 'granted') toast(t('rmDenied'));
+          }
+          save();
+          toast(p.remind ? t('rmOnToast', { s: t('rmStyles')[p.remindStyle || 'balanced'] }) : t('rmOffToast'));
+        });
+        styleSel.addEventListener('change', () => {
+          p.remindStyle = styleSel.value;
+          save();
+          $('#rmInfo', el).textContent = t('rmInfo', remindStyle());
+          toast(t('rmOnToast', { s: t('rmStyles')[p.remindStyle] }));
+        });
       },
     });
   }
@@ -2015,22 +2042,51 @@
     const w = toMin(state.profile.wake), s = toMin(state.profile.sleep);
     return w < s ? now >= w && now < s : now >= w || now < s;
   }
-  let lastNudge = 0;
-  setInterval(() => {
-    if (!state.onboarded) return;
+  // Pace-based: Meowie only speaks up when you fall behind where you should be by now, with the
+  // waking day as the clock (halfway through your day, about half your goal). Ignored reminders
+  // back off, and each style has its own gap, leeway and daily cap.
+  const REMIND_STYLES = { gentle: { gap: 120, slack: .15, max: 4 }, balanced: { gap: 90, slack: .1, max: 6 }, keen: { gap: 60, slack: .05, max: 8 } };
+  const remindStyle = () => REMIND_STYLES[state.profile.remindStyle] || REMIND_STYLES.balanced;
+  function dayProgress() {
+    const [h, m] = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kuala_Lumpur', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date()).split(':').map(Number);
+    const toMin = (x) => { const [a, b] = x.split(':').map(Number); return a * 60 + b; };
+    const w = toMin(state.profile.wake);
+    let sl = toMin(state.profile.sleep);
+    if (sl <= w) sl += 1440;
+    let now = h * 60 + m;
+    if (now < w) now += 1440;
+    return Math.max(0, Math.min(1, (now - w) / (sl - w)));
+  }
+  function paceCheck() {
+    if (!state.onboarded || !state.profile.remind || !inWakeWindow()) return;
     const d = today();
-    if (total(d) >= d.goal || !inWakeWindow()) return;
-    const last = d.log.length ? d.log[d.log.length - 1].t : 0;
-    const gap = 2 * 3600e3;
-    if (Date.now() - Math.max(last, lastNudge) < gap) return;
-    lastNudge = Date.now();
-    const body = t('remind', { name: friend() });
-    if (state.profile.remind && 'Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker) {
+    const st = remindStyle();
+    const goal = d.goal;
+    const have = total(d);
+    if (have >= goal) return;
+    const expected = goal * dayProgress();
+    if (have >= expected - goal * st.slack) return;
+    const r = state.remindLog && state.remindLog.day === dayKey() ? state.remindLog : (state.remindLog = { day: dayKey(), n: 0, last: 0, ignored: 0 });
+    if (r.n >= st.max) return;
+    const lastDrink = d.log.length ? d.log[d.log.length - 1].t : 0;
+    if (lastDrink > r.last) r.ignored = 0;
+    const now = Date.now();
+    // Never right after a drink, and each ignored reminder doubles the wait (up to 4 hours).
+    if (now - lastDrink < 30 * 6e4) return;
+    if (now - r.last < Math.min(240, st.gap * Math.pow(2, r.ignored)) * 6e4) return;
+    if (r.last && lastDrink < r.last) r.ignored++;
+    r.n++;
+    r.last = now;
+    save();
+    const ml = Math.max(50, Math.ceil((expected - have) / 50) * 50);
+    const body = t('remindPace', { name: friend(), p: Math.round(have / goal * 100), e: Math.round(expected / goal * 100), ml: fmt(ml) });
+    if ('Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker) {
       // Each reminder comes from a different Meowie.
       const icon = '/' + avatarSrc(randomAvatar());
-      navigator.serviceWorker.ready.then((r) => r.showNotification('Meowie 🦈', { body, icon, badge: '/icon-192.png', tag: 'minum', renotify: true })).catch(() => {});
+      navigator.serviceWorker.ready.then((reg) => reg.showNotification('Meowie 🦈', { body, icon, badge: '/icon-192.png', tag: 'minum', renotify: true })).catch(() => {});
     } else if (!document.hidden) toast(body, avatarSrc(randomAvatar()));
-  }, 60e3);
+  }
+  setInterval(paceCheck, 60e3);
 
   // New day while open → refresh.
   let lastDay = dayKey();

@@ -1,6 +1,6 @@
 // Offline shell for Minum Air. Weather calls go straight to the network.
-const CACHE = 'minum-air-v42';
-const SHELL = ['/', '/styles.css?v=42', '/meowie.js?v=42', '/i18n.js?v=42', '/app.js?v=42', '/manifest.webmanifest', '/sound.js?v=42', '/favicon.png', '/icon-192.png', '/meowie-photo.jpg', '/meowie-avatar.jpg',
+const CACHE = 'minum-air-v43';
+const SHELL = ['/', '/styles.css?v=43', '/meowie.js?v=43', '/i18n.js?v=43', '/app.js?v=43', '/manifest.webmanifest', '/sound.js?v=43', '/favicon.png', '/icon-192.png', '/meowie-photo.jpg', '/meowie-avatar.jpg',
   '/meowie-sit.webp', '/meowie-pet.webp', '/meowie-swim.webp', '/meowie-peek.webp', '/meowie-turn.webp', '/meowie-drink-mask.webp', '/bg-reef.webp', '/bg-pool.webp', '/bg-reef-s.webp', '/bg-pool-s.webp',
   ...Array.from({ length: 16 }, (_, i) => `/av/${String(i + 1).padStart(2, '0')}.jpg`)];
 
