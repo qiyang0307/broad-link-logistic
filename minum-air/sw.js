@@ -1,7 +1,7 @@
 // Offline shell for Minum Air. Weather calls go straight to the network.
-const CACHE = 'minum-air-v51';
-const SHELL = ['/', '/styles.css?v=51', '/meowie.js?v=51', '/i18n.js?v=51', '/app.js?v=51', '/manifest.webmanifest', '/sound.js?v=51', '/favicon.png', '/icon-192.png', '/meowie-photo.jpg', '/meowie-avatar.jpg',
-  '/meowie-sit.webp', '/meowie-pet.webp', '/meowie-swim.webp?v=3', '/meowie-peek.webp', '/meowie-turn.webp', '/meowie-full.webp?v=2', '/meowie-fullb.webp?v=2', '/meowie-fullc.webp', '/meowie-drink-mask.webp', '/meowie-drink-fg.webp?v=2', '/bg-reef.webp', '/bg-pool.webp', '/bg-reef-s.webp', '/bg-pool-s.webp',
+const CACHE = 'minum-air-v52';
+const SHELL = ['/', '/styles.css?v=52', '/meowie.js?v=52', '/i18n.js?v=52', '/app.js?v=52', '/manifest.webmanifest', '/sound.js?v=52', '/favicon.png', '/icon-192.png', '/meowie-photo.jpg', '/meowie-avatar.jpg',
+  '/meowie-sit.webp', '/meowie-pet.webp', '/meowie-swim.webp?v=3', '/meowie-peek.webp', '/meowie-turn.webp', '/meowie-full.webp?v=2', '/meowie-fullb.webp?v=2', '/meowie-fullc.webp', '/meowie-drink-mask.webp', '/bg-reef.webp', '/bg-pool.webp', '/bg-reef-s.webp', '/bg-pool-s.webp',
   ...Array.from({ length: 16 }, (_, i) => `/av/${String(i + 1).padStart(2, '0')}.jpg`)];
 
 self.addEventListener('install', (e) => {
@@ -41,7 +41,7 @@ self.addEventListener('push', (e) => {
   try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data && e.data.text() }; }
   const av = String(d.av || 1).padStart(2, '0');
   e.waitUntil(self.registration.showNotification(d.title || 'Meowie 🦈', {
-    body: d.body || '', icon: `/av/${av}.jpg`, badge: '/icon-192.png?v=51', tag: d.tag || 'minum', renotify: true, data: { url: '/' },
+    body: d.body || '', icon: `/av/${av}.jpg`, badge: '/icon-192.png?v=52', tag: d.tag || 'minum', renotify: true, data: { url: '/' },
   }));
 });
 

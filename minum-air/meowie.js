@@ -542,60 +542,43 @@
   // a per-frame mask (124 frames, 240 x 157, 8 per row) marks where the water is, and the colour
   // is blended into those pixels on a canvas, keeping the water's own light and sparkle.
   const PLAIN = '#9fdcff';
-  const MASK = { w: 240, h: 157, cols: 8, n: 124, fps: 24 };
+  // The liquid mask was made from the full clip; the clip now starts 18 frames in (once the glass
+  // and the jug are both in place), so mask frames are read from that offset.
+  const MASK = { w: 240, h: 157, cols: 8, n: 124, fps: 24, from: 18 };
   let maskSheet = null;
-  // The drinking clip is drawn through a canvas when it needs changing: the liquid recoloured to
-  // the drink, and in a picture world the clip's own sky and sand cut away (a per-frame matte of
-  // Meowie, the glass and the stream) so he drinks in front of that world instead.
-  const FG = { w: 320, h: 210, cols: 8, n: 124, fps: 24 };
-  let fgSheet = null;
-  function filmCanvas(v, box, color, world) {
-    const tint = color && color.toLowerCase() !== PLAIN;
-    if (!tint && !world) return null;
-    if (tint && !maskSheet) { maskSheet = new Image(); maskSheet.src = 'meowie-drink-mask.webp'; }
-    if (world && !fgSheet) { fgSheet = new Image(); fgSheet.src = 'meowie-drink-fg.webp?v=2'; }
+  // The drinking clip keeps its own sky and sand; for anything but plain water it is drawn through
+  // a canvas with the liquid (glass, jug and stream) recoloured to the drink.
+  function tinter(v, box, color) {
+    if (!color || color.toLowerCase() === PLAIN) return null;
+    if (!maskSheet) { maskSheet = new Image(); maskSheet.src = 'meowie-drink-mask.webp'; }
     const cv = document.createElement('canvas');
     box.appendChild(cv);
     const ctx = cv.getContext('2d');
     const tc = document.createElement('canvas').getContext('2d');
     tc.canvas.width = MASK.w; tc.canvas.height = MASK.h;
-    const fc = document.createElement('canvas').getContext('2d');
-    fc.canvas.width = FG.w; fc.canvas.height = FG.h;
-    const ready = (im) => im && im.complete && im.naturalWidth;
     let on = true;
     const draw = () => {
       if (!on) return;
-      if (v.videoWidth && (!tint || ready(maskSheet)) && (!world || ready(fgSheet))) {
+      if (v.videoWidth && maskSheet.complete && maskSheet.naturalWidth) {
         if (cv.width !== v.videoWidth) { cv.width = v.videoWidth; cv.height = v.videoHeight; }
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 1;
-        ctx.clearRect(0, 0, cv.width, cv.height);
         ctx.drawImage(v, 0, 0, cv.width, cv.height);
-        if (tint) {
-          const i = Math.min(MASK.n - 1, Math.floor(v.currentTime * MASK.fps));
-          tc.globalCompositeOperation = 'source-over';
-          tc.clearRect(0, 0, MASK.w, MASK.h);
-          tc.drawImage(maskSheet, (i % MASK.cols) * MASK.w, Math.floor(i / MASK.cols) * MASK.h, MASK.w, MASK.h, 0, 0, MASK.w, MASK.h);
-          tc.globalCompositeOperation = 'source-in';
-          tc.fillStyle = color;
-          tc.fillRect(0, 0, MASK.w, MASK.h);
-          // The whole liquid takes the drink's colour: recolour it, then lay the colour on solidly,
-          // leaving just enough of the video through for the water's shine and ripples.
-          ctx.globalCompositeOperation = 'color';
-          ctx.drawImage(tc.canvas, 0, 0, cv.width, cv.height);
-          ctx.globalCompositeOperation = 'source-over';
-          ctx.globalAlpha = .8;
-          ctx.drawImage(tc.canvas, 0, 0, cv.width, cv.height);
-          ctx.globalAlpha = 1;
-        }
-        if (world) {
-          const i = Math.min(FG.n - 1, Math.floor(v.currentTime * FG.fps));
-          fc.clearRect(0, 0, FG.w, FG.h);
-          fc.drawImage(fgSheet, (i % FG.cols) * FG.w, Math.floor(i / FG.cols) * FG.h, FG.w, FG.h, 0, 0, FG.w, FG.h);
-          ctx.globalCompositeOperation = 'destination-in';
-          ctx.drawImage(fc.canvas, 0, 0, cv.width, cv.height);
-          ctx.globalCompositeOperation = 'source-over';
-        }
+        const i = Math.min(MASK.n - 1, MASK.from + Math.floor(v.currentTime * MASK.fps));
+        tc.globalCompositeOperation = 'source-over';
+        tc.clearRect(0, 0, MASK.w, MASK.h);
+        tc.drawImage(maskSheet, (i % MASK.cols) * MASK.w, Math.floor(i / MASK.cols) * MASK.h, MASK.w, MASK.h, 0, 0, MASK.w, MASK.h);
+        tc.globalCompositeOperation = 'source-in';
+        tc.fillStyle = color;
+        tc.fillRect(0, 0, MASK.w, MASK.h);
+        // The whole liquid takes the drink's colour: recolour it, then lay the colour on solidly,
+        // leaving just enough of the video through for the water's shine and ripples.
+        ctx.globalCompositeOperation = 'color';
+        ctx.drawImage(tc.canvas, 0, 0, cv.width, cv.height);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = .8;
+        ctx.drawImage(tc.canvas, 0, 0, cv.width, cv.height);
+        ctx.globalAlpha = 1;
         box.classList.add('mw-tinted');
       }
       if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(draw); else requestAnimationFrame(draw);
@@ -609,7 +592,7 @@
     const box = document.createElement('div');
     box.className = 'mw-film';
     box.innerHTML = `<video playsinline preload="auto" disablepictureinpicture>
-      <source src="meowie-drink.mp4" type="video/mp4"><source src="meowie-drink.webm" type="video/webm"></video>`;
+      <source src="meowie-drink.mp4?v=2" type="video/mp4"><source src="meowie-drink.webm?v=2" type="video/webm"></video>`;
     const v = box.firstElementChild;
     const withSound = !window.MASound || window.MASound.sfx;
     v.muted = !withSound;
@@ -618,18 +601,7 @@
     if (withSound && window.MASound) window.MASound.duck(true);
     const started = await v.play().then(() => true, () => { v.muted = true; return v.play().then(() => true, () => false); });
     if (!started) { box.remove(); if (window.MASound) window.MASound.duck(false); return; }
-    // In a picture world, that world sits behind him in the clip (a copy of the tank's backdrop,
-    // laid out exactly the same).
-    const world = wrap.classList.contains('mw--scened') && wrap.querySelector('.mw-bg');
-    if (world) {
-      const bg = world.cloneNode();
-      bg.style.animation = 'none';
-      bg.style.webkitMaskImage = bg.style.maskImage = 'none';
-      bg.style.bottom = '0';
-      box.insertBefore(bg, box.firstChild);
-      box.classList.add('mw-world');
-    }
-    const stopTint = filmCanvas(v, box, color, !!world);
+    const stopTint = tinter(v, box, color);
     box.classList.add('mw-on');
     await new Promise((done) => {
       const end = () => { v.removeEventListener('timeupdate', near); done(); };
