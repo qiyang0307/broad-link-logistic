@@ -83,6 +83,7 @@
   const allDrinks = () => DRINKS.concat(state.customDrinks || []);
   const findDrink = (id) => allDrinks().find((k) => k.id === id) || DRINKS[0];
   const PAW_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><ellipse cx="6.2" cy="10.2" rx="2.1" ry="2.6" transform="rotate(-18 6.2 10.2)"/><ellipse cx="17.8" cy="10.2" rx="2.1" ry="2.6" transform="rotate(18 17.8 10.2)"/><ellipse cx="9.6" cy="6.2" rx="2.1" ry="2.7"/><ellipse cx="14.4" cy="6.2" rx="2.1" ry="2.7"/><path d="M12 11.6c-2.6 0-5.4 3.4-5.4 5.6 0 1.6 1.2 2.4 2.6 2.4 1.1 0 1.8-.6 2.8-.6s1.7.6 2.8.6c1.4 0 2.6-.8 2.6-2.4 0-2.2-2.8-5.6-5.4-5.6Z"/></svg>';
+  const CUP_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 4h9v5.2a4.5 4.5 0 0 1-9 0V4ZM7.5 6H5c-.3 0-.5.2-.5.5 0 2.3 1.3 3.8 3.3 4.1M16.5 6H19c.3 0 .5.2.5.5 0 2.3-1.3 3.8-3.3 4.1M12 13.7v3.3M9 20h6M10 17h4v3h-4z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/></svg>';
   const CHART_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M8.5 16.5v-3M12 16.5v-7M15.5 16.5v-5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>';
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const friend = () => state.profile.name || t('friend');
@@ -134,6 +135,19 @@
       if (r && r.goal && total(r) >= r.goal) n++; else break;
     }
     return n;
+  }
+
+  // ---------- Meowie's worlds ----------
+  // Backgrounds earned by reaching the daily goal: the reef on the first full day, the pool after three.
+  const SCENES = [{ id: 'classic', need: 0 }, { id: 'reef', need: 1, img: 'bg-reef' }, { id: 'pool', need: 3, img: 'bg-pool' }];
+  const daysHit = () => Object.values(state.days).filter((r) => r.goal && total(r) >= r.goal).length;
+  const unlockedScenes = (hits = daysHit()) => SCENES.filter((x) => hits >= x.need).map((x) => x.id);
+  const currentScene = () => (unlockedScenes().includes(state.scene) ? state.scene : 'classic');
+  const sceneIsNew = () => unlockedScenes().some((id) => id !== 'classic' && !(state.scenesSeen || []).includes(id));
+  function setSceneChoice(id) {
+    state.scene = id;
+    save();
+    if (homeCat) Meowie.setScene(homeCat, id);
   }
 
   let weatherFailed = false;
@@ -590,6 +604,8 @@
   function enterHome() {
     $('#tabbar').hidden = false;
     renderHome(true);
+    if (joined()) scheduleSync(800);
+    if (state.pendingFriend) setTimeout(acceptInvite, 1500);
   }
 
   // ---------- home ----------
@@ -652,7 +668,8 @@
         <button type="button" class="pill fire" id="streakBtn" aria-label="${t('streakTitle')}">🔥 ${t('streakPill', { n: streakCount() })}</button>
       </div>
       <div class="home-head"><div><p class="date">${dateStr} 🌸</p><h2>${greeting()}${t('comma')}${name}!</h2></div></div>
-      <div class="stage"><div class="bubble-say" id="say" data-bracket="${bracket(pct)}">${lines[0]}</div><div class="hero-cat"></div></div>
+      <div class="stage"><div class="bubble-say" id="say" data-bracket="${bracket(pct)}">${lines[0]}</div><div class="hero-cat"></div>
+        <button type="button" class="scene-btn" id="sceneBtn" aria-label="${t('sceneBtn')}">🏝️${sceneIsNew() ? '<i class="dot"></i>' : ''}</button></div>
       <div class="goal-card stats-row">
         <p class="gc-label"><i></i>${t('hydGoal')} 💧</p>
         <div class="gc-main">
@@ -697,8 +714,9 @@
       show('home', html, {
         onMount: (el) => {
           el.classList.add('home');
-          homeCat = Meowie.create({ intro: first });
+          homeCat = Meowie.create({ intro: first, scene: currentScene() });
           $('.hero-cat', el).appendChild(homeCat);
+          $('#sceneBtn', el).addEventListener('click', openSceneSheet);
           Meowie.interact(homeCat, { onTap: onCatTap });
           shownPct = 0;
           wireHome(el, pct);
@@ -732,6 +750,8 @@
     animateNumber($('#pctNum', el), shownPct * 100, Math.min(999, pct * 100), 900);
     shownPct = pct;
     // Tap adds a glass; press and hold opens the pour sheet to change the amount.
+    const sb = $('#sceneBtn', el);
+    if (sb) { const dot = sb.querySelector('.dot'); if (sceneIsNew() && !dot) sb.insertAdjacentHTML('beforeend', '<i class="dot"></i>'); else if (!sceneIsNew() && dot) dot.remove(); }
     const quick = $('#quickAdd', el);
     let holdTimer;
     let held = false;
@@ -783,6 +803,7 @@
     lastAddedT = Date.now();
     d.log.push({ drink: drink.id, ml, eff, t: lastAddedT });
     save();
+    scheduleSync();
     if (navigator.vibrate) navigator.vibrate(20);
     const after = total(d);
     const hit = before < d.goal && after >= d.goal;
@@ -805,7 +826,8 @@
       if (hit) {
         confetti(); Meowie.act(homeCat, 'jump');
         // The first time each day the goal is reached, Meowie's victory dance plays as a reward.
-        if (!d.rewarded) { d.rewarded = true; save(); setTimeout(showReward, 1100); }
+        const fresh = unlockedScenes().filter((id) => !unlockedScenes(daysHit() - 1).includes(id));
+        if (!d.rewarded) { d.rewarded = true; save(); setTimeout(() => showReward(fresh[0]), 1100); }
       }
       else if (milestone) { confetti(36); Meowie.act(homeCat, milestone >= .5 ? 'jump' : 'swim'); }
     });
@@ -819,6 +841,7 @@
     const d = today();
     d.log = d.log.filter((x) => x.t !== t);
     save();
+    scheduleSync();
     renderHome(false);
   }
 
@@ -1114,6 +1137,7 @@
   function renderTab(t) {
     if (t === 'home') { current = null; return renderHome(false); }
     if (t === 'history') return renderHistory();
+    if (t === 'friends') { renderFriends(); return refreshBoard(); }
     if (t === 'profile') return renderProfile();
   }
 
@@ -1223,6 +1247,7 @@
           ['name', 'gender', 'age', 'weight', 'activity', 'city', 'wake', 'sleep'].forEach((k) => { p[k] = draft[k]; });
           if (cityChanged) state.weather = null;
           save();
+          scheduleSync();
           if (cityChanged) fetchWeather();
           if (langChanged) setLang(draft.lang);
           else { refresh(); bump($('#pGoal', el)); }
@@ -1297,6 +1322,36 @@
     return i;
   };
   const avatarSrc = (i = state.avatar || 1) => `av/${String(i).padStart(2, '0')}.jpg`;
+  function openSceneSheet() {
+    const hits = daysHit();
+    const have = unlockedScenes(hits);
+    const cur = currentScene();
+    sheet.innerHTML = `<div class="grab"></div><h3 style="font-size:22px">${t('sceneTitle')}</h3><p class="av-sub">${t('sceneSub')}</p>
+      <div class="scene-grid">${SCENES.map((x, i) => {
+        const open = have.includes(x.id);
+        return `<button type="button" class="scene-opt ${x.id === cur ? 'sel' : ''} ${open ? '' : 'locked'}" data-scene="${x.id}" ${open ? '' : 'aria-disabled="true"'} style="animation-delay:${i * 60}ms">
+          <span class="thumb ${x.img ? '' : 'classic'}" ${x.img ? `style="background-image:url(${x.img}-s.webp)"` : ''}></span>
+          <span><b>${t('scenes')[x.id]}</b><small>${open ? (x.id === cur ? t('sceneUsing') : t('sceneReady')) : t('sceneNeed', { n: x.need, have: Math.min(hits, x.need) })}</small>
+            ${open ? '' : `<span class="need"><i style="width:${Math.round(Math.min(hits, x.need) / x.need * 100)}%"></i></span>`}</span>
+          ${x.id === cur ? '<span class="tick">✓</span>' : '<span></span>'}</button>`;
+      }).join('')}</div>`;
+    openSheetEl();
+    state.scenesSeen = have;
+    save();
+    const dot = document.querySelector('#sceneBtn .dot');
+    if (dot) dot.remove();
+    sheet.querySelectorAll('[data-scene]').forEach((b) => b.addEventListener('click', () => {
+      const id = b.dataset.scene;
+      if (!have.includes(id)) {
+        b.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'translateX(0)' }], { duration: 300 });
+        return;
+      }
+      if (navigator.vibrate) navigator.vibrate(12);
+      setSceneChoice(id);
+      setTimeout(closeSheet, 250);
+    }));
+  }
+
   function openAvatarSheet() {
     const names = t('avNames');
     const cur = state.avatar || 1;
@@ -1313,6 +1368,7 @@
       if (navigator.vibrate) navigator.vibrate(12);
       state.avatar = i;
       save();
+      scheduleSync();
       setTimeout(() => {
         closeSheet();
         const img = document.querySelector('#avBtn img');
@@ -1414,6 +1470,8 @@
         else { clearInterval(timer); btn.disabled = false; btn.textContent = t('del2Yes'); }
       }, 1000);
       btn.addEventListener('click', () => {
+        // Leaving the leaderboard too: friends stop seeing you.
+        if (state.friends && state.friends.code) friendsApi('POST', { action: 'delete' }).catch(() => {});
         try { localStorage.removeItem(STORE_KEY); } catch {}
         btn.textContent = t('deleted');
         setTimeout(() => location.reload(), 600);
@@ -1562,10 +1620,231 @@
     }
   }
 
+  // ---------- friends and the leaderboard ----------
+  // Opt-in: nothing leaves the phone until you join. Then your name, avatar and water progress
+  // (today, this week, streak) are shared with the friends you add, and theirs with you.
+  const joined = () => !!(state.friends && state.friends.code);
+  let frSort = 'today';
+  // The week runs Monday to Sunday, Malaysia time.
+  function weekDays() {
+    const todayK = dayKey();
+    const dow = (new Date(todayK + 'T12:00:00Z').getUTCDay() + 6) % 7;
+    return Array.from({ length: 7 }, (_, i) => dayKey(new Date(Date.now() + (i - dow) * 864e5)));
+  }
+  function myCard() {
+    const d = today();
+    const wk = weekDays();
+    return {
+      name: state.profile.name, av: state.avatar || 1, day: dayKey(), ml: total(d), goal: d.goal,
+      weekOf: wk[0], week: wk.map((k) => { const r = state.days[k]; return r && r.goal ? Math.round(total(r) / r.goal * 100) : 0; }),
+      streak: streakCount(), hits: daysHit(),
+    };
+  }
+  async function friendsApi(method, body, qs = '') {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 9000);
+    try {
+      const f = state.friends || {};
+      const res = await fetch('/api/friends' + qs, method === 'GET' ? { signal: ctl.signal, cache: 'no-store' } : {
+        method, signal: ctl.signal, headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code: f.code, secret: f.secret, ...body }), keepalive: body.action === 'delete',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw Object.assign(new Error(data.error || 'error'), { status: res.status, code: data.error });
+      return data;
+    } finally { clearTimeout(timer); }
+  }
+  let syncTimer = 0;
+  function scheduleSync(ms = 1500) {
+    if (!joined()) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => friendsApi('POST', { action: 'sync', card: myCard() }).catch(() => {}), ms);
+  }
+  async function joinFriends() {
+    const bytes = crypto.getRandomValues(new Uint8Array(24));
+    const secret = btoa(String.fromCharCode(...bytes)).replace(/[+/=]/g, (c) => ({ '+': '-', '/': '_', '=': '' }[c]));
+    const data = await friendsApi('POST', { action: 'sync', card: myCard(), code: undefined, secret });
+    state.friends = { code: data.me.code, secret, board: { me: data.me, friends: [] } };
+    save();
+  }
+  async function loadBoard() {
+    const data = await friendsApi('GET', null, `?code=${state.friends.code}`);
+    state.friends.board = data;
+    save();
+    return data;
+  }
+  async function addFriend(code) {
+    code = String(code || '').trim().toUpperCase();
+    if (!/^[A-Z0-9]{6}$/.test(code)) { toast(t('frBadCode')); return false; }
+    if (code === state.friends.code) { toast(t('frSelf')); return false; }
+    try {
+      const { friend } = await friendsApi('POST', { action: 'add', friend: code });
+      toast(t('frAdded', { name: esc(friend.name) }), avatarSrc(friend.av));
+      if (navigator.vibrate) navigator.vibrate([15, 40, 15]);
+      return true;
+    } catch (e) {
+      toast(e.status === 404 ? t('frNotFound') : e.code === 'full' ? t('frFull') : t('frOffline'));
+      return false;
+    }
+  }
+  async function acceptInvite() {
+    const code = state.pendingFriend;
+    if (!code) return;
+    delete state.pendingFriend;
+    save();
+    if (!joined()) {
+      try { await joinFriends(); } catch { toast(t('frOffline')); state.pendingFriend = code; save(); return; }
+    }
+    if (await addFriend(code) && tab === 'friends') renderFriends();
+  }
+
+  // Scores for each way of ranking: today's %, this week's points (each day's % up to 100), streak.
+  function score(c, by) {
+    if (by === 'today') return c.day === dayKey() ? Math.round(c.ml / c.goal * 100) : 0;
+    if (by === 'week') return c.weekOf === weekDays()[0] ? c.week.reduce((s, x) => s + Math.min(100, x), 0) : 0;
+    return c.streak;
+  }
+  const scoreText = (v, by) => (by === 'today' ? `${v}%` : by === 'week' ? t('frPts', { n: fmt(v) }) : `🔥 ${v}`);
+  function subText(c, by) {
+    if (by === 'today') return c.day === dayKey() ? `${fmt(c.ml)} / ${fmt(c.goal)} ml` : t('frNotYet');
+    if (by === 'week') return t('frWeekHit', { n: c.weekOf === weekDays()[0] ? c.week.filter((x) => x >= 100).length : 0 });
+    return t('frDaysHit', { n: c.hits });
+  }
+
+  function renderFriends() {
+    if (!joined()) {
+      show('friends', `<h2 class="prof-title">${t('frTitle')} <span class="ttl-ic">${CUP_SVG}</span></h2>
+        <div class="card fr-join">
+          <div class="fr-avs" aria-hidden="true">${[3, 8, 12].map((i, k) => `<img src="${avatarSrc(i)}" alt="" style="animation-delay:${k * .25}s">`).join('')}</div>
+          <h3>${t('frJoinTitle')}</h3><p>${t('frJoinBody')}</p>
+          <ul class="fr-points"><li>🏆 ${t('frPoint1')}</li><li>🔥 ${t('frPoint2')}</li><li>🔒 ${t('frPoint3')}</li></ul>
+          <button class="cta" id="frJoin">${t('frJoin')}</button>
+        </div>`, {
+        onMount: (el) => {
+          el.classList.add('home');
+          $('#frJoin', el).addEventListener('click', async (e) => {
+            const b = e.currentTarget;
+            b.disabled = true;
+            b.textContent = t('frJoining');
+            try { await joinFriends(); confetti(60); renderFriends(); } catch { toast(t('frOffline')); b.disabled = false; b.textContent = t('frJoin'); }
+          });
+        },
+      });
+      return;
+    }
+    const f = state.friends;
+    const board = f.board || { me: null, friends: [] };
+    // Your own row always uses what's on this phone, so it's never behind.
+    const me = { ...(board.me || {}), ...myCard(), code: f.code, me: true };
+    const rows = [me, ...board.friends.filter((x) => x.code !== f.code)]
+      .map((c) => ({ ...c, v: score(c, frSort) }))
+      .sort((a, b) => b.v - a.v || (b.me ? 1 : 0) - (a.me ? 1 : 0));
+    const top = rows[0] && rows[0].v > 0 ? rows[0].v : 0;
+    const max = Math.max(1, ...rows.map((r) => r.v), frSort === 'today' ? 100 : frSort === 'week' ? 700 : 7);
+    const medal = (i) => ['🥇', '🥈', '🥉'][i] || `<span class="rk">${i + 1}</span>`;
+    const podium = rows.length >= 2 ? `<div class="fr-podium">${[1, 0, 2].filter((i) => rows[i]).map((i) => `
+      <button type="button" class="pod p${i + 1}" data-fr="${rows[i].code}">
+        <span class="pav">${i === 0 && top ? '<i class="crown">👑</i>' : ''}<img src="${avatarSrc(rows[i].av)}" alt=""></span>
+        <b>${rows[i].me ? t('frYou') : esc(rows[i].name)}</b><small>${scoreText(rows[i].v, frSort)}</small>
+        <span class="step">${i + 1}</span></button>`).join('')}</div>` : '';
+    show('friends', `<h2 class="prof-title">${t('frTitle')} <span class="ttl-ic">${CUP_SVG}</span>
+        <button type="button" class="fr-refresh" id="frRefresh" aria-label="${t('frRefresh')}">↻</button></h2>
+      <div class="seg fr-seg" role="tablist">${['today', 'week', 'streak'].map((k) => `<button type="button" role="tab" aria-selected="${k === frSort}" class="${k === frSort ? 'on' : ''}" data-sort="${k}">${t('frSort')[k]}</button>`).join('')}</div>
+      ${podium}
+      <div class="fr-list">${rows.map((r, i) => `
+        <button type="button" class="fr-row ${r.me ? 'me' : ''}" data-fr="${r.code}" style="animation-delay:${i * 50}ms">
+          <span class="fr-rank">${medal(i)}</span>
+          <img class="fr-av" src="${avatarSrc(r.av)}" alt="">
+          <span class="fr-main"><b>${esc(r.name)}${r.me ? ` <em>${t('frYou')}</em>` : ''}</b><small>${subText(r, frSort)}</small>
+            <span class="fr-bar"><i style="width:${Math.min(100, r.v / max * 100)}%"></i></span></span>
+          <span class="fr-val">${scoreText(r.v, frSort)}</span></button>`).join('')}</div>
+      ${rows.length < 2 ? `<p class="fr-empty">${t('frEmpty')}</p>` : ''}
+      <p class="fr-note">${frSort === 'week' ? t('frWeekNote') : frSort === 'today' ? t('frTodayNote') : t('frStreakNote')}</p>
+      <div class="card fr-code">
+        <small>${t('frYourCode')}</small>
+        <b class="code" id="frCode">${f.code}</b>
+        <div class="fr-code-btns"><button type="button" class="ghost-btn" id="frCopy">📋 ${t('frCopy')}</button><button type="button" class="cta" id="frShare">💌 ${t('frInvite')}</button></div>
+      </div>
+      <form class="fr-add" id="frAdd" autocomplete="off">
+        <input class="field" id="frIn" maxlength="6" placeholder="${t('frAddPh')}" autocapitalize="characters" spellcheck="false" aria-label="${t('frAddPh')}">
+        <button class="cta" type="submit">${t('frAdd')}</button>
+      </form>
+      <p class="fr-privacy">🔒 ${t('frPoint3')}</p>`, {
+      onMount: (el) => {
+        el.classList.add('home');
+        el.querySelectorAll('[data-sort]').forEach((b) => b.addEventListener('click', () => { frSort = b.dataset.sort; renderFriends(); }));
+        el.querySelectorAll('[data-fr]').forEach((b) => b.addEventListener('click', () => openFriendSheet(rows.find((r) => r.code === b.dataset.fr))));
+        $('#frRefresh', el).addEventListener('click', (e) => { e.currentTarget.classList.add('spin'); refreshBoard(true); });
+        $('#frCopy', el).addEventListener('click', () => {
+          (navigator.clipboard ? navigator.clipboard.writeText(f.code) : Promise.reject()).then(() => toast(t('frCopied')), () => toast(f.code));
+        });
+        $('#frShare', el).addEventListener('click', () => {
+          const url = `${location.origin}/?f=${f.code}`;
+          const text = t('frShareText', { code: f.code });
+          if (navigator.share) navigator.share({ title: 'Minum Air · Meowie', text, url }).catch(() => {});
+          else (navigator.clipboard ? navigator.clipboard.writeText(`${text} ${url}`) : Promise.reject()).then(() => toast(t('frLinkCopied')), () => toast(url));
+        });
+        const inp = $('#frIn', el);
+        inp.addEventListener('input', () => { inp.value = inp.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+        $('#frAdd', el).addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const btn = e.currentTarget.querySelector('button');
+          btn.disabled = true;
+          if (await addFriend(inp.value)) { inp.value = ''; await refreshBoard(); }
+          btn.disabled = false;
+        });
+      },
+    });
+  }
+  let boardBusy = false;
+  async function refreshBoard(loud) {
+    if (!joined() || boardBusy) return;
+    boardBusy = true;
+    try {
+      await friendsApi('POST', { action: 'sync', card: myCard() }).catch(() => {});
+      await loadBoard();
+      if (tab === 'friends') renderFriends();
+    } catch (e) {
+      // This phone's place on the board is gone (deleted elsewhere): start over.
+      if (e.status === 404 || e.status === 403) { delete state.friends; save(); if (tab === 'friends') renderFriends(); }
+      else if (loud) toast(t('frOffline'));
+      const r = $('#frRefresh'); if (r) r.classList.remove('spin');
+    } finally { boardBusy = false; }
+  }
+
+  // A friend's week at a glance, and the way to remove them.
+  function openFriendSheet(c) {
+    if (!c) return;
+    const wk = weekDays();
+    const thisWeek = c.weekOf === wk[0];
+    const dayName = (k) => new Intl.DateTimeFormat(L()._locale, { weekday: 'narrow' }).format(new Date(k + 'T12:00:00'));
+    const todayPct = score(c, 'today');
+    sheet.innerHTML = `<div class="grab"></div><div class="fr-sheet">
+      <img class="fr-big" src="${avatarSrc(c.av)}" alt="">
+      <h3>${esc(c.name)}${c.me ? ` <em>${t('frYou')}</em>` : ''}</h3>
+      <div class="fr-stats"><div><b>${todayPct}%</b><small>${t('frSort').today}</small></div><div><b>🔥 ${c.streak}</b><small>${t('frSort').streak}</small></div><div><b>${fmt(score(c, 'week'))}</b><small>${t('frSort').week}</small></div></div>
+      <div class="week fr-week">${wk.map((k, i) => { const v = thisWeek ? c.week[i] : 0; return `<div class="bar ${k === dayKey() ? 'today' : ''}"><div class="b ${v >= 100 ? 'hit' : ''}"><i style="height:${Math.min(100, v)}%"></i></div><span>${dayName(k)}</span></div>`; }).join('')}</div>
+      ${c.me ? `<button type="button" class="danger-btn" id="frLeave">${t('frLeave')}</button>` : `<button type="button" class="ghost-btn" id="frRemove">${t('frRemove')}</button>`}
+    </div>`;
+    openSheetEl();
+    const rm = $('#frRemove');
+    if (rm) rm.addEventListener('click', async () => {
+      rm.disabled = true;
+      try { await friendsApi('POST', { action: 'remove', friend: c.code }); closeSheet(); toast(t('frRemoved', { name: esc(c.name) })); await refreshBoard(); } catch { toast(t('frOffline')); rm.disabled = false; }
+    });
+    const lv = $('#frLeave');
+    if (lv) lv.addEventListener('click', async () => {
+      if (lv.dataset.sure !== '1') { lv.dataset.sure = '1'; lv.textContent = t('frLeaveSure'); return; }
+      lv.disabled = true;
+      try { await friendsApi('POST', { action: 'delete' }); } catch (e) { if (e.status !== 404) { toast(t('frOffline')); lv.disabled = false; return; } }
+      delete state.friends; save(); closeSheet(); renderFriends();
+    });
+  }
+
   // ---------- 100% reward ----------
   // A full-screen celebration: light rays, a ring that fills to 100%, then Meowie's dance video
   // pops in with stars and confetti. Plays once a day when the goal is first reached.
-  function showReward() {
+  function showReward(newScene) {
     if (document.querySelector('.reward')) return;
     const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const wantSound = !window.MASound || MASound.sfx;
@@ -1590,7 +1869,8 @@
         <div class="rw-film"><video playsinline preload="auto" disablepictureinpicture><source src="meowie-reward.mp4" type="video/mp4"><source src="meowie-reward.webm" type="video/webm"></video>
           <button class="rw-snd" type="button" hidden aria-label="${t('sndSfxLong')}">🔇</button></div>
         <p class="rw-sub">${t('rewardSub', { name: esc(state.profile.name || 'Kawan') })}</p>
-        <button class="cta rw-go" type="button">${t('rewardBtn')}</button>
+        ${newScene ? `<div class="rw-unlock"><img src="bg-${newScene}-s.webp" alt=""><span>${t('sceneNew', { name: t('scenes')[newScene] })}</span></div>` : ''}
+        <button class="cta rw-go" type="button">${newScene ? t('sceneTry') : t('rewardBtn')}</button>
       </div>`;
     document.body.appendChild(el);
     const v = $('video', el);
@@ -1625,7 +1905,11 @@
       el.classList.add('off');
       setTimeout(() => el.remove(), 450);
     }
-    $('.rw-go', el).addEventListener('click', close);
+    $('.rw-go', el).addEventListener('click', () => {
+      close();
+      // A world unlocked with this goal moves in straight away.
+      if (newScene) setTimeout(() => { setSceneChoice(newScene); state.scenesSeen = [...new Set([...(state.scenesSeen || []), newScene])]; save(); renderHome(false); }, 300);
+    });
   }
 
   // Confetti in Jalur Gemilang colours.
@@ -1755,6 +2039,13 @@
   }, 60e3);
 
   // ---------- boot ----------
+  // An invite link (?f=CODE) adds that friend once you're set up.
+  const inviteCode = new URLSearchParams(location.search).get('f');
+  if (inviteCode && /^[A-Za-z0-9]{6}$/.test(inviteCode)) {
+    state.pendingFriend = inviteCode.toUpperCase();
+    save();
+    history.replaceState(null, '', location.pathname + location.hash);
+  }
   applyLang();
   if (state.onboarded) fetchWeather();
   splash();

@@ -259,6 +259,7 @@
       `<circle class="mw-bub" cx="${x}" cy="250" r="${2.5 + (i % 3) * 1.5}" style="animation-delay:${i * .8}s;animation-duration:${3.6 + (i % 3) * .9}s"/>`).join('');
     const weed = (x, h, c, cls) => `<g class="mw-weed ${cls}"><path d="M${x} ${FLOOR + 2} C${x - 10} ${FLOOR - h * .3} ${x + 12} ${FLOOR - h * .5} ${x} ${FLOOR - h * .75} C${x - 8} ${FLOOR - h * .9} ${x + 6} ${FLOOR - h} ${x + 2} ${FLOOR - h}" fill="none" stroke="${c}" stroke-width="7" stroke-linecap="round"/></g>`;
     const svg = `
+<div class="mw-bg" aria-hidden="true"></div>
 <svg class="mw-scene" viewBox="0 0 ${W} 320" role="img" aria-label="Meowie, a cat in a shark hood, in the water">
   <defs>
     <radialGradient id="${id}-glow"><stop offset="0" class="mw-glow" stop-opacity=".45"/><stop offset="1" class="mw-glow" stop-opacity="0"/></radialGradient>
@@ -308,9 +309,18 @@
     const fit = () => wrap.style.setProperty('--k', ((wrap.clientWidth || W) / W).toFixed(4));
     if ('ResizeObserver' in window) new ResizeObserver(fit).observe(wrap);
     requestAnimationFrame(fit);
+    if (opts.scene) setScene(wrap, opts.scene);
     place(wrap, 0, true);
     run(wrap);
     return wrap;
+  }
+
+  // A picture world behind the tank (the coral reef or the pool) in place of the drawn one.
+  // The rising water stays, a little see-through, so the level still reads.
+  const SCENES = ['reef', 'pool'];
+  function setScene(wrap, scene) {
+    SCENES.forEach((s) => wrap.classList.toggle('mw--scene-' + s, s === scene));
+    wrap.classList.toggle('mw--scened', SCENES.includes(scene));
   }
 
   function place(wrap, pct, instant) {
@@ -1007,5 +1017,5 @@
     try { await drink(wrap, color); } finally { st.busy = false; }
   }
 
-  window.Meowie = { create, setLevel, setLayers, pourPoint, act, moodFor, interact, tilt, slosh, lookAt, pet, pour, pourAndDrink, pourTarget, skyNow, setBuild, setVibe };
+  window.Meowie = { create, setScene, setLevel, setLayers, pourPoint, act, moodFor, interact, tilt, slosh, lookAt, pet, pour, pourAndDrink, pourTarget, skyNow, setBuild, setVibe };
 })();

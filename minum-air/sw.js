@@ -1,7 +1,7 @@
 // Offline shell for Minum Air. Weather calls go straight to the network.
-const CACHE = 'minum-air-v41';
-const SHELL = ['/', '/styles.css?v=41', '/meowie.js?v=41', '/i18n.js?v=41', '/app.js?v=41', '/manifest.webmanifest', '/sound.js?v=41', '/favicon.png', '/icon-192.png', '/meowie-photo.jpg', '/meowie-avatar.jpg',
-  '/meowie-sit.webp', '/meowie-pet.webp', '/meowie-swim.webp', '/meowie-peek.webp', '/meowie-turn.webp', '/meowie-drink-mask.webp',
+const CACHE = 'minum-air-v42';
+const SHELL = ['/', '/styles.css?v=42', '/meowie.js?v=42', '/i18n.js?v=42', '/app.js?v=42', '/manifest.webmanifest', '/sound.js?v=42', '/favicon.png', '/icon-192.png', '/meowie-photo.jpg', '/meowie-avatar.jpg',
+  '/meowie-sit.webp', '/meowie-pet.webp', '/meowie-swim.webp', '/meowie-peek.webp', '/meowie-turn.webp', '/meowie-drink-mask.webp', '/bg-reef.webp', '/bg-pool.webp', '/bg-reef-s.webp', '/bg-pool-s.webp',
   ...Array.from({ length: 16 }, (_, i) => `/av/${String(i + 1).padStart(2, '0')}.jpg`)];
 
 self.addEventListener('install', (e) => {
@@ -19,6 +19,8 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  // The leaderboard is always live; never answer it from the cache.
+  if (url.pathname.startsWith('/api/')) return;
   // Audio streams with range requests; leave those to the browser's own cache.
   if (e.request.headers.has('range')) return;
   // Network first so updates land quickly; cache as offline fallback.
