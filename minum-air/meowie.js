@@ -31,6 +31,8 @@
     // Past 100%: too full to swim. He stands on the sand with a round belly, puffing his cheeks
     // (full) or holding his tummy (fullb).
     full: { n: 8, w: 440, x: 220, cols: 8 }, fullb: { n: 11, w: 440, x: 220, cols: 8 },
+    // Sitting heavily on the sand, squinting: too full after drinking too much.
+    fullc: { n: 62, w: 440, x: 220, cols: 8 },
   };
   // The idle sheet is meowie-sit.webp: a new name so phones can't show an old cached idle.
   // A ?v= tag on sheets that were redrawn (the swim's rear fin) so phones drop the cached copy.
@@ -177,10 +179,11 @@
 
   // Too full: each short clip plays forwards and back, resting a moment at either end, and now and
   // then he changes from puffing his cheeks to holding his tummy (the change cross-fades).
+  const FULL_SEGS = ['fullc', 'full', 'fullb'];
   function fullFrame(st, now) {
     const dt = Math.min(.1, (now - (st.fullT || now)) / 1000);
     st.fullT = now;
-    if (!st.fullSeg) Object.assign(st, { fullSeg: 'full', fullPos: 0, fullDir: 1, fullRest: 0, fullSpeed: .8 });
+    if (!st.fullSeg) Object.assign(st, { fullSeg: 'fullc', fullPos: 0, fullDir: 1, fullRest: 0, fullSpeed: .8 });
     const n = SHEETS[st.fullSeg].n;
     if (now < st.fullRest) {
       const i = Math.round(st.fullPos);
@@ -193,7 +196,12 @@
       st.fullDir = atStart ? 1 : -1;
       st.fullRest = now + 300 + Math.random() * (atStart ? 1400 : 700);
       st.fullSpeed = .65 + Math.random() * .35;
-      if (atStart && Math.random() < .3) { st.fullSeg = st.fullSeg === 'full' ? 'fullb' : 'full'; st.fullPos = 0; }
+      // Now and then he changes pose: mostly sitting heavily, sometimes up holding his tummy.
+      if (atStart && Math.random() < .35) {
+        const others = FULL_SEGS.filter((x) => x !== st.fullSeg);
+        st.fullSeg = Math.random() < .5 && st.fullSeg !== 'fullc' ? 'fullc' : others[Math.floor(Math.random() * others.length)];
+        st.fullPos = 0;
+      }
       return [[st.fullSeg, st.fullPos]];
     }
     const i = Math.floor(st.fullPos);
