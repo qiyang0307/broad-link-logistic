@@ -512,46 +512,69 @@
 
 
   // ---------- splash ----------
+  // Opening scene, also the loading screen: Meowie's intro film plays once with its own sound
+  // on a fresh, clean water background while the app gets his animations ready. It can't be
+  // skipped; it moves on once the film has finished and everything has loaded.
   function splash() {
-    const drops = Array.from({ length: 14 }, (_, i) =>
-      `<span style="left:${(i * 7.3 + 3) % 100}%;animation-duration:${1.6 + (i % 5) * .35}s;animation-delay:${(i % 7) * .25}s"></span>`).join('');
-    // Opening scene: Meowie's intro film with its own music and sound, and the title under it.
-    // It plays with sound when the browser allows; if not, the first touch anywhere turns the
-    // sound on (without skipping), and a later tap skips the film.
-    show('splash', `<video class="clip-vid" playsinline autoplay preload="auto" disablepictureinpicture><source src="meowie-intro.mp4" type="video/mp4"><source src="meowie-intro.webm" type="video/webm"></video><div class="splash-shade"></div><div class="drops">${drops}</div>
-      <div class="splash-title"><h1>Meowie</h1><p class="splash-app">Minum Air</p><p>${t('splashSub')}</p></div>`, {
+    const bubbles = Array.from({ length: 12 }, (_, i) =>
+      `<i style="left:${(i * 8.3 + 4) % 100}%;width:${6 + (i % 4) * 4}px;height:${6 + (i % 4) * 4}px;animation-duration:${5 + (i % 5)}s;animation-delay:${-(i * .7).toFixed(1)}s"></i>`).join('');
+    const word = (w, cls) => [...w].map((ch, i) => `<span class="${cls}" style="animation-delay:${(.5 + i * .07).toFixed(2)}s">${ch === ' ' ? '&nbsp;' : ch}</span>`).join('');
+    show('splash', `<div class="sp-bubbles" aria-hidden="true">${bubbles}</div>
+      <div class="sp-film"><video class="clip-vid" playsinline preload="auto" disablepictureinpicture><source src="meowie-intro.mp4" type="video/mp4"><source src="meowie-intro.webm" type="video/webm"></video></div>
+      <div class="splash-title"><h1 aria-label="Meowie">${word('Meowie', 'sp-l')}</h1>
+        <p class="splash-app"><span class="sp-water">Minum Air</span></p><p class="sp-sub">${t('splashSub')}</p></div>
+      <div class="sp-load" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="sp-glass"><i id="spFill"></i></div><span id="spTxt">${t('loadingApp')}</span></div>
+      <svg class="sp-wave" viewBox="0 0 400 60" preserveAspectRatio="none" aria-hidden="true">
+        <path class="w1" d="M0 30 Q50 10 100 30 T200 30 T300 30 T400 30 V60 H0 Z"/><path class="w2" d="M0 36 Q50 18 100 36 T200 36 T300 36 T400 36 V60 H0 Z"/></svg>`, {
       onMount: (el) => {
         el.classList.add('splash');
         const v = $('video', el);
+        const fill = $('#spFill', el);
+        const bar = $('.sp-load', el);
         const wantSound = !window.MASound || MASound.music || MASound.sfx;
         let left = false;
-        let timer = 0;
-        const arm = (ms) => { clearTimeout(timer); timer = setTimeout(leave, ms); };
+        let filmDone = false;
+        let assetsDone = false;
+        const t0 = performance.now();
+        // Get Meowie's animations and avatar ready while the film plays.
+        const urls = ['meowie-sit.webp', 'meowie-pet.webp', 'meowie-swim.webp', 'meowie-peek.webp', 'meowie-turn.webp', avatarSrc()];
+        let loaded = 0;
+        Promise.all(urls.map((u) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => { loaded++; res(); }; im.src = u; })))
+          .then(() => { assetsDone = true; maybeLeave(); });
         function leave() {
           if (left) return;
           left = true;
-          clearTimeout(timer);
           v.pause();
           if (window.MASound) MASound.hush(false);
           state.onboarded ? enterHome() : goStep(0);
         }
+        function maybeLeave() { if (filmDone && assetsDone) setTimeout(leave, 350); }
+        // The glass fills with both the film's progress and the files loaded.
+        (function tick() {
+          if (left) return;
+          const filmK = v.duration ? Math.min(1, v.currentTime / v.duration) : Math.min(1, (performance.now() - t0) / 4200);
+          const k = Math.min(1, .55 * (filmDone ? 1 : filmK) + .45 * (loaded / urls.length));
+          fill.style.height = Math.round(k * 100) + '%';
+          bar.setAttribute('aria-valuenow', Math.round(k * 100));
+          requestAnimationFrame(tick);
+        })();
         if (window.MASound) MASound.hush(true);
         v.muted = !wantSound;
         let waitingForTouch = false;
-        v.play().catch(() => { v.muted = true; waitingForTouch = wantSound; return v.play().catch(() => {}); });
-        let swallow = false;
+        v.play().catch(() => { v.muted = true; waitingForTouch = wantSound; return v.play().catch(() => { filmDone = true; maybeLeave(); }); });
+        // Phones block sound until a touch: the first touch turns it on (the film keeps going).
         const unmute = () => {
           if (!waitingForTouch || left) return;
           waitingForTouch = false;
-          swallow = true;
           v.muted = false;
           v.play().catch(() => {});
-          arm(Math.max(1500, ((v.duration || 4.1) - v.currentTime) * 1000 + 300));
         };
-        ['pointerdown', 'touchstart', 'keydown'].forEach((ev) => document.addEventListener(ev, unmute, { capture: true, passive: true, once: false }));
-        el.addEventListener('click', () => { if (swallow) { swallow = false; return; } leave(); });
-        v.addEventListener('ended', leave);
-        arm(5200);
+        ['pointerdown', 'touchstart', 'keydown'].forEach((ev) => document.addEventListener(ev, unmute, { capture: true, passive: true }));
+        v.addEventListener('ended', () => { filmDone = true; maybeLeave(); }, { once: true });
+        // Never get stuck: if the film can't play, move on after its length; hard stop at 9 s.
+        setTimeout(() => { if (v.paused || !v.duration) { filmDone = true; maybeLeave(); } }, 4600);
+        setTimeout(leave, 9000);
       },
     });
   }
@@ -1269,24 +1292,6 @@
     return i;
   };
   const avatarSrc = (i = state.avatar || 1) => `av/${String(i).padStart(2, '0')}.jpg`;
-  function burstHearts(el, n = 7) {
-    const r = el.getBoundingClientRect();
-    for (let i = 0; i < n; i++) {
-      const h = document.createElement('div');
-      h.className = 'av-heart';
-      h.textContent = ['💖', '💕', '✨', '🐾'][i % 4];
-      h.style.left = r.left + r.width / 2 + 'px';
-      h.style.top = r.top + r.height / 2 + 'px';
-      document.body.appendChild(h);
-      const a = (i / n) * Math.PI * 2;
-      const d = 70 + Math.random() * 50;
-      h.animate([
-        { transform: 'translate(-50%, -50%) scale(.3)', opacity: 0 },
-        { transform: `translate(calc(-50% + ${Math.cos(a) * d * .6}px), calc(-50% + ${Math.sin(a) * d * .6}px)) scale(1.2)`, opacity: 1, offset: .4 },
-        { transform: `translate(calc(-50% + ${Math.cos(a) * d}px), calc(-50% + ${Math.sin(a) * d - 40}px)) scale(.8)`, opacity: 0 },
-      ], { duration: 1100, easing: 'cubic-bezier(.22,1,.36,1)' }).onfinish = () => h.remove();
-    }
-  }
   function openAvatarSheet() {
     const names = t('avNames');
     const cur = state.avatar || 1;
@@ -1307,10 +1312,17 @@
         closeSheet();
         const img = document.querySelector('#avBtn img');
         if (!img) return;
-        const btn = img.closest('.av-btn');
-        btn.classList.remove('swap'); void btn.offsetWidth; btn.classList.add('swap');
-        setTimeout(() => { img.src = avatarSrc(i); }, 220);
-        setTimeout(() => burstHearts(btn), 380);
+        // Smooth swap: the new Meowie fades in over the old one, then takes its place.
+        const next = new Image();
+        next.src = avatarSrc(i);
+        next.className = 'av-next';
+        next.alt = '';
+        const show = () => {
+          img.parentNode.appendChild(next);
+          requestAnimationFrame(() => next.classList.add('in'));
+          setTimeout(() => { img.src = next.src; next.remove(); }, 520);
+        };
+        (next.decode ? next.decode() : Promise.resolve()).then(show, show);
         toast(t('avSaved', { name: names[i - 1] }));
       }, 380);
     }));
@@ -1678,13 +1690,6 @@
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').then((r) => r.update()).catch(() => {});
-    // When a new version takes over, reload once so the phone never keeps running old code.
-    let reloading = false;
-    const hadController = !!navigator.serviceWorker.controller;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (!hadController || reloading) return;
-      reloading = true;
-      location.reload();
-    });
+
   }
 })();

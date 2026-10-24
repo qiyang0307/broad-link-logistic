@@ -666,16 +666,37 @@ button.pill.fire:active { transform: scale(.94); }
 .tab-av { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto; box-shadow: 0 0 0 2px var(--card); }
 
 /* Opening film and the goal-calculation clip */
-.splash { overflow: hidden; justify-content: center; gap: 22px; }
-.splash .clip-vid { position: relative; z-index: 1; width: calc(100% + 40px); margin: 0 -20px; aspect-ratio: 864 / 496; object-fit: cover; display: block;
-  -webkit-mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
-  animation: introIn 1s cubic-bezier(.22, 1, .36, 1) both; }
-@keyframes introIn { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: none; } }
-.splash-shade { display: none; }
-.splash .drops { z-index: 0; }
-.splash-title { position: relative; z-index: 2; animation: slideIn .8s cubic-bezier(.22, 1, .36, 1) .4s both; }
-.splash-title h1 { margin: 0; font-size: 58px; }
-.splash-title .splash-app { font-family: var(--font-head); font-size: 26px; font-weight: 800; opacity: 1; margin: -6px 0 4px; letter-spacing: .02em; }
+/* Loading scene: clean, fresh water — light sky to aqua, soft bubbles rising, a gentle wave */
+.splash { overflow: hidden; justify-content: center; gap: 18px; color: #0f2a43;
+  background: radial-gradient(120% 60% at 50% 0%, #ffffff 0%, transparent 60%), linear-gradient(180deg, #f3fbff 0%, #dff3ff 55%, #bfe7ff 100%); }
+.sp-bubbles i { position: absolute; bottom: -24px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #fff, rgba(255, 255, 255, .35) 60%, rgba(120, 200, 255, .25));
+  border: 1px solid rgba(10, 132, 214, .25); animation: spRise linear infinite; }
+@keyframes spRise { from { transform: translate(0, 0); opacity: 0; } 10% { opacity: .9; } 50% { transform: translate(10px, -50vh); } to { transform: translate(-6px, -105vh); opacity: 0; } }
+.sp-film { position: relative; z-index: 1; width: 100%; border-radius: 28px; overflow: hidden; background: #cfe9fb;
+  box-shadow: 0 0 0 5px rgba(255, 255, 255, .9), 0 22px 40px -22px rgba(10, 80, 140, .6); animation: introIn .9s cubic-bezier(.22, 1, .36, 1) both; }
+.sp-film .clip-vid { display: block; width: 100%; aspect-ratio: 864 / 496; object-fit: cover; }
+@keyframes introIn { from { opacity: 0; transform: translateY(16px) scale(.94); } to { opacity: 1; transform: none; } }
+.splash-title { position: relative; z-index: 2; }
+.splash-title h1 { margin: 0; font-size: 60px; line-height: 1; color: #0a84d6; display: flex; justify-content: center; }
+.sp-l { display: inline-block; animation: spDrop .7s cubic-bezier(.3, 1.6, .5, 1) both, spBob 2.6s ease-in-out 1.4s infinite; }
+@keyframes spDrop { from { opacity: 0; transform: translateY(-40px) scale(.6) rotate(-12deg); } to { opacity: 1; transform: none; } }
+@keyframes spBob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
+.splash-title .splash-app { margin: 6px 0 2px; font-family: var(--font-head); font-size: 28px; font-weight: 800; letter-spacing: .03em; animation: slideIn .7s cubic-bezier(.22, 1, .36, 1) 1s both; }
+.sp-water { background: linear-gradient(180deg, transparent 0 45%, #2fb3ff 45% 100%), linear-gradient(180deg, #0b6fb8, #0b6fb8); background-size: 100% 220%, 100% 100%;
+  background-position: 0 100%, 0 0; -webkit-background-clip: text; background-clip: text; color: transparent; animation: spFillText 2.2s ease-out 1.1s both, spSlosh 3s ease-in-out 3.3s infinite; }
+@keyframes spFillText { from { background-position: 0 0, 0 0; } to { background-position: 0 100%, 0 0; } }
+@keyframes spSlosh { 0%, 100% { background-position: 0 100%, 0 0; } 50% { background-position: 0 92%, 0 0; } }
+.sp-sub { margin: 0; color: #5b7a94; font-weight: 800; animation: slideIn .7s cubic-bezier(.22, 1, .36, 1) 1.4s both; }
+.sp-load { position: relative; z-index: 2; display: flex; align-items: center; gap: 10px; color: #5b7a94; font-weight: 800; font-size: 14px; animation: slideIn .6s ease 1.6s both; }
+.sp-glass { position: relative; width: 22px; height: 30px; border: 2.5px solid #0b6fb8; border-top: 0; border-radius: 3px 3px 7px 7px; overflow: hidden; background: rgba(255, 255, 255, .7); }
+.sp-glass i { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(180deg, #6fd0ff, #1595e6); transition: height .25s linear; }
+.sp-glass i::before { content: ""; position: absolute; left: -4px; right: -4px; top: -3px; height: 6px; border-radius: 50%; background: #9fe0ff; animation: spSlosh2 1.2s ease-in-out infinite; }
+@keyframes spSlosh2 { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+.sp-wave { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 70px; z-index: 0; }
+.sp-wave .w1 { fill: rgba(47, 179, 255, .25); animation: spWave 6s ease-in-out infinite alternate; }
+.sp-wave .w2 { fill: rgba(11, 111, 184, .18); animation: spWave 8s ease-in-out infinite alternate-reverse; }
+@keyframes spWave { from { transform: translateX(-30px); } to { transform: translateX(30px); } }
+.splash-shade, .splash .drops { display: none; }
 .clip-card { width: 250px; aspect-ratio: 560 / 578; border-radius: 34px; overflow: hidden; box-shadow: 0 18px 36px -20px rgba(10, 60, 110, .55); animation: popIn .5s cubic-bezier(.3, 1.4, .5, 1) both; }
 .clip-card .clip-vid { width: 100%; height: 100%; object-fit: cover; display: block; }
 
@@ -770,18 +791,16 @@ html, body { overscroll-behavior: none; }
 
 /* Profile avatar: floats gently, tap to pick another */
 .av-btn { position: relative; border: 0; padding: 0; background: none; cursor: pointer; animation: popIn .5s cubic-bezier(.3, 1.4, .5, 1) both; }
-.av-float { display: block; width: min(220px, 60vw); aspect-ratio: 1; border-radius: 50%; overflow: hidden; background: #fff;
+.av-float { position: relative; display: block; width: min(220px, 60vw); aspect-ratio: 1; border-radius: 50%; overflow: hidden; background: #fff;
   border: 5px solid var(--card); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 35%, transparent), 0 18px 34px -18px rgba(10, 60, 110, .6);
   animation: avBob 3.4s ease-in-out infinite; }
 .av-float img { width: 100%; height: 100%; object-fit: cover; display: block; }
 @keyframes avBob { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-8px) rotate(2deg); } }
 .av-btn:active .av-float { transform: scale(.94); }
-.av-btn.swap .av-float { animation: avSwap .7s cubic-bezier(.3, 1.4, .5, 1), avBob 3.4s ease-in-out .7s infinite; }
 @keyframes avSwap { 0% { transform: scale(1) rotateY(0); } 30% { transform: scale(.85) rotateY(90deg); } 31% { transform: scale(.85) rotateY(-90deg); } 70% { transform: scale(1.08) rotateY(0); } 100% { transform: scale(1); } }
 .av-edit { position: absolute; right: 2px; bottom: 6px; padding: 7px 11px; border-radius: 99px; background: var(--brand); color: var(--brand-ink); font-weight: 800; font-size: 13px;
   box-shadow: 0 6px 14px -6px rgba(10, 60, 110, .6); animation: avNudge 3.4s ease-in-out infinite; }
 @keyframes avNudge { 0%, 85%, 100% { transform: none; } 90% { transform: rotate(-8deg) scale(1.08); } 95% { transform: rotate(6deg) scale(1.04); } }
-.av-heart { position: fixed; z-index: 90; font-size: 22px; pointer-events: none; }
 .av-sheet h3 { margin: 0; font-size: 22px; text-align: center; }
 .av-sub { margin: 4px 0 12px; text-align: center; color: var(--muted); font-weight: 700; font-size: 14px; }
 .av-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
@@ -842,3 +861,5 @@ html, body { overscroll-behavior: none; }
 .field-hint { margin: 8px 4px 0; color: #e8673c; font-weight: 800; font-size: 14px; text-align: center; }
 .field.shake { animation: shake .4s ease; border-color: #e8673c; }
 @keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+.av-float .av-next { position: absolute; inset: 0; opacity: 0; transform: scale(1.06); transition: opacity .5s ease, transform .5s cubic-bezier(.22, 1, .36, 1); }
+.av-float .av-next.in { opacity: 1; transform: none; }
