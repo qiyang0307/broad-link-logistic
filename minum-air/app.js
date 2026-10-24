@@ -242,6 +242,7 @@
 
   function goStep(i, back = false) {
     stepIdx = i;
+    setTimeout(syncBack, 0);
     const step = STEPS[i];
     const p = state.profile;
     const name = friend();
@@ -683,7 +684,7 @@
       <div class="goal-card stats-row">
         <p class="gc-label"><i></i>${t('hydGoal')} 💧</p>
         <div class="gc-main">
-          <div class="pct"><span id="pctNum">${Math.round(shownPct * 100)}</span>%<small>${pct >= 1 ? t('gcDone') : drunk ? t('gcCompleted') : t('gcStart')}</small></div>
+          <div class="pct"><span id="pctNum">${Math.round(pctShown)}</span>%<small>${pct >= 1 ? t('gcDone') : drunk ? t('gcCompleted') : t('gcStart')}</small></div>
           <div class="gc-side"><span class="ml"><b id="mlNum">${fmt(drunk)}</b> / ${fmt(d.goal)} ml</span>
             <small>${pct >= 1 ? (drunk > d.goal ? t('gcOver', { ml: fmt(drunk - d.goal) }) : t('gcExact')) : t('gcLeft', { ml: fmt(d.goal - drunk) })}</small></div>
         </div>
@@ -729,7 +730,7 @@
           Meowie.interact(homeCat, { onTap: onCatTap });
           // Only the very first visit counts up from zero; coming back from another tab shows
           // today's numbers and water as they are, without replaying.
-          if (first) shownPct = 0;
+          if (first) { shownPct = 0; pctShown = 0; }
           else { Meowie.setLayers(homeCat, layersFor(d)); Meowie.setLevel(homeCat, pct, { instant: true }); }
           wireHome(el, pct);
         },
@@ -752,6 +753,27 @@
     return out;
   }
 
+  // Today's % always continues from the number on screen. A refresh mid-count (the day's weather
+  // arriving and nudging the goal, a drink, a tab change) carries on from there instead of
+  // jumping to the end and counting again.
+  let pctShown = 0;
+  let pctRaf = 0;
+  function animatePct(node, to) {
+    if (!node) return;
+    cancelAnimationFrame(pctRaf);
+    const from = pctShown;
+    if (Math.abs(to - from) < .5 || matchMedia('(prefers-reduced-motion: reduce)').matches) { pctShown = to; node.textContent = Math.round(to); return; }
+    node.textContent = Math.round(from);
+    const t0 = performance.now();
+    const dur = Math.min(900, 300 + Math.abs(to - from) * 4);
+    (function f(now) {
+      const k = Math.min(1, (now - t0) / dur);
+      pctShown = from + (to - from) * (1 - Math.pow(1 - k, 3));
+      node.textContent = Math.round(pctShown);
+      if (k < 1) pctRaf = requestAnimationFrame(f);
+    })(t0);
+  }
+
   function wireHome(el, pct) {
     // While sitting Meowie is still drinking, hold the water level until he finishes.
     const holding = homeCat._mw && homeCat._mw.busy && homeCat._mw.mode === 'sit';
@@ -759,7 +781,8 @@
       Meowie.setLayers(homeCat, layersFor(today()));
       Meowie.setLevel(homeCat, pct);
     }
-    animateNumber($('#pctNum', el), shownPct * 100, Math.min(999, pct * 100), 900);
+    animatePct($('#pctNum', el), Math.min(999, pct * 100));
+    if (pct >= .5 && !today().rewarded) preloadReward();
     shownPct = pct;
     // Tap adds a glass; press and hold opens the pour sheet to change the amount.
     // The world button sits in the header (rebuilt each time), under the streak pill.
@@ -1039,6 +1062,7 @@
     sheet.style.transform = '';
     sheet.classList.add('open');
     sheetBg.classList.add('open');
+    syncBack();
     const grab = $('.grab', sheet);
     if (!grab) return;
     let y0 = null;
@@ -1122,13 +1146,39 @@
     else if (current === 'home') { current = null; renderHome(false); }
     else if (current) renderTab(tab);
   }
-  function closeSheet() { sheet.classList.remove('open'); sheetBg.classList.remove('open'); }
+  function closeSheet() { sheet.classList.remove('open'); sheetBg.classList.remove('open'); syncBack(); }
+
+  // ---------- phone back button ----------
+  // Back closes what's open, one layer at a time: the reward, a sheet, another tab (back to
+  // Today) or a setup step. Only on Today with nothing open does it leave the app. One extra
+  // history entry stands for "something to close" and is added or taken away as that changes.
+  let backPushed = false;
+  let backIgnore = false;
+  let rewardCloser = null;
+  const backLayers = () => !!rewardCloser || sheet.classList.contains('open')
+    || (state.onboarded ? !!tab && tab !== 'home' : stepIdx > 0 && current && current.startsWith('ob-'));
+  function syncBack() {
+    const want = backLayers();
+    if (want && !backPushed) { history.pushState({ ma: 1 }, ''); backPushed = true; }
+    else if (!want && backPushed) { backPushed = false; backIgnore = true; history.back(); }
+  }
+  window.addEventListener('popstate', () => {
+    backPushed = false;
+    if (backIgnore) { backIgnore = false; return; }
+    if (rewardCloser) rewardCloser();
+    else if (sheet.classList.contains('open')) { sheet.classList.remove('open'); sheetBg.classList.remove('open'); }
+    else if (state.onboarded && tab !== 'home') { setTab('home'); renderTab('home'); }
+    else if (!state.onboarded && stepIdx > 0) prev();
+    // Anything still open gets its own back step again.
+    setTimeout(syncBack, 0);
+  });
   sheetBg.addEventListener('click', closeSheet);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
 
   // ---------- tabs ----------
   function setTab(t) {
     tab = t;
+    setTimeout(syncBack, 0);
     const btns = [...document.querySelectorAll('#tabbar button')];
     btns.forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
     // A soft blob slides under the active tab and stretches as it moves.
@@ -1946,6 +1996,41 @@
   // ---------- 100% reward ----------
   // A full-screen celebration: light rays, a ring that fills to 100%, then Meowie's dance video
   // pops in with stars and confetti. Plays once a day when the goal is first reached.
+  // The dance video is fetched ahead of time, once today's goal is in sight, and played from
+  // memory so it never stops to buffer.
+  let rewardUrl = null;
+  let rewardLoading = false;
+  function preloadReward() {
+    if (rewardUrl || rewardLoading) return;
+    rewardLoading = true;
+    const mp4 = document.createElement('video').canPlayType('video/mp4; codecs="avc1.42E01E"');
+    fetch(mp4 ? 'meowie-reward.mp4' : 'meowie-reward.webm')
+      .then((r) => (r.ok ? r.blob() : Promise.reject()))
+      .then((b) => { rewardUrl = URL.createObjectURL(b); })
+      .catch(() => {})
+      .finally(() => { rewardLoading = false; });
+  }
+  // Light rays drawn once into a small canvas; the screen only turns it (cheap on phones).
+  function raysCanvas() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 512;
+    const g = c.getContext('2d');
+    g.translate(256, 256);
+    g.fillStyle = 'rgba(255,255,255,.14)';
+    for (let i = 0; i < 16; i++) {
+      g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, 256, 0, Math.PI * 2 / 40); g.closePath(); g.fill();
+      g.rotate(Math.PI * 2 / 16);
+    }
+    g.globalCompositeOperation = 'destination-in';
+    const fade = g.createRadialGradient(0, 0, 20, 0, 0, 256);
+    fade.addColorStop(0, '#000'); fade.addColorStop(.35, 'rgba(0,0,0,.9)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = fade;
+    g.fillRect(-256, -256, 512, 512);
+    c.className = 'rw-rays';
+    c.setAttribute('aria-hidden', 'true');
+    return c;
+  }
+
   function showReward(newScene) {
     if (document.querySelector('.reward')) return;
     const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1960,31 +2045,32 @@
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-modal', 'true');
     el.setAttribute('aria-label', t('rewardTitle'));
-    el.innerHTML = `<div class="rw-rays" aria-hidden="true"></div>
-      <div class="rw-stars" aria-hidden="true">${stars}</div>
+    el.innerHTML = `<div class="rw-stars" aria-hidden="true">${stars}</div>
       <div class="rw-body">
         <div class="rw-badge">
           <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="rw-track"/><circle cx="60" cy="60" r="52" class="rw-ring" pathLength="100"/></svg>
           <b><span id="rwNum">0</span><small>%</small></b>
         </div>
         <h2 class="rw-title">${t('rewardTitle')}</h2>
-        <div class="rw-film"><video playsinline preload="auto" disablepictureinpicture><source src="meowie-reward.mp4" type="video/mp4"><source src="meowie-reward.webm" type="video/webm"></video>
+        <div class="rw-film"><video playsinline preload="auto" disablepictureinpicture ${rewardUrl ? `src="${rewardUrl}"` : ''}>${rewardUrl ? '' : '<source src="meowie-reward.mp4" type="video/mp4"><source src="meowie-reward.webm" type="video/webm">'}</video>
           <button class="rw-snd" type="button" hidden aria-label="${t('sndSfxLong')}">🔇</button></div>
         <p class="rw-sub">${t('rewardSub', { name: esc(state.profile.name || 'Kawan') })}</p>
         ${newScene ? `<div class="rw-unlock"><img src="bg-${newScene}-s.webp" alt=""><span>${t('sceneNew', { name: t('scenes')[newScene] })}</span></div>` : ''}
         <button class="cta rw-go" type="button">${newScene ? t('sceneTry') : t('rewardBtn')}</button>
       </div>`;
+    el.insertBefore(raysCanvas(), el.firstChild);
     document.body.appendChild(el);
     const v = $('video', el);
     if (window.MASound) v.volume = MASound.sfxVol;
     const snd = $('.rw-snd', el);
     let closed = false;
-    let bursts = 0;
     if (window.MASound) MASound.hush(true);
     requestAnimationFrame(() => el.classList.add('on'));
     animateNumber($('#rwNum', el), 0, 100, calm ? 10 : 1200);
     if (navigator.vibrate) navigator.vibrate([30, 60, 30, 60, 80]);
-    const burst = setInterval(() => { if (!closed && bursts++ < 4) confetti(90); }, 2600);
+    // Confetti bursts as the ring fills and again when the dance ends, never during the video,
+    // so the phone can give the video its full attention.
+    confetti(110);
     // The video joins once the ring has filled.
     setTimeout(() => {
       if (closed) return;
@@ -1997,11 +2083,15 @@
       });
     }, calm ? 0 : 1300);
     snd.addEventListener('click', () => { v.muted = false; snd.hidden = true; v.play().catch(() => {}); });
-    v.addEventListener('ended', () => el.classList.add('done'));
+    // The phone's back button closes the reward (like tapping the button).
+    rewardCloser = () => close();
+    syncBack();
+    v.addEventListener('ended', () => { el.classList.add('done'); if (!closed) confetti(90); });
     function close() {
       if (closed) return;
       closed = true;
-      clearInterval(burst);
+      rewardCloser = null;
+      syncBack();
       v.pause();
       if (window.MASound) MASound.hush(false);
       el.classList.remove('on');
@@ -2020,7 +2110,8 @@
   function confetti(count = 140) {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const ctx = fx.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
+    // Up to 2x is plenty for confetti and keeps the canvas light on 3x phones.
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
     fx.width = innerWidth * dpr; fx.height = innerHeight * dpr;
     ctx.scale(dpr, dpr);
     const colors = ['#cc0001', '#ffffff', '#010066', '#ffcc00', '#5cc4ff'];

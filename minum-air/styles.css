@@ -875,16 +875,14 @@ html, body { overscroll-behavior: none; }
   opacity: 0; transition: opacity .4s ease; overscroll-behavior: none; }
 .reward.on { opacity: 1; }
 .reward.off { opacity: 0; }
-.rw-rays { position: absolute; left: 50%; top: 32%; width: 220vmax; height: 220vmax; margin: -110vmax 0 0 -110vmax; pointer-events: none;
-  background: repeating-conic-gradient(from 0deg, rgba(255,255,255,.13) 0 9deg, transparent 9deg 22.5deg);
-  -webkit-mask: radial-gradient(circle, #000 0 12%, transparent 46%); mask: radial-gradient(circle, #000 0 12%, transparent 46%);
-  animation: rwSpin 24s linear infinite; opacity: 0; transition: opacity 1s ease .3s; }
+.rw-rays { position: absolute; left: 50%; top: 32%; width: 160vmax; height: 160vmax; margin: -80vmax 0 0 -80vmax; pointer-events: none;
+  will-change: transform; animation: rwSpin 24s linear infinite; opacity: 0; transition: opacity 1s ease .3s; }
 .reward.on .rw-rays { opacity: 1; }
 @keyframes rwSpin { to { transform: rotate(360deg); } }
 .rw-stars { position: absolute; inset: 0; pointer-events: none; }
 .rw-stars i { position: absolute; width: 18px; height: 18px; transform: translate(-50%, -50%) scale(0);
   background: #ffe066; clip-path: polygon(50% 0, 61% 38%, 100% 50%, 61% 62%, 50% 100%, 39% 62%, 0 50%, 39% 38%);
-  filter: drop-shadow(0 0 6px #fff6); animation: rwTwinkle 2.4s ease-in-out infinite; }
+  will-change: transform, opacity; animation: rwTwinkle 2.4s ease-in-out infinite; }
 @keyframes rwTwinkle { 0%, 100% { transform: translate(-50%, -50%) scale(0) rotate(0); opacity: 0; } 45% { transform: translate(-50%, -50%) scale(var(--s)) rotate(90deg); opacity: 1; } }
 .rw-body { position: relative; width: 100%; max-width: 400px; display: grid; justify-items: center; gap: 10px; text-align: center; }
 .rw-badge { position: relative; width: 112px; height: 112px; transform: scale(.3); opacity: 0; }
@@ -902,7 +900,7 @@ html, body { overscroll-behavior: none; }
 .rw-title { margin: 0; font: 800 clamp(26px, 8vw, 34px)/1.1 'Baloo 2', system-ui, sans-serif; letter-spacing: .3px;
   background: linear-gradient(90deg, #fff, #ffe066, #fff, #9be4ff, #fff); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
   transform: translateY(14px) scale(.9); opacity: 0; }
-.reward.on .rw-title { animation: rwIn .6s cubic-bezier(.3,1.4,.5,1) .9s forwards, rwShine 3s linear 1.5s infinite; }
+.reward.on .rw-title { animation: rwIn .6s cubic-bezier(.3,1.4,.5,1) .9s forwards, rwShine 3s linear 1.5s 1; }
 @keyframes rwIn { to { transform: none; opacity: 1; } }
 @keyframes rwShine { to { background-position: 300% 0; } }
 .rw-film { position: relative; width: min(70vw, 300px, 46vh); aspect-ratio: 540 / 708; border-radius: 26px; overflow: hidden; background: #0b3d6e;
@@ -1056,3 +1054,4 @@ html, body { overscroll-behavior: none; }
 .vol-row input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 3px solid var(--brand); box-shadow: 0 2px 8px rgba(10, 60, 110, .3); cursor: pointer; }
 .vol-row input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 3px solid var(--brand); cursor: pointer; }
 .vol-row input[type=range]:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 30%, transparent); }
+#pctNum { font-variant-numeric: tabular-nums; }
