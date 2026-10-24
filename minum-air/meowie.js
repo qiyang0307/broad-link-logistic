@@ -30,7 +30,9 @@
     turn: { n: 15, w: 360, x: 180, cols: 8 },
   };
   // The idle sheet is meowie-sit.webp: a new name so phones can't show an old cached idle.
-  const sheetUrl = (name) => `meowie-${name === 'idle' ? 'sit' : name}.webp`;
+  // A ?v= tag on sheets that were redrawn (the swim's rear fin) so phones drop the cached copy.
+  const SHEET_V = { swim: 2 };
+  const sheetUrl = (name) => `meowie-${name === 'idle' ? 'sit' : name}.webp${SHEET_V[name] ? `?v=${SHEET_V[name]}` : ''}`;
   const range = (a, b) => Array.from({ length: Math.abs(b - a) + 1 }, (_, i) => (a < b ? a + i : a - i));
   const on = (sheet, frames) => frames.map((i) => [sheet, i]);
   const CLIPS = {

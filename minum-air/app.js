@@ -554,7 +554,7 @@
         let assetsDone = false;
         const t0 = performance.now();
         // Get Meowie's animations and avatar ready while the film plays.
-        const urls = ['meowie-sit.webp', 'meowie-pet.webp', 'meowie-swim.webp', 'meowie-peek.webp', 'meowie-turn.webp', avatarSrc()];
+        const urls = ['meowie-sit.webp', 'meowie-pet.webp', 'meowie-swim.webp?v=2', 'meowie-peek.webp', 'meowie-turn.webp', avatarSrc()];
         let loaded = 0;
         Promise.all(urls.map((u) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => { loaded++; res(); }; im.src = u; })))
           .then(() => { assetsDone = true; maybeLeave(); });
@@ -1662,7 +1662,7 @@
     const d = today();
     const wk = weekDays();
     return {
-      name: state.profile.name, av: state.avatar || 1, day: dayKey(), ml: total(d), goal: d.goal,
+      name: state.profile.name || t('friend'), av: state.avatar || 1, day: dayKey(), ml: total(d), goal: d.goal,
       weekOf: wk[0], week: wk.map((k) => { const r = state.days[k]; return r && r.goal ? Math.round(total(r) / r.goal * 100) : 0; }),
       streak: streakCount(), hits: daysHit(),
     };
@@ -1738,6 +1738,34 @@
     return t('frDaysHit', { n: c.hits });
   }
 
+  // The podium, rows and note for one way of ranking.
+  function frBoard(by) {
+    const f = state.friends;
+    const board = f.board || { me: null, friends: [] };
+    // Your own row always uses what's on this phone, so it's never behind.
+    const me = { ...(board.me || {}), ...myCard(), code: f.code, me: true };
+    const rows = [me, ...board.friends.filter((x) => x.code !== f.code)]
+      .map((c) => ({ ...c, v: score(c, by) }))
+      .sort((a, b) => b.v - a.v || (b.me ? 1 : 0) - (a.me ? 1 : 0));
+    const top = rows[0] && rows[0].v > 0 ? rows[0].v : 0;
+    const max = Math.max(1, ...rows.map((r) => r.v), by === 'today' ? 100 : by === 'week' ? 700 : 7);
+    const medal = (i) => ['🥇', '🥈', '🥉'][i] || `<span class="rk">${i + 1}</span>`;
+    const podium = rows.length >= 2 ? `<div class="fr-podium">${[1, 0, 2].filter((i) => rows[i]).map((i) => `
+      <button type="button" class="pod p${i + 1}" data-fr="${rows[i].code}">
+        <span class="pav">${i === 0 && top ? '<i class="crown">👑</i>' : ''}<img src="${avatarSrc(rows[i].av)}" alt=""></span>
+        <b>${rows[i].me ? t('frYou') : esc(rows[i].name)}</b><small>${scoreText(rows[i].v, by)}</small>
+        <span class="step">${i + 1}</span></button>`).join('')}</div>` : '';
+    const list = rows.map((r, i) => `
+        <button type="button" class="fr-row ${r.me ? 'me' : ''}" data-fr="${r.code}" style="animation-delay:${i * 50}ms">
+          <span class="fr-rank">${medal(i)}</span>
+          <img class="fr-av" src="${avatarSrc(r.av)}" alt="">
+          <span class="fr-main"><b>${esc(r.name)}${r.me ? ` <em>${t('frYou')}</em>` : ''}</b><small>${subText(r, by)}</small>
+            <span class="fr-bar"><i style="width:${Math.min(100, r.v / max * 100)}%"></i></span></span>
+          <span class="fr-val">${scoreText(r.v, by)}</span></button>`).join('');
+    const note = by === 'week' ? t('frWeekNote') : by === 'today' ? t('frTodayNote') : t('frStreakNote');
+    return { rows, podium, list, note };
+  }
+
   function renderFriends() {
     if (!joined()) {
       show('friends', `<h2 class="prof-title">${t('frTitle')} <span class="ttl-ic">${CUP_SVG}</span></h2>
@@ -1760,33 +1788,15 @@
       return;
     }
     const f = state.friends;
-    const board = f.board || { me: null, friends: [] };
-    // Your own row always uses what's on this phone, so it's never behind.
-    const me = { ...(board.me || {}), ...myCard(), code: f.code, me: true };
-    const rows = [me, ...board.friends.filter((x) => x.code !== f.code)]
-      .map((c) => ({ ...c, v: score(c, frSort) }))
-      .sort((a, b) => b.v - a.v || (b.me ? 1 : 0) - (a.me ? 1 : 0));
-    const top = rows[0] && rows[0].v > 0 ? rows[0].v : 0;
-    const max = Math.max(1, ...rows.map((r) => r.v), frSort === 'today' ? 100 : frSort === 'week' ? 700 : 7);
-    const medal = (i) => ['🥇', '🥈', '🥉'][i] || `<span class="rk">${i + 1}</span>`;
-    const podium = rows.length >= 2 ? `<div class="fr-podium">${[1, 0, 2].filter((i) => rows[i]).map((i) => `
-      <button type="button" class="pod p${i + 1}" data-fr="${rows[i].code}">
-        <span class="pav">${i === 0 && top ? '<i class="crown">👑</i>' : ''}<img src="${avatarSrc(rows[i].av)}" alt=""></span>
-        <b>${rows[i].me ? t('frYou') : esc(rows[i].name)}</b><small>${scoreText(rows[i].v, frSort)}</small>
-        <span class="step">${i + 1}</span></button>`).join('')}</div>` : '';
+    const idx = ['today', 'week', 'streak'].indexOf(frSort);
+    let cur = frBoard(frSort);
     show('friends', `<h2 class="prof-title">${t('frTitle')} <span class="ttl-ic">${CUP_SVG}</span>
         <button type="button" class="fr-refresh" id="frRefresh" aria-label="${t('frRefresh')}">↻</button></h2>
-      <div class="seg fr-seg" role="tablist">${['today', 'week', 'streak'].map((k) => `<button type="button" role="tab" aria-selected="${k === frSort}" class="${k === frSort ? 'on' : ''}" data-sort="${k}">${t('frSort')[k]}</button>`).join('')}</div>
-      ${podium}
-      <div class="fr-list">${rows.map((r, i) => `
-        <button type="button" class="fr-row ${r.me ? 'me' : ''}" data-fr="${r.code}" style="animation-delay:${i * 50}ms">
-          <span class="fr-rank">${medal(i)}</span>
-          <img class="fr-av" src="${avatarSrc(r.av)}" alt="">
-          <span class="fr-main"><b>${esc(r.name)}${r.me ? ` <em>${t('frYou')}</em>` : ''}</b><small>${subText(r, frSort)}</small>
-            <span class="fr-bar"><i style="width:${Math.min(100, r.v / max * 100)}%"></i></span></span>
-          <span class="fr-val">${scoreText(r.v, frSort)}</span></button>`).join('')}</div>
-      ${rows.length < 2 ? `<p class="fr-empty">${t('frEmpty')}</p>` : ''}
-      <p class="fr-note">${frSort === 'week' ? t('frWeekNote') : frSort === 'today' ? t('frTodayNote') : t('frStreakNote')}</p>
+      <div class="seg fr-seg" role="tablist"><span class="seg-pill" style="transform:translateX(calc(${idx} * (100% + 4px)))"></span>${['today', 'week', 'streak'].map((k) => `<button type="button" role="tab" aria-selected="${k === frSort}" class="${k === frSort ? 'on' : ''}" data-sort="${k}">${t('frSort')[k]}</button>`).join('')}</div>
+      <div id="frPodium">${cur.podium}</div>
+      <div class="fr-list fr-enter" id="frList">${cur.list}</div>
+      ${cur.rows.length < 2 ? `<p class="fr-empty">${t('frEmpty')}</p>` : ''}
+      <p class="fr-note" id="frNote">${cur.note}</p>
       <div class="card fr-code">
         <small>${t('frYourCode')}</small>
         <b class="code" id="frCode">${f.code}</b>
@@ -1799,8 +1809,43 @@
       <p class="fr-privacy">🔒 ${t('frPoint3')}</p>`, {
       onMount: (el) => {
         el.classList.add('home');
-        el.querySelectorAll('[data-sort]').forEach((b) => b.addEventListener('click', () => { frSort = b.dataset.sort; renderFriends(); }));
-        el.querySelectorAll('[data-fr]').forEach((b) => b.addEventListener('click', () => openFriendSheet(rows.find((r) => r.code === b.dataset.fr))));
+        // Switching the ranking updates the board in place: the pill slides across, rows glide to
+        // their new places and the bars grow or shrink, with no rebuild of the screen.
+        el.querySelectorAll('[data-sort]').forEach((b) => b.addEventListener('click', () => {
+          if (b.dataset.sort === frSort) return;
+          frSort = b.dataset.sort;
+          const i = ['today', 'week', 'streak'].indexOf(frSort);
+          $('.seg-pill', el).style.transform = `translateX(calc(${i} * (100% + 4px)))`;
+          el.querySelectorAll('[data-sort]').forEach((x) => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-selected', on); });
+          const list = $('#frList', el);
+          const before = {};
+          list.querySelectorAll('.fr-row').forEach((r) => { before[r.dataset.fr] = { top: r.getBoundingClientRect().top, w: r.querySelector('.fr-bar i').style.width }; });
+          cur = frBoard(frSort);
+          list.classList.remove('fr-enter');
+          list.innerHTML = cur.list;
+          const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+          list.querySelectorAll('.fr-row').forEach((r) => {
+            const old = before[r.dataset.fr];
+            if (!old || calm) return;
+            const bar = r.querySelector('.fr-bar i');
+            const w = bar.style.width;
+            bar.style.transition = 'none';
+            bar.style.width = old.w;
+            const dy = old.top - r.getBoundingClientRect().top;
+            if (dy) r.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.3,.8,.3,1)' });
+            r.querySelector('.fr-val').animate([{ opacity: .2, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 300, easing: 'ease-out' });
+            requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.transition = ''; bar.style.width = w; }));
+          });
+          const pod = $('#frPodium', el);
+          pod.innerHTML = cur.podium;
+          pod.querySelectorAll('.pod').forEach((x) => { x.style.animation = 'none'; });
+          if (!calm && cur.podium) pod.animate([{ opacity: .4 }, { opacity: 1 }], { duration: 260, easing: 'ease-out' });
+          $('#frNote', el).textContent = cur.note;
+        }));
+        el.addEventListener('click', (e) => {
+          const b = e.target.closest('[data-fr]');
+          if (b) openFriendSheet(cur.rows.find((r) => r.code === b.dataset.fr));
+        });
         $('#frRefresh', el).addEventListener('click', (e) => { e.currentTarget.classList.add('spin'); refreshBoard(true); });
         $('#frCopy', el).addEventListener('click', () => {
           (navigator.clipboard ? navigator.clipboard.writeText(f.code) : Promise.reject()).then(() => toast(t('frCopied')), () => toast(f.code));
