@@ -62,9 +62,11 @@
     profile: { name: '', gender: '', weight: 60, activity: '', city: '', wake: '07:00', sleep: '23:00', remind: false },
     days: {},
     weather: null,
-    lastSize: 250,
     lang: 'en',
   }, load());
+  // The blue button always adds one 250 ml glass; a held press or the pour sheet changes only that drink.
+  const QUICK_ML = 250;
+  delete state.lastSize;
   if (OLD_CITY[state.profile.city]) { state.profile.city = OLD_CITY[state.profile.city]; state.weather = null; }
   if (!state.profile.age) state.profile.age = 30;
 
@@ -662,7 +664,7 @@
         <div class="gc-chips"><span class="gc-chip sip">⏰ ${nextSip(d)}</span>
           <span class="gc-chip cups">🏁 ${t('gcCups', { n: Math.ceil(d.goal / 250) })}</span></div>
       </div>
-      <div class="add-main"><button class="cta" id="quickAdd">${cupSvg(DRINKS[0]).replace('<svg', '<svg style="width:26px;height:32px"')} ${t('addWater', { ml: state.lastSize })}</button>
+      <div class="add-main"><button class="cta" id="quickAdd">${cupSvg(DRINKS[0]).replace('<svg', '<svg style="width:26px;height:32px"')} ${t('addWater', { ml: QUICK_ML })}</button>
         <button class="add-more" id="moreBtn" aria-label="${t('otherDrinks')}">+</button></div>
       <p class="hold-hint">${t('holdHint')}</p>
       <div class="drinks" id="drinkRow">${allDrinks().slice(1).map((x) =>
@@ -739,7 +741,7 @@
     });
     ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => quick.addEventListener(ev, () => clearTimeout(holdTimer)));
     quick.addEventListener('contextmenu', (e) => e.preventDefault());
-    quick.addEventListener('click', (e) => { if (held) { held = false; return; } addDrink(DRINKS[0], state.lastSize, e.currentTarget); });
+    quick.addEventListener('click', (e) => { if (held) { held = false; return; } addDrink(DRINKS[0], QUICK_ML, e.currentTarget); });
     $('#moreBtn', el).addEventListener('click', () => openSheet());
     el.querySelectorAll('[data-drink]').forEach((b) => b.addEventListener('click', () => openSheet(b.dataset.drink, b)));
     $('#streakBtn', el).addEventListener('click', openStreakSheet);
@@ -780,7 +782,6 @@
     const eff = Math.round(ml * drink.hyd);
     lastAddedT = Date.now();
     d.log.push({ drink: drink.id, ml, eff, t: lastAddedT });
-    if (drink.id === 'air') state.lastSize = ml;
     save();
     if (navigator.vibrate) navigator.vibrate(20);
     const after = total(d);
@@ -801,7 +802,11 @@
       if (!homeCat || !homeCat.isConnected) return;
       // Sitting Meowie drank from his glass; now the water catches up.
       syncWater();
-      if (hit) { confetti(); Meowie.act(homeCat, 'jump'); }
+      if (hit) {
+        confetti(); Meowie.act(homeCat, 'jump');
+        // The first time each day the goal is reached, Meowie's victory dance plays as a reward.
+        if (!d.rewarded) { d.rewarded = true; save(); setTimeout(showReward, 1100); }
+      }
       else if (milestone) { confetti(36); Meowie.act(homeCat, milestone >= .5 ? 'jump' : 'swim'); }
     });
   }
@@ -889,7 +894,7 @@
 
   function openSheet(drinkId, originEl) {
     let drink = drinkId ? allDrinks().find((x) => x.id === drinkId) : null;
-    let size = state.lastSize;
+    let size = QUICK_ML;
     function draw() {
       if (!drink) {
         sheet.innerHTML = `<div class="grab"></div><h3 style="font-size:22px">${t('pickDrink')}</h3>
@@ -1555,6 +1560,72 @@
         { transform: `translate(${ex - sx}px, ${ey - sy}px) scale(.4)`, opacity: .2 },
       ], { duration: 520 + i * 40, easing: 'cubic-bezier(.3,.6,.4,1)', delay: i * 25 }).onfinish = () => dot.remove();
     }
+  }
+
+  // ---------- 100% reward ----------
+  // A full-screen celebration: light rays, a ring that fills to 100%, then Meowie's dance video
+  // pops in with stars and confetti. Plays once a day when the goal is first reached.
+  function showReward() {
+    if (document.querySelector('.reward')) return;
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const wantSound = !window.MASound || MASound.sfx;
+    const stars = Array.from({ length: 14 }, (_, i) => {
+      const a = i / 14 * Math.PI * 2;
+      const r = 38 + (i % 3) * 7;
+      return `<i style="left:${(50 + Math.cos(a) * r).toFixed(1)}%;top:${(46 + Math.sin(a) * r * .9).toFixed(1)}%;animation-delay:${(1.2 + (i % 5) * .25).toFixed(2)}s;--s:${(.6 + (i % 4) * .2).toFixed(1)}"></i>`;
+    }).join('');
+    const el = document.createElement('div');
+    el.className = 'reward';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-label', t('rewardTitle'));
+    el.innerHTML = `<div class="rw-rays" aria-hidden="true"></div>
+      <div class="rw-stars" aria-hidden="true">${stars}</div>
+      <div class="rw-body">
+        <div class="rw-badge">
+          <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="rw-track"/><circle cx="60" cy="60" r="52" class="rw-ring" pathLength="100"/></svg>
+          <b><span id="rwNum">0</span><small>%</small></b>
+        </div>
+        <h2 class="rw-title">${t('rewardTitle')}</h2>
+        <div class="rw-film"><video playsinline preload="auto" disablepictureinpicture><source src="meowie-reward.mp4" type="video/mp4"><source src="meowie-reward.webm" type="video/webm"></video>
+          <button class="rw-snd" type="button" hidden aria-label="${t('sndSfxLong')}">🔇</button></div>
+        <p class="rw-sub">${t('rewardSub', { name: esc(state.profile.name || 'Kawan') })}</p>
+        <button class="cta rw-go" type="button">${t('rewardBtn')}</button>
+      </div>`;
+    document.body.appendChild(el);
+    const v = $('video', el);
+    const snd = $('.rw-snd', el);
+    let closed = false;
+    let bursts = 0;
+    if (window.MASound) MASound.hush(true);
+    requestAnimationFrame(() => el.classList.add('on'));
+    animateNumber($('#rwNum', el), 0, 100, calm ? 10 : 1200);
+    if (navigator.vibrate) navigator.vibrate([30, 60, 30, 60, 80]);
+    const burst = setInterval(() => { if (!closed && bursts++ < 4) confetti(90); }, 2600);
+    // The video joins once the ring has filled.
+    setTimeout(() => {
+      if (closed) return;
+      v.muted = !wantSound;
+      v.play().catch(() => {
+        // The phone blocked sound: play muted and let a tap on the speaker turn it on.
+        v.muted = true;
+        if (wantSound) snd.hidden = false;
+        v.play().catch(() => {});
+      });
+    }, calm ? 0 : 1300);
+    snd.addEventListener('click', () => { v.muted = false; snd.hidden = true; v.play().catch(() => {}); });
+    v.addEventListener('ended', () => el.classList.add('done'));
+    function close() {
+      if (closed) return;
+      closed = true;
+      clearInterval(burst);
+      v.pause();
+      if (window.MASound) MASound.hush(false);
+      el.classList.remove('on');
+      el.classList.add('off');
+      setTimeout(() => el.remove(), 450);
+    }
+    $('.rw-go', el).addEventListener('click', close);
   }
 
   // Confetti in Jalur Gemilang colours.
