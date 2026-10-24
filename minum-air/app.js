@@ -554,7 +554,7 @@
         let assetsDone = false;
         const t0 = performance.now();
         // Get Meowie's animations and avatar ready while the film plays.
-        const urls = ['meowie-sit.webp', 'meowie-pet.webp', 'meowie-swim.webp?v=2', 'meowie-peek.webp', 'meowie-turn.webp', avatarSrc()];
+        const urls = ['meowie-sit.webp', 'meowie-pet.webp', 'meowie-swim.webp?v=3', 'meowie-peek.webp', 'meowie-turn.webp', 'meowie-full.webp', 'meowie-fullb.webp', avatarSrc()];
         let loaded = 0;
         Promise.all(urls.map((u) => new Promise((res) => { const im = new Image(); im.onload = im.onerror = () => { loaded++; res(); }; im.src = u; })))
           .then(() => { assetsDone = true; maybeLeave(); });
@@ -580,13 +580,22 @@
         let waitingForTouch = false;
         v.play().catch(() => { v.muted = true; waitingForTouch = wantSound; return v.play().catch(() => { filmDone = true; maybeLeave(); }); });
         // Phones block sound until a touch: the first touch turns it on (the film keeps going).
+        // Only a finished tap counts as permission for sound on phones (a touch that has only just
+        // begun does not), and unmuting too early makes Safari pause the film. If sound is still
+        // refused, it carries on muted; a tap never stops it.
         const unmute = () => {
           if (!waitingForTouch || left) return;
           waitingForTouch = false;
           v.muted = false;
-          v.play().catch(() => {});
+          v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
+          setTimeout(() => { if (!left && v.paused && !v.ended) { v.muted = true; v.play().catch(() => {}); } }, 120);
         };
-        ['pointerdown', 'touchstart', 'keydown'].forEach((ev) => document.addEventListener(ev, unmute, { capture: true, passive: true }));
+        ['touchend', 'pointerup', 'click', 'keydown'].forEach((ev) => document.addEventListener(ev, unmute, { capture: true, passive: true }));
+        // Nothing may pause the film before it ends: if something does, it picks straight back up.
+        v.addEventListener('pause', () => {
+          if (left || v.ended) return;
+          v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
+        });
         v.addEventListener('ended', () => { filmDone = true; maybeLeave(); }, { once: true });
         // Never get stuck: if the film can't play, move on after its length; hard stop at 9 s.
         setTimeout(() => { if (v.paused || !v.duration) { filmDone = true; maybeLeave(); } }, 4600);

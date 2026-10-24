@@ -28,10 +28,13 @@
     idle: { n: 62, w: 440, x: 230, cols: 8 }, pet: { n: 18, w: 520, x: 180, cols: 7 },
     swim: { n: 27, w: 360, x: 180, cols: 8 }, peek: { n: 57, w: 360, x: 180, cols: 8 },
     turn: { n: 15, w: 360, x: 180, cols: 8 },
+    // Past 100%: too full to swim. He stands on the sand with a round belly, puffing his cheeks
+    // (full) or holding his tummy (fullb).
+    full: { n: 9, w: 440, x: 220, cols: 8 }, fullb: { n: 11, w: 440, x: 220, cols: 8 },
   };
   // The idle sheet is meowie-sit.webp: a new name so phones can't show an old cached idle.
   // A ?v= tag on sheets that were redrawn (the swim's rear fin) so phones drop the cached copy.
-  const SHEET_V = { swim: 2 };
+  const SHEET_V = { swim: 3 };
   const sheetUrl = (name) => `meowie-${name === 'idle' ? 'sit' : name}.webp${SHEET_V[name] ? `?v=${SHEET_V[name]}` : ''}`;
   const range = (a, b) => Array.from({ length: Math.abs(b - a) + 1 }, (_, i) => (a < b ? a + i : a - i));
   const on = (sheet, frames) => frames.map((i) => [sheet, i]);
@@ -139,8 +142,9 @@
   function idleFrame(wrap, now) {
     const st = wrap._mw;
     if (st.hold) return [st.hold];
-    if (reduced()) return [[st.mode === 'swim' ? 'swim' : 'idle', 0]];
+    if (reduced()) return [[st.mode === 'swim' ? 'swim' : st.full ? 'full' : 'idle', 0]];
     if (st.mode === 'swim') return [['swim', Math.floor((now / 1000) * SWIM_FPS) % SHEETS.swim.n]];
+    if (st.full) return fullFrame(st, now);
     const n = SHEETS.idle.n;
     const dt = Math.min(.1, (now - (st.idleT || now)) / 1000);
     st.idleT = now;
@@ -169,6 +173,41 @@
     const i = Math.floor(st.idlePos);
     const frac = st.idlePos - i;
     return st.idleSpeed >= 0 ? [['idle', i], ['idle', (i + 1) % n], frac] : [['idle', (i + 1) % n], ['idle', i], 1 - frac];
+  }
+
+  // Too full: each short clip plays forwards and back, resting a moment at either end, and now and
+  // then he changes from puffing his cheeks to holding his tummy (the change cross-fades).
+  function fullFrame(st, now) {
+    const dt = Math.min(.1, (now - (st.fullT || now)) / 1000);
+    st.fullT = now;
+    if (!st.fullSeg) Object.assign(st, { fullSeg: 'full', fullPos: 0, fullDir: 1, fullRest: 0, fullSpeed: .8 });
+    const n = SHEETS[st.fullSeg].n;
+    if (now < st.fullRest) {
+      const i = Math.round(st.fullPos);
+      return [[st.fullSeg, i]];
+    }
+    st.fullPos += st.fullDir * st.fullSpeed * IDLE_FPS * dt;
+    if (st.fullPos >= n - 1 || st.fullPos <= 0) {
+      const atStart = st.fullPos <= 0;
+      st.fullPos = atStart ? 0 : n - 1;
+      st.fullDir = atStart ? 1 : -1;
+      st.fullRest = now + 300 + Math.random() * (atStart ? 1400 : 700);
+      st.fullSpeed = .65 + Math.random() * .35;
+      if (atStart && Math.random() < .3) { st.fullSeg = st.fullSeg === 'full' ? 'fullb' : 'full'; st.fullPos = 0; }
+      return [[st.fullSeg, st.fullPos]];
+    }
+    const i = Math.floor(st.fullPos);
+    const frac = st.fullPos - i;
+    return st.fullDir > 0 ? [[st.fullSeg, i], [st.fullSeg, Math.min(n - 1, i + 1)], frac] : [[st.fullSeg, i + 1], [st.fullSeg, i], 1 - frac];
+  }
+
+  // A round belly wobble, for when he's too full to do much else.
+  function wobble(wrap, times = 2) {
+    const squish = wrap.querySelector('.mw-squish');
+    for (let i = 0; i < times; i++) {
+      setTimeout(() => squish.animate([{ transform: 'scale(1, 1)' }, { transform: 'scale(1.06, .95)' }, { transform: 'scale(.97, 1.03)' }, { transform: 'scale(1, 1)' }],
+        { duration: 520, easing: 'ease-in-out' }), i * 560);
+    }
   }
 
   // One animation loop per Meowie steps whatever is playing.
@@ -334,8 +373,12 @@
     wrap.querySelectorAll('.mw-water').forEach((g) => { g.style.transform = `translateY(${y}px)`; });
     renderLayers(wrap);
     // A calm Meowie (setup screens) always sits and idles, whatever the water level.
-    const swim = !st.calm && (st.forceSwim || pct >= SWIM_AT);
+    // Past 100% he's too full to swim and sinks to stand on the sand.
+    const full = !st.calm && pct >= 1;
+    const swim = !st.calm && (st.forceSwim || (pct >= SWIM_AT && !full));
     if (!swim && st.mode === 'swim') stopSwim(wrap);
+    if (full !== !!st.full) { st.full = full; st.fullSeg = null; if (st.clip && !swim) { const c = st.clip; st.clip = null; c.done(); } }
+    wrap.classList.toggle('mw--full', full);
     st.mode = swim ? 'swim' : 'sit';
     const mark = (sel, x, y) => { const m = wrap.querySelector(sel); m.style.left = x + 'px'; m.style.top = y + 'px'; };
     mark('.mw-mouth-pt', swim ? 86 : 10, swim ? -118 : -95);
@@ -711,6 +754,12 @@
         floatHearts(wrap, 4);
         sfx('meow', .6);
         await play(wrap, 'peek', { fps: 24 });
+      } else if (st.full) {
+        // Too full for the petting clip: a purr and a round belly wobble.
+        sfx('purr');
+        wobble(wrap, 3);
+        floatHearts(wrap, 3);
+        await wait(1800);
       } else {
         sfx('purr');
         // A happy little squish each time the hand rubs his head.
@@ -1016,7 +1065,11 @@
     if (reduced()) { slosh(wrap, .6); return; }
     if (st.busy) { slosh(wrap, .8); await wait(600); return; }
     st.busy = true;
-    try { await drink(wrap, color); } finally { st.busy = false; }
+    try {
+      // Already full: no more drinking, the water just splashes in and his belly wobbles.
+      if (st.full) { slosh(wrap, .8); wobble(wrap, 2); await wait(1200); }
+      else await drink(wrap, color);
+    } finally { st.busy = false; }
   }
 
   window.Meowie = { create, setScene, setLevel, setLayers, pourPoint, act, moodFor, interact, tilt, slosh, lookAt, pet, pour, pourAndDrink, pourTarget, skyNow, setBuild, setVibe };
