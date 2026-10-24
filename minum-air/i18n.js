@@ -65,7 +65,7 @@ window.MA_I18N = {
     logged: 'Drinks logged', baseGoal: 'Base goal (ml)',
     avPick: 'Pick your Meowie', avChange: 'Change', avSub: 'Tap one you love, it saves right away 💕', avSaved: ({ name }) => `${name} Meowie is yours!`,
     avNames: ['Curious', 'Comfy', 'Yawn', 'Hi there', 'Grumpy', 'Beach day', 'Sleepy', 'Too cool', 'Box cat', 'Zoomies', 'Butterfly', 'Sunset', 'Belly up', 'Pretty please', 'Fish nap', 'So happy'],
-    profTitle: 'Profile', secAbout: 'About you', secRoutine: 'Daily routine', secPrefs: 'App preferences', sndSfxLong: 'Meowie sounds', profSay: [
+    profTitle: 'Profile', secAbout: 'About you', secRoutine: 'Daily routine', secPrefs: 'App preferences', sndSfxLong: 'Meowie sounds', volMusic: 'Music volume', volSfx: 'Meowie sounds volume', profSay: [
       ({ name }) => `Hi ${name}! Tap <b>Save</b> when done 🐾`,
       ({ name }) => `Meow ${name}~ don't forget <b>Save</b> 💾`,
       ({ name }) => `Psst ${name}, <b>Save</b> before you go 🦈`,
@@ -204,7 +204,7 @@ window.MA_I18N = {
     logged: 'Jumlah minuman dicatat', baseGoal: 'Target asas (ml)',
     avPick: 'Pilih Meowie kamu', avChange: 'Tukar', avSub: 'Tekan yang kamu suka, terus disimpan 💕', avSaved: ({ name }) => `Meowie ${name} milik kamu!`,
     avNames: ['Ingin tahu', 'Selesa', 'Menguap', 'Hai', 'Merajuk', 'Hari pantai', 'Mengantuk', 'Cool habis', 'Kucing kotak', 'Berlari', 'Rama-rama', 'Senja', 'Tunjuk perut', 'Tolonglah', 'Tidur ikan', 'Gembira'],
-    profTitle: 'Profil', secAbout: 'Tentang kamu', secRoutine: 'Rutin harian', secPrefs: 'Tetapan aplikasi', sndSfxLong: 'Bunyi Meowie', profSay: [
+    profTitle: 'Profil', secAbout: 'Tentang kamu', secRoutine: 'Rutin harian', secPrefs: 'Tetapan aplikasi', sndSfxLong: 'Bunyi Meowie', volMusic: 'Kelantangan muzik', volSfx: 'Kelantangan bunyi Meowie', profSay: [
       ({ name }) => `Hai ${name}! Siap, tekan <b>Simpan</b> 🐾`,
       ({ name }) => `Meow ${name}~ jangan lupa <b>Simpan</b> 💾`,
       ({ name }) => `Psst ${name}, <b>Simpan</b> dulu ya 🦈`,
@@ -342,7 +342,7 @@ window.MA_I18N = {
     logged: '记录的饮料', baseGoal: '基本目标（毫升）',
     avPick: '选择你的 Meowie', avChange: '更换', avSub: '点你喜欢的，马上保存 💕', avSaved: ({ name }) => `「${name}」Meowie 是你的了！`,
     avNames: ['好奇', '舒服', '打哈欠', '你好', '生气', '海滩日', '想睡', '超酷', '纸箱猫', '暴冲', '蝴蝶', '夕阳', '翻肚子', '拜托嘛', '鱼枕头', '好开心'],
-    profTitle: '我的', secAbout: '关于你', secRoutine: '日常作息', secPrefs: '应用设置', sndSfxLong: 'Meowie 声音', profSay: [
+    profTitle: '我的', secAbout: '关于你', secRoutine: '日常作息', secPrefs: '应用设置', sndSfxLong: 'Meowie 声音', volMusic: '音乐音量', volSfx: 'Meowie 声音音量', profSay: [
       ({ name }) => `嗨 ${name}！改完点<b>保存</b> 🐾`,
       ({ name }) => `喵～${name}，别忘了<b>保存</b> 💾`,
       ({ name }) => `嘘 ${name}，记得<b>保存</b>哦 🦈`,

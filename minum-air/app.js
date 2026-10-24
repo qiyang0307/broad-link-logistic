@@ -577,6 +577,7 @@
         })();
         if (window.MASound) MASound.hush(true);
         v.muted = !wantSound;
+        if (window.MASound) v.volume = Math.max(MASound.sfxVol, MASound.musicVol);
         let waitingForTouch = false;
         v.play().catch(() => { v.muted = true; waitingForTouch = wantSound; return v.play().catch(() => { filmDone = true; maybeLeave(); }); });
         // Phones block sound until a touch: the first touch turns it on (the film keeps going).
@@ -676,9 +677,9 @@
         <button type="button" class="pill weather-chip" id="wxBtn" aria-label="${t('wxTitle')}">${Meowie.skyNow() === 'night' ? '🌙' : w ? (w.feels >= HEAT_START ? '☀️' : '⛅') : '🌤️'} ${w ? `${Math.round(w.feels)}°C ${esc(state.profile.city || '')}` : esc(state.profile.city || 'Malaysia')}</button>
         <button type="button" class="pill fire" id="streakBtn" aria-label="${t('streakTitle')}">🔥 ${t('streakPill', { n: streakCount() })}</button>
       </div>
-      <div class="home-head"><div><p class="date">${dateStr} 🌸</p><h2>${greeting()}${t('comma')}${name}!</h2></div></div>
-      <div class="stage"><div class="bubble-say" id="say" data-bracket="${bracket(pct)}">${lines[0]}</div><div class="hero-cat"></div>
+      <div class="home-head"><div><p class="date">${dateStr} 🌸</p><h2>${greeting()}${t('comma')}${name}!</h2></div>
         <button type="button" class="scene-btn" id="sceneBtn" aria-label="${t('sceneBtn')}">🏝️${sceneIsNew() ? '<i class="dot"></i>' : ''}</button></div>
+      <div class="stage"><div class="bubble-say" id="say" data-bracket="${bracket(pct)}">${lines[0]}</div><div class="hero-cat"></div></div>
       <div class="goal-card stats-row">
         <p class="gc-label"><i></i>${t('hydGoal')} 💧</p>
         <div class="gc-main">
@@ -725,7 +726,6 @@
           el.classList.add('home');
           homeCat = Meowie.create({ intro: first, scene: currentScene() });
           $('.hero-cat', el).appendChild(homeCat);
-          $('#sceneBtn', el).addEventListener('click', openSceneSheet);
           Meowie.interact(homeCat, { onTap: onCatTap });
           shownPct = 0;
           wireHome(el, pct);
@@ -759,8 +759,9 @@
     animateNumber($('#pctNum', el), shownPct * 100, Math.min(999, pct * 100), 900);
     shownPct = pct;
     // Tap adds a glass; press and hold opens the pour sheet to change the amount.
+    // The world button sits in the header (rebuilt each time), under the streak pill.
     const sb = $('#sceneBtn', el);
-    if (sb) { const dot = sb.querySelector('.dot'); if (sceneIsNew() && !dot) sb.insertAdjacentHTML('beforeend', '<i class="dot"></i>'); else if (!sceneIsNew() && dot) dot.remove(); }
+    if (sb) sb.addEventListener('click', openSceneSheet);
     const quick = $('#quickAdd', el);
     let holdTimer;
     let held = false;
@@ -1196,6 +1197,10 @@
     const opt = (labels, v) => Object.entries(labels).map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${Array.isArray(l) ? l[0] : l}</option>`).join('');
     const row = (ic, bg, label, ctl, forId) => `<div class="set-row"><span class="set-ic" style="--ic:${bg}">${ic}</span>
       ${forId ? `<label for="${forId}">${label}</label>` : `<span class="set-l">${label}</span>`}<span class="set-ctl">${ctl}</span></div>`;
+    // A volume slider under its switch; greyed out while that sound is off.
+    const vol = (id, v, on, label) => `<div class="set-row vol-row ${on ? '' : 'off'}"><span class="vol-ic" aria-hidden="true">🔈</span>
+      <input type="range" id="${id}" min="0" max="100" step="5" value="${Math.round(v * 100)}" aria-label="${label}" style="--p:${Math.round(v * 100)}%" ${on ? '' : 'disabled'}>
+      <span class="vol-ic" aria-hidden="true">🔊</span><b class="vol-val" id="${id}Val">${Math.round(v * 100)}%</b></div>`;
     const sw = (id, on, label) => `<button type="button" class="switch" id="${id}" role="switch" aria-pressed="${on}" aria-checked="${on}" aria-label="${label}"><i></i></button>`;
     show('profile', `<h2 class="prof-title">${t('profTitle')} <span class="ttl-ic">${PAW_SVG}</span></h2>
       <div class="prof-hero"><div class="bubble-say">${pick(L().profSay || I18N.en.profSay)({ name: esc(p.name || t('friend')) })}</div><button type="button" class="av-btn" id="avBtn" aria-label="${t('avPick')}"><span class="av-float"><img src="${avatarSrc()}" alt="Meowie" width="320" height="320"></span><span class="av-edit">✏️ ${t('avChange')}</span></button></div>
@@ -1218,7 +1223,9 @@
       <div class="set-group">
         ${row('🌐', '#2fb7c4', t('pLang'), `<select id="pLang">${LANGS.map((k) => `<option value="${k}" ${k === state.lang ? 'selected' : ''}>${I18N[k]._label}</option>`).join('')}</select>`, 'pLang')}
         ${row('🎵', '#f06aa8', t('sndMusic'), sw('sMusic', MASound.music, t('sndMusic')))}
+        ${vol('vMusic', MASound.musicVol, MASound.music, t('volMusic'))}
         ${row('🔊', '#8c7bff', t('sndSfxLong'), sw('sSfx', MASound.sfx, t('sndSfxLong')))}
+        ${vol('vSfx', MASound.sfxVol, MASound.sfx, t('volSfx'))}
       </div>
       <h3 class="set-head">${t('secRemind')}</h3>
       <div class="set-group">
@@ -1278,6 +1285,17 @@
         });
         toggle('#sMusic', () => MASound.music, MASound.setMusic);
         toggle('#sSfx', () => MASound.sfx, MASound.setSfx);
+        // Volume sliders: music changes as you drag; Meowie gives a little mew at the new level.
+        const slider = (id, set, onSw, get, preview) => {
+          const r = $(id, el);
+          const out = $(id + 'Val', el);
+          const row = r.closest('.vol-row');
+          r.addEventListener('input', () => { r.style.setProperty('--p', r.value + '%'); out.textContent = r.value + '%'; set(r.value / 100); });
+          if (preview) r.addEventListener('change', preview);
+          $(onSw, el).addEventListener('click', () => { r.disabled = !get(); row.classList.toggle('off', !get()); });
+        };
+        slider('#vMusic', MASound.setMusicVol, '#sMusic', () => MASound.music);
+        slider('#vSfx', MASound.setSfxVol, '#sSfx', () => MASound.sfx, () => Meowie.sfx('mew', .8));
         // Reminder settings also apply straight away. Turning them on asks for permission to notify.
         const rs = $('#sRemind', el);
         const styleSel = $('#pRemind', el);
@@ -1955,6 +1973,7 @@
       </div>`;
     document.body.appendChild(el);
     const v = $('video', el);
+    if (window.MASound) v.volume = MASound.sfxVol;
     const snd = $('.rw-snd', el);
     let closed = false;
     let bursts = 0;

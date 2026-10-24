@@ -1,7 +1,7 @@
 // Offline shell for Minum Air. Weather calls go straight to the network.
 const CACHE = 'minum-air-v46';
 const SHELL = ['/', '/styles.css?v=46', '/meowie.js?v=46', '/i18n.js?v=46', '/app.js?v=46', '/manifest.webmanifest', '/sound.js?v=46', '/favicon.png', '/icon-192.png', '/meowie-photo.jpg', '/meowie-avatar.jpg',
-  '/meowie-sit.webp', '/meowie-pet.webp', '/meowie-swim.webp?v=3', '/meowie-peek.webp', '/meowie-turn.webp', '/meowie-full.webp?v=2', '/meowie-fullb.webp?v=2', '/meowie-drink-mask.webp', '/bg-reef.webp', '/bg-pool.webp', '/bg-reef-s.webp', '/bg-pool-s.webp',
+  '/meowie-sit.webp', '/meowie-pet.webp', '/meowie-swim.webp?v=3', '/meowie-peek.webp', '/meowie-turn.webp', '/meowie-full.webp?v=2', '/meowie-fullb.webp?v=2', '/meowie-drink-mask.webp', '/meowie-drink-fg.webp', '/bg-reef.webp', '/bg-pool.webp', '/bg-reef-s.webp', '/bg-pool-s.webp',
   ...Array.from({ length: 16 }, (_, i) => `/av/${String(i + 1).padStart(2, '0')}.jpg`)];
 
 self.addEventListener('install', (e) => {

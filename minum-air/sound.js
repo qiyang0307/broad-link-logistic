@@ -4,7 +4,7 @@
 // Browsers only allow audio after a tap, so nothing plays until unlock() runs from one.
 (function () {
   const KEY = 'minum-air:sound';
-  let prefs = { music: true, sfx: true };
+  let prefs = { music: true, sfx: true, musicVol: .7, sfxVol: .8 };
   try { Object.assign(prefs, JSON.parse(localStorage.getItem(KEY)) || {}); } catch {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch {} };
 
@@ -176,7 +176,7 @@
     }
   }
 
-  function musicTarget() { return prefs.music && !hushed ? MUSIC_VOL * (ducked ? .35 : 1) : 0; }
+  function musicTarget() { return prefs.music && !hushed ? MUSIC_VOL * (prefs.musicVol / .7) * (ducked ? .35 : 1) : 0; }
 
   function startMusic() {
     if (!ctx || timer) return;
@@ -221,6 +221,23 @@
   window.MASound = {
     get music() { return prefs.music; },
     get sfx() { return prefs.sfx; },
+    // Volumes from 0 to 1 (music at .7 is the original level).
+    get musicVol() { return prefs.musicVol; },
+    get sfxVol() { return prefs.sfxVol; },
+    setMusicVol(v) {
+      prefs.musicVol = Math.max(0, Math.min(1, Number(v) || 0));
+      save();
+      if (!ctx) return;
+      const n = ctx.currentTime;
+      musicBus.gain.cancelScheduledValues(n);
+      musicBus.gain.setValueAtTime(musicBus.gain.value, n);
+      musicBus.gain.linearRampToValueAtTime(musicTarget(), n + .15);
+    },
+    setSfxVol(v) {
+      prefs.sfxVol = Math.max(0, Math.min(1, Number(v) || 0));
+      save();
+      document.querySelectorAll('video.mw-act, .mw-film video, .rw-film video').forEach((el) => { el.volume = prefs.sfxVol; });
+    },
     setMusic(on) { prefs.music = !!on; save(); if (on) unlock(); else apply(); },
     setSfx(on) {
       prefs.sfx = !!on;
