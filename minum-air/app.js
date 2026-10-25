@@ -1164,30 +1164,47 @@
 
   // ---------- phone back button ----------
   // Back closes what's open, one layer at a time: the reward, a sheet, another tab (back to
-  // Today) or a setup step. Only on Today with nothing open does it leave the app. One extra
-  // history entry stands for "something to close" and is added or taken away as that changes.
+  // Today) or a setup step. Only on Today with nothing open does it leave the app.
+  // Where the browser has CloseWatcher (Chrome on Android), back is caught without touching
+  // history, so Chrome doesn't play its sideways "previous page" slide over our own slide-down.
+  // Elsewhere one extra history entry stands for "something to close".
   let backPushed = false;
   let backIgnore = false;
   let rewardCloser = null;
+  let watcher = null;
   const backLayers = () => !!rewardCloser || sheet.classList.contains('open')
     || (state.onboarded ? !!tab && tab !== 'home' : stepIdx > 0 && current && current.startsWith('ob-'));
-  function syncBack() {
-    const want = backLayers();
-    if (want && !backPushed) { history.pushState({ ma: 1 }, ''); backPushed = true; }
-    else if (!want && backPushed) { backPushed = false; backIgnore = true; history.back(); }
-  }
-  window.addEventListener('popstate', () => {
-    backPushed = false;
-    if (backIgnore) { backIgnore = false; return; }
+  function backStep() {
     if (rewardCloser) rewardCloser();
     else if (sheet.classList.contains('open')) { sheet.classList.remove('open'); sheetBg.classList.remove('open'); }
     else if (state.onboarded && tab !== 'home') { setTab('home'); renderTab('home'); }
     else if (!state.onboarded && stepIdx > 0) prev();
     // Anything still open gets its own back step again.
     setTimeout(syncBack, 0);
+  }
+  function syncBack() {
+    const want = backLayers();
+    if ('CloseWatcher' in window) {
+      if (want && !watcher) {
+        try {
+          const w = new CloseWatcher();
+          w.addEventListener('close', () => { if (watcher === w) { watcher = null; backStep(); } });
+          watcher = w;
+        } catch {}
+      } else if (!want && watcher) { const w = watcher; watcher = null; w.destroy(); }
+      return;
+    }
+    if (want && !backPushed) { history.pushState({ ma: 1 }, ''); backPushed = true; }
+    else if (!want && backPushed) { backPushed = false; backIgnore = true; history.back(); }
+  }
+  window.addEventListener('popstate', () => {
+    backPushed = false;
+    if (backIgnore) { backIgnore = false; return; }
+    backStep();
   });
   sheetBg.addEventListener('click', closeSheet);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
+  // Escape closes a sheet (where CloseWatcher is around, it already handles Escape like back).
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !('CloseWatcher' in window)) closeSheet(); });
 
   // ---------- tabs ----------
   function setTab(t) {
