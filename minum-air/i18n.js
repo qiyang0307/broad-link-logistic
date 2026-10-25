@@ -35,7 +35,7 @@ window.MA_I18N = {
     notifySample: ({ name }) => `Oi ${name}, 2 hours already no drink. One glass, jom! 💧`,
     allow: 'Yes, remind me', notifyLines: ({ name }) => [`Oi ${name}, 2 hours already no drink. One glass, jom! 💧`, 'Water helps you stay calm when it’s hot 🧊', `1 glass left, ${name}. You got this! 💪`], later: 'Maybe later',
     welcomeToast: ({ name }) => `Welcome, ${name}! 🎉`,
-    tourSkip: 'Skip', tourNext: 'Next', tourBack: 'Back', tourGo: "Let's drink! 💧", tourReplay: 'Show the app tour again',
+    tourSkip: 'Skip', tourNext: 'Next', tourBack: 'Back', tourGo: "Let's drink! 💧", tourReplay: 'Show the app tour again', pPrivacy: 'Privacy policy',
     tour: {
       hi: ['Hi, I\'m Meowie! 🦈', 'Let me show you around. It only takes a moment.'],
       add: ['Add a glass', 'Tap to add 250 ml of water. Press and hold to pour a different amount.'],
@@ -198,7 +198,7 @@ window.MA_I18N = {
     notifySample: ({ name }) => `Oi ${name}, dah 2 jam tak minum. Jom satu gelas! 💧`,
     allow: 'Boleh, ingatkan saya', notifyLines: ({ name }) => [`Oi ${name}, dah 2 jam tak minum. Jom satu gelas! 💧`, 'Air bantu badan tenang masa panas 🧊', `Tinggal 1 gelas, ${name}. Boleh! 💪`], later: 'Nanti dulu',
     welcomeToast: ({ name }) => `Selamat datang, ${name}! 🎉`,
-    tourSkip: 'Langkau', tourNext: 'Seterusnya', tourBack: 'Kembali', tourGo: 'Jom minum! 💧', tourReplay: 'Tunjuk panduan aplikasi semula',
+    tourSkip: 'Langkau', tourNext: 'Seterusnya', tourBack: 'Kembali', tourGo: 'Jom minum! 💧', tourReplay: 'Tunjuk panduan aplikasi semula', pPrivacy: 'Dasar privasi',
     tour: {
       hi: ['Hai, saya Meowie! 🦈', 'Jom saya tunjukkan cara guna. Sekejap je.'],
       add: ['Tambah segelas', 'Tekan untuk tambah 250 ml air. Tekan lama untuk tuang jumlah lain.'],
@@ -360,7 +360,7 @@ window.MA_I18N = {
     notifySample: ({ name }) => `喂 ${name}，已经两个小时没喝水了。来一杯吧！💧`,
     allow: '好，提醒我', notifyLines: ({ name }) => [`喂 ${name}，已经两个小时没喝水了。来一杯吧！💧`, '天气热时多喝水，心情更平静 🧊', `只剩 1 杯了，${name}，加油！💪`], later: '以后再说',
     welcomeToast: ({ name }) => `欢迎，${name}！🎉`,
-    tourSkip: '跳过', tourNext: '下一步', tourBack: '上一步', tourGo: '开始喝水！💧', tourReplay: '再看一次使用指南',
+    tourSkip: '跳过', tourNext: '下一步', tourBack: '上一步', tourGo: '开始喝水！💧', tourReplay: '再看一次使用指南', pPrivacy: '隐私政策',
     tour: {
       hi: ['嗨，我是 Meowie！🦈', '我带你快速看看怎么用，一下子就好。'],
       add: ['加一杯水', '点一下加 250 毫升水。长按可以倒其他分量。'],

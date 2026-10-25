@@ -1019,7 +1019,7 @@ html, body { overscroll-behavior: none; }
 .fr-empty { font-size: 15px; color: var(--ink); }
 .fr-code { margin-top: 18px; text-align: center; display: grid; gap: 6px; }
 .fr-code small { color: var(--muted); font-weight: 800; }
-.fr-code .code { font: 800 34px/1.1 'Baloo 2', system-ui, sans-serif; letter-spacing: 6px; color: var(--brand); user-select: all; }
+.fr-code .code { font: 800 34px/1.1 'Baloo 2', system-ui, sans-serif; letter-spacing: 6px; color: var(--brand); }
 .fr-code-btns { display: grid; grid-template-columns: auto 1fr; gap: 8px; margin-top: 4px; }
 .fr-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 12px; }
 .fr-add .field { text-transform: uppercase; letter-spacing: 2px; font-weight: 800; min-width: 0; }
@@ -1129,3 +1129,10 @@ html, body { overscroll-behavior: none; }
 .set-link .set-l { flex: 1; font-weight: 800; }
 .set-go { color: var(--brand); font-size: 22px; font-weight: 800; }
 @media (prefers-reduced-motion: reduce) { .tour-hole, .tour-card { transition: none; } .tour-hole::after, .tour-card.pop { animation: none; } }
+
+/* An app, not a page: a long press doesn't select words or pop up Copy / Search, and pictures
+   can't be dragged or saved by holding. Typing boxes still select and paste as usual. */
+html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+img, svg, video, canvas { -webkit-user-drag: none; -webkit-touch-callout: none; }
+input, textarea, select, [contenteditable="true"] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+.set-link { text-decoration: none; }

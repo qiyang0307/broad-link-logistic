@@ -1318,6 +1318,7 @@
         ${row('🔊', '#8c7bff', t('sndSfxLong'), sw('sSfx', MASound.sfx, t('sndSfxLong')))}
         ${vol('vSfx', MASound.sfxVol, MASound.sfx, t('volSfx'))}
         <button type="button" class="set-row set-link" id="pTour"><span class="set-ic" style="--ic:#22b8a6">🧭</span><span class="set-l">${t('tourReplay')}</span><span class="set-go">›</span></button>
+        <a class="set-row set-link" href="/privacy.html"><span class="set-ic" style="--ic:#7c8ca3">🔒</span><span class="set-l">${t('pPrivacy')}</span><span class="set-go">›</span></a>
       </div>
       <h3 class="set-head">${t('secRemind')}</h3>
       <div class="set-group">
@@ -2717,6 +2718,10 @@
     if (dayKey() !== lastDay) { lastDay = dayKey(); fetchWeather(); if (current === 'home') renderHome(false); }
   }, 60e3);
 
+  // Holding a picture or text doesn't open the browser's menu (save image, search…), except in
+  // typing boxes.
+  document.addEventListener('contextmenu', (e) => { if (!e.target.closest('input, textarea, select, [contenteditable="true"]')) e.preventDefault(); });
+
   // ---------- boot ----------
   // When you first used the app, and when you last had it open (for the install card and for
   // Meowie missing you after two days away).
@@ -2738,7 +2743,12 @@
   }
   applyLang();
   if (state.onboarded) fetchWeather();
-  splash();
+  // The opening scene plays once per visit; coming back from another page (the privacy policy)
+  // goes straight back in.
+  let splashed = false;
+  try { splashed = sessionStorage.getItem('minum-air:splashed') === '1'; sessionStorage.setItem('minum-air:splashed', '1'); } catch {}
+  if (splashed && state.onboarded) enterHome();
+  else splash();
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').then((r) => r.update()).catch(() => {});

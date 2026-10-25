@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.meowie.minumair",
+      "sha256_cert_fingerprints": [
+        "01:58:17:9D:47:4E:27:FA:42:EE:32:78:AE:41:60:38:12:B5:BE:87:4A:64:90:6D:4C:07:59:F8:94:E3:F9:12"
+      ]
+    }
+  }
+]

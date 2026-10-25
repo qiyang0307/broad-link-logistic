@@ -1,7 +1,7 @@
 {
-  "name": "Minum Air",
+  "name": "Minum Air: Meowie water reminder",
   "short_name": "Minum Air",
-  "description": "One-tap water habit that adjusts to Malaysian heat.",
+  "description": "Drink enough water with Meowie, a cat in a shark hood. One-tap logging, a daily goal that adjusts to Malaysian heat, gentle reminders and a friends leaderboard.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -21,10 +21,25 @@
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png?v=41",
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "id": "/",
+  "lang": "en",
+  "dir": "ltr",
+  "orientation": "portrait",
+  "categories": [
+    "health",
+    "lifestyle",
+    "fitness"
   ]
 }
