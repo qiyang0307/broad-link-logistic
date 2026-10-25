@@ -1,6 +1,6 @@
 # Soundtrack for the launch video, synthesised in code (plus Meowie's own sounds from the app).
 import numpy as np, subprocess, wave
-SR = 44100; D = 10.0; N = int(SR * D)
+SR = 44100; D = 15.0; N = int(SR * D)
 out = np.zeros((N, 2), np.float32)
 rng = np.random.default_rng(3)
 def add(sig, t, gain=1.0, pan=0.0):
@@ -49,42 +49,47 @@ def mp3(name):
     raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', f'assets/snd-{name}.mp3', '-f', 'f32le', '-ac', '1', '-ar', str(SR), '-'], capture_output=True).stdout
     return np.frombuffer(raw, np.float32).copy()
 
-BPM = 120; B = 60 / BPM
+BPM = 100; B = 60 / BPM
 C4 = 261.63; note = lambda s: C4 * 2 ** (s / 12)
-# Intro (0 - 2.3): a light kalimba figure and a ticking hat.
-for i, s in enumerate([12, 16, 19, 24, 19, 16, 12, 16]): add(pluck(note(s), 1.0, .8), .05 + i * B / 2, .16, -.2 + .1 * (i % 3))
-for i in range(8): add(hat(), i * B / 2 + B / 4, .5)
-# Paper slaps on every piece that lands.
-for t in [.12, .32, .45, .6, 1.0, 1.25, 3.2, 3.5, 4.05, 4.8, 5.05, 5.2, 6.0, 6.3, 7.2, 7.4, 7.7, 8.4, 8.55, 8.7, 8.85, 9.15, 9.3]:
-    add(slap(), t, .55, rng.uniform(-.3, .3))
-add(click(), 1.97, .9)
-add(riser(.4), 1.98, .35)
-add(rip(.8), 2.35, .9, -.15); add(rip(.6), 2.45, .6, .25)
-# The drop (3.1 - 8.4): kick, clap, hats, bass and a bouncy kalimba line.
-start = 3.0
+PRESS, RIP0, DROP, END = 3.3, 3.6, 4.65, 13.3
+# Intro (0 - 3.3): an unhurried kalimba figure over a soft ticking hat.
+intro = [12, 16, 19, 24, 19, 16, 14, 17, 21, 19, 16]
+for i, n in enumerate(intro): add(pluck(note(n), 1.2, .7), .1 + i * B / 2, .15, -.2 + .1 * (i % 3))
+for i in range(11): add(hat(), i * B / 2 + B / 4, .4)
+# A paper slap for each piece that lands.
+for t in [.3, .85, 1.3, 1.55, 2.1, 2.55, 4.75, 5.3, 6.1, 8.0, 8.35, 8.6, 10.0, 10.7, 12.05, 12.3, 12.65,
+          END + .3, END + .45, END + .65, END + .95, END + 1.05]:
+    add(slap(), t, .5, rng.uniform(-.3, .3))
+add(click(), PRESS, .9)
+add(riser(.35), PRESS - .05, .3)
+add(rip(1.05), RIP0, .9, -.15); add(rip(.8), RIP0 + .12, .55, .25)
+# The groove (4.65 - 13.3): kick, clap, hats, bass and a bouncy kalimba line.
 melody = [24, -1, 26, 28, 31, -1, 28, -1, 26, -1, 24, 26, 28, -1, 31, 33]
 chords = [(48, 52, 55), (45, 48, 52), (41, 45, 48), (43, 47, 50)]
-for bar in range(3):
-    t0 = start + bar * 4 * B
+bar = 0
+while DROP + bar * 4 * B < END - .05:
+    t0 = DROP + bar * 4 * B
     for beat in range(4):
         tb = t0 + beat * B
-        add(kick(), tb, .9)
-        if beat % 2: add(clap(), tb, .45)
-        add(hat(), tb + B / 2, .6, .2); add(hat(), tb + B * .75, .25, -.2)
+        if tb >= END: break
+        add(kick(), tb, .85)
+        if beat % 2: add(clap(), tb, .4)
+        add(hat(), tb + B / 2, .55, .2); add(hat(), tb + B * .75, .22, -.2)
         root = chords[(bar * 2 + beat // 2) % 4][0] - 60
-        add(bass(note(root - 12), B * .9), tb, .35)
-    for i, s in enumerate(melody):
-        if s >= 0: add(pluck(note(s), .8), t0 + i * B / 4, .14, .15 if i % 2 else -.15)
-# Meowie's own sounds.
-add(mp3('drink'), 3.65, .55); add(mp3('splash'), 4.75, .45); add(mp3('happy'), 5.95, .5)
-# End card: a bright final chord and Meowie's mew.
-for s in [12, 16, 19, 24]: add(pluck(note(s), 1.6, .5), 8.4, .15)
-add(kick(), 8.4, .8)
-for s in [24, 28, 31, 36]: add(pluck(note(s), 1.4, .6), 9.0, .12)
-add(mp3('mew'), 9.15, .8)
+        add(bass(note(root - 12), B * .9), tb, .33)
+    for i, n in enumerate(melody):
+        if n >= 0 and t0 + i * B / 4 < END: add(pluck(note(n), .9), t0 + i * B / 4, .13, .15 if i % 2 else -.15)
+    bar += 1
+# Meowie's own sounds, on what he does in the footage.
+add(mp3('drink'), 5.2, .5); add(mp3('splash'), 7.8, .45); add(mp3('happy'), 10.0, .45)
+# End card: a bright chord as the sheet lands, a lift as the name appears, then his mew.
+add(kick(), END, .8)
+for n in [12, 16, 19, 24]: add(pluck(note(n), 1.8, .5), END, .14)
+for n in [24, 28, 31, 36]: add(pluck(note(n), 1.5, .6), END + .65, .11)
+add(mp3('mew'), END + .95, .8)
 # Master: gentle glue and a soft limit; fade the very end.
 out *= .9
-fade = np.ones(N); fade[-int(.25 * SR):] = np.linspace(1, 0, int(.25 * SR)); out *= fade[:, None]
+fade = np.ones(N); fade[-int(.35 * SR):] = np.linspace(1, 0, int(.35 * SR)); out *= fade[:, None]
 out = np.tanh(out * 1.1) * .9
 pcm = (np.clip(out, -1, 1) * 32767).astype(np.int16)
 with wave.open('sound.wav', 'wb') as w: w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes(pcm.tobytes())

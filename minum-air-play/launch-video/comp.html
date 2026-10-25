@@ -6,7 +6,7 @@
 <canvas id="c" width="1080" height="1920"></canvas>
 <script>
 // Minum Air launch video: a torn-paper collage, drawn frame by frame. render(t) draws time t (s).
-const W = 1080, H = 1920, FPS = 30;
+const W = 1080, H = 1920, FPS = 60;
 const C = document.getElementById('c'); let X = C.getContext('2d');
 const INK = '#141414', BLUE = '#1677e0', SKY = '#3aa8ff', PAPER = '#efe9dc', YEL = '#ffd23f', PINK = '#ff9db5';
 
@@ -17,15 +17,20 @@ const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const ease = (k) => 1 - Math.pow(1 - clamp(k), 3);
 const easeIn = (k) => Math.pow(clamp(k), 2.4);
 // Stop motion: paper pieces "boil" a little, 12 times a second.
+// A gentle, continuous float so paper never sits dead still (no stepping).
 function boil(t, seed, amt = 1) {
-  const s = Math.floor(t * 12);
-  return { dx: (hash(s, seed) - .5) * 5 * amt, dy: (hash(s, seed + 1) - .5) * 5 * amt, r: (hash(s, seed + 2) - .5) * .012 * amt };
+  const r = rng(seed), p1 = r() * 6.28, p2 = r() * 6.28, p3 = r() * 6.28;
+  return { dx: Math.sin(t * 1.2 + p1) * 3 * amt, dy: Math.sin(t * 1.05 + p2) * 3 * amt, r: Math.sin(t * .8 + p3) * .006 * amt };
 }
+const easeBack = (k) => { k = clamp(k); const c = 1.6; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
+const easeInOut = (k) => { k = clamp(k); return k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; };
+// How visible a piece is: fades in at t0, and out over the last .35 s before t1.
+function vis(t, o) { if (t < o.t0) return 0; let a = clamp((t - o.t0) / .14); if (o.t1 != null) a = Math.min(a, clamp((o.t1 - t) / .35)); return a; }
 // Slam in: big for a frame, squash, settle. Returns null before it lands.
+// Lands with a soft pop: starts a little big and settles with a small overshoot.
 function slam(t, t0) {
   if (t < t0) return null;
-  const f = Math.floor((t - t0) * FPS);
-  return [1.32, .92, 1.05, .99, 1][Math.min(f, 4)];
+  return 1.22 - .22 * easeBack((t - t0) / .5);
 }
 function img(src) { const i = new Image(); i.src = src; return i; }
 const A = {
@@ -69,10 +74,10 @@ function texture(alpha = .5, op = 'multiply') {
 }
 // A torn paper label: white torn core showing at the edges, coloured face, crumple, text.
 function label(o, t) {
-  const s = slam(t, o.t0); if (s == null) return;
+  const s = slam(t, o.t0), a = vis(t, o); if (s == null || a <= 0) return;
   const b = boil(t, o.seed, o.boil ?? 1);
-  X.save();
-  X.translate(o.x + b.dx, o.y + b.dy); X.rotate((o.rot || 0) * Math.PI / 180 + b.r); X.scale(s, s);
+  X.save(); X.globalAlpha = a;
+  X.translate(o.x + b.dx, o.y + b.dy - (1 - a) * (t > o.t0 + .2 ? 30 : 0)); X.rotate((o.rot || 0) * Math.PI / 180 + b.r); X.scale(s, s);
   X.font = o.font; const m = X.measureText(o.text);
   const w = o.w || m.width + (o.padX ?? 60), h = o.h || (o.size || 100) * 1.25;
   X.shadowColor = 'rgba(0,0,0,.35)'; X.shadowBlur = 22; X.shadowOffsetY = 10;
@@ -87,7 +92,7 @@ function label(o, t) {
 function words(o, t) {
   if (t < o.t0) return;
   const b = boil(t, o.seed, .6);
-  X.save(); X.translate(o.x + b.dx, o.y + b.dy); X.rotate((o.rot || 0) * Math.PI / 180 + b.r);
+  X.save(); X.globalAlpha = vis(t, o); X.translate(o.x + b.dx, o.y + b.dy); X.rotate((o.rot || 0) * Math.PI / 180 + b.r);
   X.font = o.font; X.fillStyle = o.color || INK; X.textAlign = o.align || 'left'; X.textBaseline = 'top';
   // Typewriter: letters appear one after another.
   const lines = o.text.split('\n'); let shown = o.type ? Math.floor((t - o.t0) * o.type) : 1e9;
@@ -97,15 +102,18 @@ function words(o, t) {
 // A cut-out image (photocopied Meowie etc) with a paper shadow.
 function cutout(im, o, t) {
   const s = o.t0 == null ? 1 : slam(t, o.t0); if (s == null || !im.naturalWidth) return;
+  const a = o.t0 == null ? 1 : vis(t, o); if (a <= 0) return;
   const b = boil(t, o.seed, o.boil ?? 1);
-  X.save(); X.translate(o.x + b.dx, o.y + b.dy); X.rotate((o.rot || 0) * Math.PI / 180 + b.r); X.scale(s * o.scale, s * o.scale);
+  X.save(); X.globalAlpha = a; X.translate(o.x + b.dx, o.y + b.dy); X.rotate((o.rot || 0) * Math.PI / 180 + b.r); X.scale(s * o.scale, s * o.scale);
   X.shadowColor = 'rgba(0,0,0,.35)'; X.shadowBlur = 24; X.shadowOffsetY = 12;
   X.drawImage(im, -im.naturalWidth / 2, -im.naturalHeight / 2);
   X.restore();
 }
 // Marker scribble loop drawn on over [t0, t0+dur].
-function scribble(cx, cy, rx, ry, t, t0, dur, seed, color = SKY, width = 11, turns = 1.25) {
+function scribble(cx, cy, rx, ry, t, t0, dur, seed, color = SKY, width = 11, turns = 1.25, t1 = null) {
   if (t < t0) return;
+  if (t1 != null && t > t1) return;
+  X.save(); if (t1 != null) X.globalAlpha = clamp((t1 - t) / .35);
   const k = ease((t - t0) / dur), r = rng(seed), n = 90, end = Math.floor(n * k);
   const pts = [];
   for (let i = 0; i <= n; i++) {
@@ -113,15 +121,15 @@ function scribble(cx, cy, rx, ry, t, t0, dur, seed, color = SKY, width = 11, tur
     const w = 1 + .08 * Math.sin(i * .37 + seed) + (i / n) * .07;
     pts.push([cx + Math.cos(a) * rx * w, cy + Math.sin(a) * ry * w]);
   }
-  X.save(); X.strokeStyle = color; X.lineWidth = width; X.lineCap = 'round'; X.lineJoin = 'round'; X.globalAlpha = .92;
+  X.save(); X.strokeStyle = color; X.lineWidth = width; X.lineCap = 'round'; X.lineJoin = 'round'; X.globalAlpha *= .92;
   X.beginPath(); pts.slice(0, end + 1).forEach(([x, y], i) => (i ? X.lineTo(x, y) : X.moveTo(x, y))); X.stroke();
-  X.globalAlpha = .35; X.lineWidth = width * .45; X.beginPath(); pts.slice(0, end + 1).forEach(([x, y], i) => (i ? X.lineTo(x + 3, y - 2) : X.moveTo(x + 3, y - 2))); X.stroke();
-  X.restore();
+  X.globalAlpha *= .35; X.lineWidth = width * .45; X.beginPath(); pts.slice(0, end + 1).forEach(([x, y], i) => (i ? X.lineTo(x + 3, y - 2) : X.moveTo(x + 3, y - 2))); X.stroke();
+  X.restore(); X.restore();
 }
-function arrow(x0, y0, x1, y1, t, t0, color = SKY) {
-  if (t < t0) return;
-  const k = ease((t - t0) / .25), mx = (x0 + x1) / 2 + 40, my = (y0 + y1) / 2 - 50;
-  X.save(); X.strokeStyle = color; X.lineWidth = 10; X.lineCap = 'round'; X.lineJoin = 'round';
+function arrow(x0, y0, x1, y1, t, t0, color = SKY, t1 = 1e9) {
+  if (t < t0 || t > t1) return;
+  const k = ease((t - t0) / .45), mx = (x0 + x1) / 2 + 40, my = (y0 + y1) / 2 - 50;
+  X.save(); X.globalAlpha = clamp((t1 - t) / .35); X.strokeStyle = color; X.lineWidth = 10; X.lineCap = 'round'; X.lineJoin = 'round';
   X.beginPath(); X.moveTo(x0, y0);
   const ex = x0 + (x1 - x0) * k, ey = y0 + (y1 - y0) * k;
   X.quadraticCurveTo(x0 + (mx - x0) * k, y0 + (my - y0) * k, ex, ey); X.stroke();
@@ -147,7 +155,7 @@ function blinds(t) {
 }
 function grain(t) {
   X.save(); X.globalAlpha = .05; X.globalCompositeOperation = 'overlay';
-  const s = Math.floor(t * 12) % 4; X.drawImage(A.tile, -s * 60, -s * 40, 1500, 2300); X.restore();
+  X.drawImage(A.tile, -60, -40, 1500, 2300); X.restore();
   // Vignette.
   const g = X.createRadialGradient(W / 2, H / 2, H * .35, W / 2, H / 2, H * .75);
   g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.28)'); X.fillStyle = g; X.fillRect(0, 0, W, H);
@@ -156,11 +164,12 @@ function bg(im, t, seed) { const b = boil(t, seed, .3); X.drawImage(im, -10 + b.
 
 // ---------- scene 1: the paper page with the play button (0 - 2.5 s) ----------
 const PB = { x: 560, y: 1000, r: 175 };
+const PRESS = 3.3, RIP0 = 3.6, RIP1 = 4.65, END = 13.3;
 function paw(t) {
   // A paper-cut cat paw comes up from the bottom right and presses the button.
-  if (t < 1.35) return;
-  const k = t < 2.0 ? ease((t - 1.35) / .65) : t < 2.12 ? 1 : 1 - ease((t - 2.12) / .35) * .35;
-  const press = t >= 1.95 && t < 2.15 ? 22 : 0;
+  if (t < PRESS - .8) return;
+  const k = t < PRESS ? easeInOut((t - (PRESS - .8)) / .8) : t < PRESS + .2 ? 1 : 1 - ease((t - PRESS - .2) / .5) * .35;
+  const press = 22 * Math.sin(Math.PI * clamp((t - PRESS + .05) / .3));
   const sx = 1500, sy = 2300, ex = PB.x + 30, ey = PB.y + 20 + press;
   const x = sx + (ex - sx) * k, y = sy + (ey - sy) * k;
   const b = boil(t, 77, .6);
@@ -182,10 +191,10 @@ function paw(t) {
   X.restore();
 }
 function playButton(t) {
-  const s = slam(t, 1.0); if (s == null) return;
+  const s = slam(t, 2.1); if (s == null) return;
   const b = boil(t, 55, .8);
-  const squash = t >= 1.95 && t < 2.15 ? .9 : 1;
-  X.save(); X.translate(PB.x + b.dx, PB.y + b.dy); X.rotate(-.05 + b.r); X.scale(s * squash, s * squash);
+  const squash = 1 - .1 * Math.sin(Math.PI * clamp((t - PRESS + .05) / .3));
+  X.save(); X.globalAlpha = clamp((t - 2.1) / .14); X.translate(PB.x + b.dx, PB.y + b.dy); X.rotate(-.05 + b.r); X.scale(s * squash, s * squash);
   X.shadowColor = 'rgba(0,0,0,.4)'; X.shadowBlur = 30; X.shadowOffsetY = 16;
   X.fillStyle = '#f7f3ea'; X.beginPath(); circlePath(PB.r + 14, 31); X.fill(); X.shadowColor = 'transparent';
   X.save(); X.beginPath(); circlePath(PB.r, 32); X.clip(); X.fillStyle = BLUE; X.fillRect(-300, -300, 600, 600); texture(.55); X.restore();
@@ -197,46 +206,57 @@ function scene1(t) {
   bg(A.paper, t, 1);
   grid(t, 3);
   // Big black block behind Meowie (like a torn magazine page).
-  if (t >= .45) { const s = slam(t, .45), b = boil(t, 21, .5); X.save(); X.translate(330 + b.dx, 1480 + b.dy); X.rotate(.05 + b.r); X.scale(s, s); X.shadowColor = 'rgba(0,0,0,.3)'; X.shadowBlur = 20; X.fillStyle = '#f7f3ea'; X.fill(tornPoly(560, 700, 22, 12)); X.shadowColor = 'transparent'; X.save(); X.clip(tornPoly(540, 680, 23, 10)); X.fillStyle = INK; X.fillRect(-400, -400, 800, 800); texture(.5, 'screen'); X.restore(); X.restore(); }
-  cutout(A.sit, { x: 330, y: 1540, scale: .78, rot: -4, t0: .6, seed: 31 }, t);
-  label({ text: 'THIRSTY?', font: '190px Anton', size: 190, x: 520, y: 330, rot: -5, bg: INK, fg: '#f7f3ea', t0: .12, seed: 101 }, t);
-  label({ text: 'MALAYSIA IS HOT', font: '84px Anton', size: 84, x: 600, y: 520, rot: 3, bg: BLUE, fg: '#f7f3ea', t0: .32, seed: 102 }, t);
-  words({ text: 'one glass at a time,\nwith a cat in a\nshark hood.', font: '40px "Special Elite"', lh: 48, x: 640, y: 1290, rot: 2, t0: .7, type: 55, seed: 103 }, t);
-  scribble(PB.x, PB.y, 230, 215, t, 1.15, .5, 7);
+  if (t >= 1.3) { const s = slam(t, 1.3), b = boil(t, 21, .5); X.save(); X.globalAlpha = clamp((t - 1.3) / .14); X.translate(330 + b.dx, 1480 + b.dy); X.rotate(.05 + b.r); X.scale(s, s); X.shadowColor = 'rgba(0,0,0,.3)'; X.shadowBlur = 20; X.fillStyle = '#f7f3ea'; X.fill(tornPoly(560, 700, 22, 12)); X.shadowColor = 'transparent'; X.save(); X.clip(tornPoly(540, 680, 23, 10)); X.fillStyle = INK; X.fillRect(-400, -400, 800, 800); texture(.5, 'screen'); X.restore(); X.restore(); }
+  cutout(A.sit, { x: 330, y: 1540, scale: .78, rot: -4, t0: 1.55, seed: 31 }, t);
+  label({ text: 'THIRSTY?', font: '190px Anton', size: 190, x: 520, y: 330, rot: -5, bg: INK, fg: '#f7f3ea', t0: .3, seed: 101 }, t);
+  label({ text: 'MALAYSIA IS HOT', font: '84px Anton', size: 84, x: 600, y: 520, rot: 3, bg: BLUE, fg: '#f7f3ea', t0: .85, seed: 102 }, t);
+  words({ text: 'one glass at a time,\nwith a cat in a\nshark hood.', font: '40px "Special Elite"', lh: 48, x: 640, y: 1290, rot: 2, t0: 1.85, type: 32, seed: 103 }, t);
+  scribble(PB.x, PB.y, 230, 215, t, 2.45, .6, 7);
   playButton(t);
-  label({ text: 'PRESS PLAY', font: '64px Anton', size: 64, x: PB.x + 40, y: PB.y - 270, rot: -7, bg: '#f7f3ea', fg: INK, t0: 1.25, seed: 104 }, t);
+  label({ text: 'PRESS PLAY', font: '64px Anton', size: 64, x: PB.x + 40, y: PB.y - 270, rot: -7, bg: '#f7f3ea', fg: INK, t0: 2.55, seed: 104 }, t);
   paw(t);
   // Click lines when the button goes down.
-  if (t >= 1.97 && t < 2.3) { X.save(); X.strokeStyle = INK; X.lineWidth = 9; X.lineCap = 'round'; for (let i = 0; i < 5; i++) { const a = -2.6 + i * .32, r0 = 250, r1 = 310; X.beginPath(); X.moveTo(PB.x + Math.cos(a) * r0, PB.y + Math.sin(a) * r0); X.lineTo(PB.x + Math.cos(a) * r1, PB.y + Math.sin(a) * r1); X.stroke(); } X.restore(); }
+  if (t >= PRESS && t < PRESS + .4) { X.globalAlpha = 1 - clamp((t - PRESS) / .4); X.save(); X.strokeStyle = INK; X.lineWidth = 9; X.lineCap = 'round'; const g = ease((t - PRESS) / .3); for (let i = 0; i < 5; i++) { const a = -2.6 + i * .32, r0 = 240 + g * 30, r1 = 280 + g * 60; X.beginPath(); X.moveTo(PB.x + Math.cos(a) * r0, PB.y + Math.sin(a) * r0); X.lineTo(PB.x + Math.cos(a) * r1, PB.y + Math.sin(a) * r1); X.stroke(); } X.restore(); X.globalAlpha = 1; }
 }
 
 // ---------- scene 3: the app behind the rip (3.1 - 8.3 s) ----------
 // Each beat: which recording, where in it, and its labels.
 // Frames pulled out of the recordings (ffmpeg, 30 fps), one image per video frame.
 const BEATS = [
-  { t0: 2.35, t1: 4.75, dir: 'fr-drink/a', n: 75 },
-  { t0: 4.75, t1: 5.95, dir: 'fr-drink/b', n: 39 },
-  { t0: 5.95, t1: 7.15, dir: 'fr-party/a', n: 39 },
-  { t0: 7.15, t1: 8.4, dir: 'fr-friends/a', n: 40 },
+  { t0: RIP0, t1: 7.8, dir: 'g-drink/a', n: 110 },
+  { t0: 7.8, t1: 9.8, dir: 'g-drink/b', n: 53 },
+  { t0: 9.8, t1: 11.9, dir: 'g-party/a', n: 51 },
+  { t0: 11.9, t1: 99, dir: 'g-friends/a', n: 40 },
 ];
+const XF = .3;   // cross-fade between clips
 const frameCache = {};
-async function videoFrame(beat, t) {
-  const i = Math.max(1, Math.min(beat.n, 1 + Math.round((t - beat.t0) * FPS)));
+// The recordings run at 25 fps; between two of their frames the next one is blended in, so the
+// footage moves smoothly at 60 fps.
+async function frameImg(beat, i) {
+  i = Math.max(1, Math.min(beat.n, i));
   const src = `${beat.dir}${String(i).padStart(3, '0')}.jpg`;
   if (!frameCache[src]) { const im = new Image(); im.src = src; await im.decode(); frameCache[src] = im; }
   return frameCache[src];
 }
+async function drawClip(beat, t, w, h) {
+  const p = Math.max(0, (t - beat.t0) * 25), i = Math.floor(p), f = p - i;
+  X.drawImage(await frameImg(beat, i + 1), -w / 2, -h / 2, w, h);
+  if (f > .02 && i + 2 <= beat.n) { X.save(); X.globalAlpha *= f; X.drawImage(await frameImg(beat, i + 2), -w / 2, -h / 2, w, h); X.restore(); }
+}
 const PH = { x: 540, y: 1010, w: 700, h: 1515, rot: -2.2 };
 async function phone(t) {
   const beat = BEATS.find((b) => t >= b.t0 && t < b.t1) || BEATS[BEATS.length - 1];
-  const v = await videoFrame(beat, t);
+
   const b = boil(t, 401, .4);
   X.save(); X.translate(PH.x + b.dx, PH.y + b.dy); X.rotate(PH.rot * Math.PI / 180 + b.r);
   X.shadowColor = 'rgba(0,20,60,.45)'; X.shadowBlur = 50; X.shadowOffsetY = 26;
   X.fillStyle = '#121212'; rr(-PH.w / 2 - 18, -PH.h / 2 - 18, PH.w + 36, PH.h + 36, 70); X.fill(); X.shadowColor = 'transparent';
-  X.save(); rr(-PH.w / 2, -PH.h / 2, PH.w, PH.h, 54); X.clip(); X.drawImage(v, -PH.w / 2, -PH.h / 2, PH.w, PH.h);
-  // A quick paper flash on each cut.
-  const since = t - beat.t0; if (beat !== BEATS[0] && since < .1) { X.fillStyle = `rgba(247,243,234,${1 - since / .1})`; X.fillRect(-PH.w, -PH.h, PH.w * 2, PH.h * 2); }
+  X.save(); rr(-PH.w / 2, -PH.h / 2, PH.w, PH.h, 54); X.clip();
+  const bi = BEATS.indexOf(beat), since = t - beat.t0;
+  if (bi > 0 && since < XF) {
+    await drawClip(BEATS[bi - 1], t, PH.w, PH.h);
+    X.save(); X.globalAlpha = easeInOut(since / XF); await drawClip(beat, t, PH.w, PH.h); X.restore();
+  } else await drawClip(beat, t, PH.w, PH.h);
   X.restore();
   X.restore();
   tape(PH.x - 300, PH.y - 760, -28, 201, t); tape(PH.x + 320, PH.y + 740, -24, 202, t);
@@ -254,28 +274,26 @@ async function scene3(t) {
   grid(t, 9, 'rgba(255,255,255,.45)');
   await phone(t);
   // Beat 1: tap, Meowie drinks.
-  if (t < 4.75) {
-    label({ text: 'TAP', font: '170px Anton', size: 170, x: 230, y: 330, rot: -8, bg: INK, fg: '#f7f3ea', t0: 3.2, seed: 301 }, t);
-    label({ text: '+250 ML', font: '96px Anton', size: 96, x: 820, y: 1160, rot: 6, bg: YEL, fg: INK, t0: 3.5, seed: 302 }, t);
-    label({ text: 'MEOWIE DRINKS IT', font: '70px Anton', size: 70, x: 520, y: 1680, rot: -3, bg: '#f7f3ea', fg: INK, t0: 4.05, seed: 303 }, t);
-    scribble(820, 1160, 250, 120, t, 3.6, .35, 11, YEL, 9, 1.1);
-  } else if (t < 5.95) {
-    label({ text: '50%?', font: '150px Anton', size: 150, x: 250, y: 360, rot: -6, bg: '#f7f3ea', fg: BLUE, t0: 4.8, seed: 311 }, t);
-    label({ text: 'HE SWIMS!', font: '130px Anton', size: 130, x: 600, y: 1650, rot: 4, bg: INK, fg: '#f7f3ea', t0: 5.05, seed: 312 }, t);
-    arrow(260, 520, 420, 780, t, 5.3, YEL);
-    cutout(A.swim, { x: 860, y: 330, scale: .55, rot: 8, t0: 5.2, seed: 313 }, t);
-  } else if (t < 7.15) {
-    label({ text: 'HIT 100%', font: '150px Anton', size: 150, x: 520, y: 300, rot: -5, bg: YEL, fg: INK, t0: 6.0, seed: 321 }, t);
-    label({ text: 'PARTY TIME', font: '110px Anton', size: 110, x: 560, y: 1690, rot: 3, bg: INK, fg: YEL, t0: 6.3, seed: 322 }, t);
-    scribble(540, 300, 380, 120, t, 6.15, .35, 13, '#f7f3ea', 9, 1.1);
-  } else {
-    label({ text: 'RACE YOUR', font: '120px Anton', size: 120, x: 420, y: 280, rot: -6, bg: '#f7f3ea', fg: INK, t0: 7.2, seed: 331 }, t);
-    label({ text: 'FRIENDS', font: '150px Anton', size: 150, x: 640, y: 430, rot: 3, bg: INK, fg: '#f7f3ea', t0: 7.4, seed: 332 }, t);
-    label({ text: 'WEEKLY LEAGUE', font: '70px Anton', size: 70, x: 560, y: 1700, rot: -3, bg: YEL, fg: INK, t0: 7.7, seed: 333 }, t);
-  }
+  label({ text: 'TAP', font: '170px Anton', size: 170, x: 230, y: 330, rot: -8, bg: INK, fg: '#f7f3ea', t0: 4.75, t1: 7.8, seed: 301 }, t);
+  label({ text: '+250 ML', font: '96px Anton', size: 96, x: 820, y: 1160, rot: 6, bg: YEL, fg: INK, t0: 5.3, t1: 7.8, seed: 302 }, t);
+  scribble(820, 1160, 250, 120, t, 5.45, .5, 11, YEL, 9, 1.1, 7.8);
+  label({ text: 'MEOWIE DRINKS IT', font: '70px Anton', size: 70, x: 520, y: 1680, rot: -3, bg: '#f7f3ea', fg: INK, t0: 6.1, t1: 7.8, seed: 303 }, t);
+  // Beat 2: past 50% he swims.
+  label({ text: '50%?', font: '150px Anton', size: 150, x: 250, y: 360, rot: -6, bg: '#f7f3ea', fg: BLUE, t0: 8.0, t1: 9.8, seed: 311 }, t);
+  cutout(A.swim, { x: 860, y: 330, scale: .55, rot: 8, t0: 8.35, t1: 9.8, seed: 313 }, t);
+  label({ text: 'HE SWIMS!', font: '130px Anton', size: 130, x: 600, y: 1650, rot: 4, bg: INK, fg: '#f7f3ea', t0: 8.6, t1: 9.8, seed: 312 }, t);
+  arrow(260, 520, 420, 780, t, 8.85, YEL, 9.8);
+  // Beat 3: 100% party.
+  label({ text: 'HIT 100%', font: '150px Anton', size: 150, x: 520, y: 300, rot: -5, bg: YEL, fg: INK, t0: 10.0, t1: 11.9, seed: 321 }, t);
+  scribble(540, 300, 380, 120, t, 10.2, .5, 13, '#f7f3ea', 9, 1.1, 11.9);
+  label({ text: 'PARTY TIME', font: '110px Anton', size: 110, x: 560, y: 1690, rot: 3, bg: INK, fg: YEL, t0: 10.7, t1: 11.9, seed: 322 }, t);
+  // Beat 4: friends.
+  label({ text: 'RACE YOUR', font: '120px Anton', size: 120, x: 420, y: 280, rot: -6, bg: '#f7f3ea', fg: INK, t0: 12.05, seed: 331 }, t);
+  label({ text: 'FRIENDS', font: '150px Anton', size: 150, x: 640, y: 430, rot: 3, bg: INK, fg: '#f7f3ea', t0: 12.3, seed: 332 }, t);
+  label({ text: 'WEEKLY LEAGUE', font: '70px Anton', size: 70, x: 560, y: 1700, rot: -3, bg: YEL, fg: INK, t0: 12.65, seed: 333 }, t);
 }
 
-// ---------- the rip (2.35 - 3.15 s) ----------
+// ---------- the rip (3.6 - 4.65 s) ----------
 const tear = (() => { const r = rng(5), pts = []; let x = 560, off = 0; for (let y = -40; y <= H + 40; y += 26) { off = off * .6 + (r() - .5) * 46; pts.push([x + off + Math.sin(y * .006) * 30, y]); } return pts; })();
 const S1 = document.createElement('canvas'); S1.width = W; S1.height = H;
 function halfPath(left) {
@@ -295,45 +313,45 @@ function rim(left) {
 }
 async function rip(t) {
   // The page as it was at the moment of the rip.
-  sceneTo(S1.getContext('2d'), 2.3);
+  sceneTo(S1.getContext('2d'), RIP0 - .02);
   await scene3(t);
   // Stop-motion pull: 15 steps a second.
-  const q = Math.floor((t - 2.35) * 15) / 15;
-  const k = easeIn((q - .1) / .7);
+  const q = t - RIP0;
+  const k = easeInOut((q - .15) / (RIP1 - RIP0 - .15));
   for (const left of [true, false]) {
     const dir = left ? -1 : 1;
     X.save();
-    X.translate(W / 2 + dir * k * 820, H / 2 + k * 60); X.rotate(dir * k * .14); X.translate(-W / 2, -H / 2);
+    X.translate(W / 2 + dir * k * 860, H / 2 + k * 70); X.rotate(dir * k * .16); X.translate(-W / 2, -H / 2);
     X.shadowColor = 'rgba(0,0,0,.45)'; X.shadowBlur = 40; X.shadowOffsetX = dir * 12;
     X.save(); X.clip(halfPath(left)); X.drawImage(S1, 0, 0); X.restore();
     X.shadowColor = 'transparent';
-    if (q > .05) rim(left);
+    if (q > .08) rim(left);
     X.restore();
   }
   // The crack running down before it opens.
-  if (q <= .1) { const n = Math.floor(tear.length * clamp(q / .1)); X.save(); X.strokeStyle = 'rgba(20,20,20,.7)'; X.lineWidth = 4; X.beginPath(); tear.slice(0, n + 1).forEach(([x, y], i) => (i ? X.lineTo(x, y) : X.moveTo(x, y))); X.stroke(); X.restore(); }
+  if (q <= .15) { const n = Math.floor(tear.length * ease(q / .15)); X.save(); X.strokeStyle = 'rgba(20,20,20,.7)'; X.lineWidth = 4; X.beginPath(); tear.slice(0, n + 1).forEach(([x, y], i) => (i ? X.lineTo(x, y) : X.moveTo(x, y))); X.stroke(); X.restore(); }
 }
 function sceneTo(ctx, t) { X = ctx; scene1(t); X = C.getContext('2d'); }
 
-// ---------- scene 4: end card (8.4 - 10 s) ----------
+// ---------- scene 4: end card (13.3 - 15 s) ----------
 function scene4(t) {
   // The end sheet slams up from the bottom in three stop-motion steps.
-  const f = Math.floor((t - 8.4) * 15), y = [900, 260, -40, 12, 0][Math.min(f, 4)];
+  const y = H * (1 - easeBack((t - END) / .55));
   X.save(); X.translate(0, y);
   X.shadowColor = 'rgba(0,0,0,.5)'; X.shadowBlur = 50;
   X.save(); X.translate(W / 2, H / 2); X.fill(tornPoly(W + 60, H + 60, 501, 14)); X.restore();
   X.shadowColor = 'transparent';
   X.save(); X.translate(W / 2, H / 2); X.clip(tornPoly(W + 40, H + 40, 502, 12)); X.translate(-W / 2, -H / 2); bg(A.end, t, 4); grid(t, 11, 'rgba(20,20,20,.4)'); X.restore();
   // App icon, taped.
-  const ib = boil(t, 511, .5), s = slam(t, 8.55);
+  const ib = boil(t, 511, .5), s = slam(t, END + .3);
   if (s) { X.save(); X.translate(540 + ib.dx, 430 + ib.dy); X.rotate(-.06 + ib.r); X.scale(s, s); X.shadowColor = 'rgba(0,0,0,.35)'; X.shadowBlur = 30; X.shadowOffsetY = 14; X.fillStyle = '#f7f3ea'; X.fill(tornPoly(330, 330, 512, 6)); X.shadowColor = 'transparent'; rr(-150, -150, 300, 300, 66); X.save(); X.clip(); X.drawImage(A.icon, -150, -150, 300, 300); X.restore(); X.restore(); tape(540 + 120, 290, 30, 513, t); }
-  label({ text: 'MINUM', font: '230px Anton', size: 230, x: 520, y: 790, rot: -4, bg: INK, fg: '#f7f3ea', t0: 8.7, seed: 521 }, t);
-  label({ text: 'AIR', font: '230px Anton', size: 230, x: 600, y: 1040, rot: 3, bg: BLUE, fg: '#f7f3ea', t0: 8.85, seed: 522 }, t);
-  words({ text: 'drink water with Meowie', font: '64px "Permanent Marker"', lh: 70, x: 540, y: 1215, align: 'center', rot: -2, color: BLUE, t0: 9.05, type: 40, seed: 523 }, t);
-  scribble(600, 1040, 230, 150, t, 9.0, .35, 21, YEL, 10, 1.1);
-  cutout(A.color, { x: 330, y: 1560, scale: .62, rot: -3, t0: 9.15, seed: 531 }, t);
-  label({ text: 'SOON ON GOOGLE PLAY', font: '50px Anton', size: 50, x: 720, y: 1500, rot: 4, bg: YEL, fg: INK, t0: 9.3, seed: 541 }, t);
-  words({ text: 'free · no ads', font: '40px "Special Elite"', lh: 46, x: 720, y: 1580, align: 'center', rot: 2, t0: 9.45, seed: 542 }, t);
+  label({ text: 'MINUM', font: '230px Anton', size: 230, x: 520, y: 790, rot: -4, bg: INK, fg: '#f7f3ea', t0: END + .45, seed: 521 }, t);
+  label({ text: 'AIR', font: '230px Anton', size: 230, x: 600, y: 1040, rot: 3, bg: BLUE, fg: '#f7f3ea', t0: END + .65, seed: 522 }, t);
+  words({ text: 'drink water with Meowie', font: '64px "Permanent Marker"', lh: 70, x: 540, y: 1215, align: 'center', rot: -2, color: BLUE, t0: END + .85, type: 36, seed: 523 }, t);
+  scribble(600, 1040, 230, 150, t, END + .8, .45, 21, YEL, 10, 1.1);
+  cutout(A.color, { x: 330, y: 1560, scale: .62, rot: -3, t0: END + .95, seed: 531 }, t);
+  label({ text: 'SOON ON GOOGLE PLAY', font: '50px Anton', size: 50, x: 720, y: 1500, rot: 4, bg: YEL, fg: INK, t0: END + 1.05, seed: 541 }, t);
+  words({ text: 'free · no ads', font: '40px "Special Elite"', lh: 46, x: 720, y: 1580, align: 'center', rot: 2, t0: END + 1.2, seed: 542 }, t);
   X.restore();
 }
 
@@ -341,10 +359,10 @@ function scene4(t) {
 async function render(t) {
   X = C.getContext('2d'); X.setTransform(1, 0, 0, 1, 0, 0); X.globalAlpha = 1; X.globalCompositeOperation = 'source-over';
   X.fillStyle = PAPER; X.fillRect(0, 0, W, H);
-  if (t < 2.35) scene1(t);
-  else if (t < 3.15) await rip(t);
+  if (t < RIP0) scene1(t);
+  else if (t < RIP1) await rip(t);
   else await scene3(t);
-  if (t >= 8.4) scene4(t);
+  if (t >= END) scene4(t);
   blinds(t);
   grain(t);
 }
