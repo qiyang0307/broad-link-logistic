@@ -1141,3 +1141,24 @@ input, textarea, select, [contenteditable="true"] { -webkit-user-select: text; u
    whole card can scroll if a phone is shorter still. */
 .reward { overflow-y: auto; }
 @media (max-height: 760px) { .rw-badge { width: 88px; height: 88px; } .rw-badge b { font-size: 26px; } .rw-body { gap: 7px; } .rw-title { font-size: 26px; } }
+
+/* Full-screen reward: the dance video fills the whole screen; the ring and title sit on top,
+   the message and button at the bottom, over soft shades so they stay readable. */
+.reward { display: block; padding: 0; overflow: hidden; }
+.reward .rw-rays { z-index: 0; }
+.reward .rw-film { position: fixed; inset: 0; width: auto; aspect-ratio: auto; border-radius: 0; z-index: 1; background: #06223f;
+  box-shadow: none; transform: scale(1.06); opacity: 0; }
+.reward.on .rw-film { animation: rwFull .9s cubic-bezier(.22, 1, .36, 1) 1.2s forwards; }
+@keyframes rwFull { to { transform: none; opacity: 1; } }
+.reward .rw-film::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(4, 30, 60, .7) 0%, rgba(4, 30, 60, 0) 26%, rgba(4, 30, 60, 0) 55%, rgba(4, 30, 60, .85) 100%); }
+.reward .rw-stars { z-index: 3; }
+.reward .rw-body { position: relative; z-index: 2; height: 100%; max-width: 460px; margin: 0 auto; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: calc(18px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom)); }
+.reward .rw-badge { width: 84px; height: 84px; }
+.reward .rw-badge b { font-size: 25px; }
+.reward .rw-title { font-size: clamp(26px, 7.5vw, 32px); text-shadow: none; filter: drop-shadow(0 2px 8px rgba(0, 0, 0, .55)); }
+.reward .rw-sub { margin-top: auto; text-shadow: 0 2px 8px rgba(0, 0, 0, .6); color: #fff; }
+.reward .rw-unlock { background: rgba(4, 30, 60, .55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.reward .rw-snd { position: fixed; bottom: auto; top: calc(18px + env(safe-area-inset-top)); right: 16px; z-index: 4; }

@@ -2445,6 +2445,8 @@
         <button class="cta rw-go" type="button">${newScene ? t('sceneTry') : t('rewardBtn')}</button>
       </div>`;
     el.insertBefore(raysCanvas(), el.firstChild);
+    // The dance video fills the screen behind everything, so it sits outside the content column.
+    el.insertBefore($('.rw-film', el), $('.rw-body', el));
     document.body.appendChild(el);
     const v = $('video', el);
     if (window.MASound) v.volume = MASound.sfxVol;
