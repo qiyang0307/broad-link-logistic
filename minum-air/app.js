@@ -496,6 +496,8 @@
     $('#tabbar').hidden = false;
     renderHome(true);
     setTimeout(() => toast(t('welcomeToast', { name: friend() })), 500);
+    // First time in: a short guided tour of the Today screen once Meowie has settled in.
+    if (!state.tourDone) setTimeout(startTour, 2200);
   }
 
   app.addEventListener('click', (e) => {
@@ -1171,11 +1173,13 @@
   let backPushed = false;
   let backIgnore = false;
   let rewardCloser = null;
+  let tourCloser = null;
   let watcher = null;
-  const backLayers = () => !!rewardCloser || sheet.classList.contains('open')
+  const backLayers = () => !!tourCloser || !!rewardCloser || sheet.classList.contains('open')
     || (state.onboarded ? !!tab && tab !== 'home' : stepIdx > 0 && current && current.startsWith('ob-'));
   function backStep() {
-    if (rewardCloser) rewardCloser();
+    if (tourCloser) tourCloser();
+    else if (rewardCloser) rewardCloser();
     else if (sheet.classList.contains('open')) { sheet.classList.remove('open'); sheetBg.classList.remove('open'); }
     else if (state.onboarded && tab !== 'home') { setTab('home'); renderTab('home'); }
     else if (!state.onboarded && stepIdx > 0) prev();
@@ -1313,6 +1317,7 @@
         ${vol('vMusic', MASound.musicVol, MASound.music, t('volMusic'))}
         ${row('🔊', '#8c7bff', t('sndSfxLong'), sw('sSfx', MASound.sfx, t('sndSfxLong')))}
         ${vol('vSfx', MASound.sfxVol, MASound.sfx, t('volSfx'))}
+        <button type="button" class="set-row set-link" id="pTour"><span class="set-ic" style="--ic:#22b8a6">🧭</span><span class="set-l">${t('tourReplay')}</span><span class="set-go">›</span></button>
       </div>
       <h3 class="set-head">${t('secRemind')}</h3>
       <div class="set-group">
@@ -1364,6 +1369,7 @@
           toast(t('saved'));
         });
         $('#pReset', el).addEventListener('click', openDeleteSheet);
+        $('#pTour', el).addEventListener('click', () => { setTab('home'); renderTab('home'); setTimeout(startTour, 700); });
         $('#avBtn', el).addEventListener('click', openAvatarSheet);
         // Sound switches apply straight away; they are device settings, not part of the profile draft.
         const toggle = (id, get, set) => $(id, el).addEventListener('click', (e) => {
@@ -2059,6 +2065,108 @@
       try { await friendsApi('POST', { action: 'delete' }); } catch (e) { if (e.status !== 404) { toast(t('frOffline')); lv.disabled = false; return; } }
       delete state.friends; save(); closeSheet(); renderFriends();
     });
+  }
+
+  // ---------- first-time tour ----------
+  // After setup, a spotlight walks through the Today screen one part at a time: the screen dims,
+  // the part being explained stays lit, and Meowie explains it in a card beside it. Next, Back
+  // and Skip; the phone's back button also skips. Replay from Profile.
+  const TOUR = [
+    { sel: null, key: 'hi' },
+    { sel: '#quickAdd', key: 'add' },
+    { sel: '#drinkRow', key: 'drinks' },
+    { sel: '.stage .hero-cat', key: 'cat' },
+    { sel: '.goal-card.stats-row', key: 'goal' },
+    { sel: '#streakBtn', key: 'streak' },
+    { sel: '#wxBtn', key: 'weather' },
+    { sel: '#sceneBtn', key: 'world' },
+    { sel: '#tabbar', key: 'tabs' },
+    { sel: null, key: 'done' },
+  ];
+  function startTour() {
+    if (document.querySelector('.tour') || current !== 'home' || !state.onboarded) return;
+    if (sheet.classList.contains('open')) closeSheet();
+    const steps = TOUR.filter((x) => !x.sel || document.querySelector(x.sel));
+    const el = document.createElement('div');
+    el.className = 'tour';
+    el.innerHTML = `<div class="tour-hole"></div><div class="tour-card" role="dialog" aria-live="polite">
+      <div class="tour-head"><img src="${avatarSrc()}" alt=""><b class="tour-title"></b></div>
+      <p class="tour-body"></p>
+      <div class="tour-foot"><span class="tour-dots">${steps.map(() => '<i></i>').join('')}</span>
+        <button type="button" class="tour-skip">${t('tourSkip')}</button>
+        <button type="button" class="tour-back" aria-label="${t('tourBack')}">‹</button>
+        <button type="button" class="cta tour-next"></button></div></div>`;
+    document.body.appendChild(el);
+    const hole = $('.tour-hole', el);
+    const card = $('.tour-card', el);
+    const scr = $('.screen.active');
+    const T = t('tour');
+    let i = 0;
+    let done = false;
+    const place = () => {
+      const st = steps[i];
+      const target = st.sel && document.querySelector(st.sel);
+      const vw = innerWidth, vh = innerHeight;
+      if (!target) {
+        // No spotlight: a soft dim and the card in the middle.
+        hole.style.cssText = `left:${vw / 2}px;top:${vh / 2}px;width:0;height:0;border-radius:50%`;
+        card.style.left = `${Math.max(16, (vw - card.offsetWidth) / 2)}px`;
+        card.style.top = `${Math.max(16, (vh - card.offsetHeight) / 2)}px`;
+        return;
+      }
+      const r = target.getBoundingClientRect();
+      const pad = 8;
+      const radius = Math.min(26, (r.height + pad * 2) / 2);
+      hole.style.cssText = `left:${r.left - pad}px;top:${r.top - pad}px;width:${r.width + pad * 2}px;height:${r.height + pad * 2}px;border-radius:${radius}px`;
+      // The card goes below the spotlight if it fits, otherwise above.
+      const ch = card.offsetHeight;
+      const below = r.bottom + pad + 14;
+      const top = below + ch < vh - 12 ? below : Math.max(12, r.top - pad - 14 - ch);
+      card.style.top = `${top}px`;
+      card.style.left = `${Math.max(16, Math.min(vw - card.offsetWidth - 16, r.left + r.width / 2 - card.offsetWidth / 2))}px`;
+    };
+    const show = (n) => {
+      i = n;
+      const st = steps[i];
+      $('.tour-title', el).textContent = T[st.key][0];
+      $('.tour-body', el).textContent = T[st.key][1];
+      $('.tour-next', el).textContent = i === steps.length - 1 ? t('tourGo') : t('tourNext');
+      $('.tour-back', el).hidden = i === 0;
+      $('.tour-skip', el).hidden = i === steps.length - 1;
+      el.querySelectorAll('.tour-dots i').forEach((d, k) => d.classList.toggle('on', k === i));
+      card.classList.remove('pop'); void card.offsetWidth; card.classList.add('pop');
+      const target = st.sel && document.querySelector(st.sel);
+      // Bring the part into view first (the tab bar is always on screen), then light it.
+      if (target && st.sel !== '#tabbar') {
+        const r = target.getBoundingClientRect();
+        const sr = scr.getBoundingClientRect();
+        const want = scr.scrollTop + (r.top - sr.top) - Math.max(90, (innerHeight - r.height) / 2 - 120);
+        scr.scrollTo({ top: Math.max(0, want), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+        setTimeout(place, 380);
+      } else place();
+      if (st.key === 'cat' && homeCat) setTimeout(() => Meowie.act(homeCat, 'swim'), 500);
+    };
+    const finish = () => {
+      if (done) return;
+      done = true;
+      tourCloser = null;
+      syncBack();
+      state.tourDone = true;
+      save();
+      el.classList.add('out');
+      scr.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => el.remove(), 350);
+      removeEventListener('resize', place);
+    };
+    $('.tour-next', el).addEventListener('click', () => (i < steps.length - 1 ? show(i + 1) : finish()));
+    $('.tour-back', el).addEventListener('click', () => i > 0 && show(i - 1));
+    $('.tour-skip', el).addEventListener('click', finish);
+    addEventListener('resize', place);
+    // Taps outside the card do nothing, so the screen underneath can't be pressed by accident.
+    el.addEventListener('click', (e) => { if (!e.target.closest('.tour-card')) e.stopPropagation(); });
+    tourCloser = finish;
+    syncBack();
+    requestAnimationFrame(() => { el.classList.add('on'); show(0); });
   }
 
   // ---------- cards on Today: add to home screen, weekly recap ----------

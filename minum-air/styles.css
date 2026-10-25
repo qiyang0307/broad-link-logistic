@@ -1100,3 +1100,32 @@ html, body { overscroll-behavior: none; }
 .wx-oops { font-size: 40px; }
 .wx-in { animation: slideIn .4s ease both; }
 @media (prefers-reduced-motion: reduce) { .spin { animation-duration: 2.5s; } }
+
+/* ---------- First-time tour ---------- */
+.tour { position: fixed; inset: 0; z-index: 60; opacity: 0; transition: opacity .35s ease; }
+.tour.on { opacity: 1; }
+.tour.out { opacity: 0; }
+/* The lit part: a clear hole whose huge shadow dims everything else; it glides between steps. */
+.tour-hole { position: fixed; border-radius: 22px; box-shadow: 0 0 0 4px rgba(255, 255, 255, .9), 0 0 0 200vmax rgba(4, 18, 32, .62); pointer-events: none;
+  transition: left .45s cubic-bezier(.22, 1, .36, 1), top .45s cubic-bezier(.22, 1, .36, 1), width .45s cubic-bezier(.22, 1, .36, 1), height .45s cubic-bezier(.22, 1, .36, 1), border-radius .45s ease; }
+.tour-hole::after { content: ""; position: absolute; inset: -4px; border-radius: inherit; border: 3px solid #ffd43b; animation: tourPulse 1.6s ease-in-out infinite; }
+@keyframes tourPulse { 50% { transform: scale(1.04); opacity: .4; } }
+.tour-card { position: fixed; width: min(330px, calc(100vw - 32px)); background: var(--card); color: var(--ink); border-radius: 22px; padding: 16px 16px 14px;
+  box-shadow: 0 18px 40px -16px rgba(0, 0, 0, .55); transition: left .45s cubic-bezier(.22, 1, .36, 1), top .45s cubic-bezier(.22, 1, .36, 1); }
+.tour-card.pop { animation: tourPop .35s cubic-bezier(.3, 1.4, .5, 1); }
+@keyframes tourPop { from { transform: scale(.94); opacity: .4; } }
+.tour-head { display: flex; align-items: center; gap: 10px; }
+.tour-head img { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex-shrink: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 25%, transparent); }
+.tour-title { font: 800 19px/1.2 'Baloo 2', system-ui, sans-serif; }
+.tour-body { margin: 8px 0 12px; color: var(--muted); font-weight: 700; font-size: 14.5px; line-height: 1.45; }
+.tour-foot { display: flex; align-items: center; gap: 6px; }
+.tour-dots { display: flex; gap: 4px; margin-right: auto; }
+.tour-dots i { width: 6px; height: 6px; border-radius: 99px; background: var(--line); transition: width .3s ease, background .3s ease; }
+.tour-dots i.on { width: 16px; background: var(--brand); }
+.tour-skip { border: 0; background: none; color: var(--muted); font: inherit; font-weight: 800; font-size: 14px; padding: 8px; cursor: pointer; }
+.tour-back { width: 38px; height: 38px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font-size: 20px; font-weight: 900; cursor: pointer; }
+.tour .tour-next { width: auto; padding: 10px 16px; font-size: 15px; border-radius: 14px; box-shadow: 0 4px 0 rgba(0, 0, 0, .12); }
+.set-link { width: 100%; border: 0; border-top: 1px solid var(--line); background: none; font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
+.set-link .set-l { flex: 1; font-weight: 800; }
+.set-go { color: var(--brand); font-size: 22px; font-weight: 800; }
+@media (prefers-reduced-motion: reduce) { .tour-hole, .tour-card { transition: none; } .tour-hole::after, .tour-card.pop { animation: none; } }
