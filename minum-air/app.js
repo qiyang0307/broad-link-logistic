@@ -2390,7 +2390,7 @@
     if (rewardUrl || rewardLoading) return;
     rewardLoading = true;
     const mp4 = document.createElement('video').canPlayType('video/mp4; codecs="avc1.42E01E"');
-    fetch(mp4 ? 'meowie-reward.mp4' : 'meowie-reward.webm')
+    fetch(mp4 ? 'meowie-reward.mp4?v=2' : 'meowie-reward.webm?v=2')
       .then((r) => (r.ok ? r.blob() : Promise.reject()))
       .then((b) => { rewardUrl = URL.createObjectURL(b); })
       .catch(() => {})
@@ -2438,7 +2438,7 @@
           <b><span id="rwNum">0</span><small>%</small></b>
         </div>
         <h2 class="rw-title">${t('rewardTitle')}</h2>
-        <div class="rw-film"><video playsinline preload="auto" disablepictureinpicture ${rewardUrl ? `src="${rewardUrl}"` : ''}>${rewardUrl ? '' : '<source src="meowie-reward.mp4" type="video/mp4"><source src="meowie-reward.webm" type="video/webm">'}</video>
+        <div class="rw-film"><video playsinline preload="auto" disablepictureinpicture ${rewardUrl ? `src="${rewardUrl}"` : ''}>${rewardUrl ? '' : '<source src="meowie-reward.mp4?v=2" type="video/mp4"><source src="meowie-reward.webm?v=2" type="video/webm">'}</video>
           <button class="rw-snd" type="button" hidden aria-label="${t('sndSfxLong')}">🔇</button></div>
         <p class="rw-sub">${t('rewardSub', { name: esc(state.profile.name || 'Kawan') })}</p>
         ${newScene ? `<div class="rw-unlock"><img src="bg-${newScene}-s.webp" alt=""><span>${t('sceneNew', { name: t('scenes')[newScene] })}</span></div>` : ''}

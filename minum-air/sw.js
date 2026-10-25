@@ -1,6 +1,6 @@
 // Offline shell for Minum Air. Weather calls go straight to the network.
-const CACHE = 'minum-air-v56';
-const SHELL = ['/', '/styles.css?v=56', '/meowie.js?v=56', '/i18n.js?v=56', '/app.js?v=56', '/manifest.webmanifest', '/sound.js?v=56', '/favicon.png', '/icon-192.png', '/meowie-photo.jpg', '/meowie-avatar.jpg',
+const CACHE = 'minum-air-v57';
+const SHELL = ['/', '/styles.css?v=57', '/meowie.js?v=57', '/i18n.js?v=57', '/app.js?v=57', '/manifest.webmanifest', '/sound.js?v=57', '/favicon.png', '/icon-192.png', '/meowie-photo.jpg', '/meowie-avatar.jpg',
   '/meowie-sit.webp', '/meowie-pet.webp', '/meowie-swim.webp?v=3', '/meowie-peek.webp', '/meowie-turn.webp', '/meowie-full.webp?v=2', '/meowie-fullb.webp?v=2', '/meowie-fullc.webp', '/meowie-drink-mask.webp', '/bg-reef.webp', '/bg-pool.webp', '/bg-reef-s.webp', '/bg-pool-s.webp',
   ...Array.from({ length: 16 }, (_, i) => `/av/${String(i + 1).padStart(2, '0')}.jpg`)];
 
@@ -41,7 +41,7 @@ self.addEventListener('push', (e) => {
   try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data && e.data.text() }; }
   const av = String(d.av || 1).padStart(2, '0');
   e.waitUntil(self.registration.showNotification(d.title || 'Meowie 🦈', {
-    body: d.body || '', icon: `/av/${av}.jpg`, badge: '/icon-192.png?v=56', tag: d.tag || 'minum', renotify: true, data: { url: '/' },
+    body: d.body || '', icon: `/av/${av}.jpg`, badge: '/icon-192.png?v=57', tag: d.tag || 'minum', renotify: true, data: { url: '/' },
   }));
 });
 

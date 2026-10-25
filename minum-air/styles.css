@@ -904,7 +904,7 @@ html, body { overscroll-behavior: none; }
 .reward.on .rw-title { animation: rwIn .6s cubic-bezier(.3,1.4,.5,1) .9s forwards, rwShine 3s linear 1.5s 1; }
 @keyframes rwIn { to { transform: none; opacity: 1; } }
 @keyframes rwShine { to { background-position: 300% 0; } }
-.rw-film { position: relative; width: min(70vw, 300px, 46vh); aspect-ratio: 540 / 708; border-radius: 26px; overflow: hidden; background: #0b3d6e;
+.rw-film { position: relative; width: min(64vw, 280px, max(150px, (100dvh - 440px) * .5625)); aspect-ratio: 9 / 16; border-radius: 26px; overflow: hidden; background: #0b3d6e;
   box-shadow: 0 0 0 4px #ffd43b, 0 0 34px 6px rgba(255,212,59,.55), 0 18px 40px rgba(0,0,0,.4);
   transform: scale(.5) rotate(-6deg); opacity: 0; }
 .reward.on .rw-film { animation: rwFilm .75s cubic-bezier(.3,1.5,.5,1) 1.2s forwards; }
@@ -1136,3 +1136,8 @@ html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout
 img, svg, video, canvas { -webkit-user-drag: none; -webkit-touch-callout: none; }
 input, textarea, select, [contenteditable="true"] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 .set-link { text-decoration: none; }
+
+/* The reward always fits the screen: the tall dance video shrinks on short phones, and the
+   whole card can scroll if a phone is shorter still. */
+.reward { overflow-y: auto; }
+@media (max-height: 760px) { .rw-badge { width: 88px; height: 88px; } .rw-badge b { font-size: 26px; } .rw-body { gap: 7px; } .rw-title { font-size: 26px; } }
