@@ -785,7 +785,8 @@
       Meowie.setLevel(homeCat, pct);
     }
     animatePct($('#pctNum', el), Math.min(999, pct * 100));
-    if (pct >= .5 && !today().rewarded) preloadReward();
+    if (pct >= .5 && !today().rewarded) preloadReward('full');
+    if (pct >= .25 && pct < .5 && !today().halfRewarded) preloadReward('half');
     shownPct = pct;
     // Tap adds a glass; press and hold opens the pour sheet to change the amount.
     // The world button sits in the header (rebuilt each time), under the streak pill.
@@ -878,6 +879,11 @@
         // The first time each day the goal is reached, Meowie's victory dance plays as a reward.
         const fresh = unlockedScenes().filter((id) => !unlockedScenes(daysHit() - 1).includes(id));
         if (!d.rewarded) { d.rewarded = true; save(); setTimeout(() => showReward(fresh[0]), 1100); }
+      }
+      else if (milestone === .5 && !d.halfRewarded) {
+        // Halfway there for the first time today: Meowie's Thriller dance.
+        d.halfRewarded = true; save();
+        confetti(36); setTimeout(() => showReward(null, 'half'), 900);
       }
       else if (milestone) { confetti(36); Meowie.act(homeCat, milestone >= .5 ? 'jump' : 'swim'); }
     });
@@ -2384,17 +2390,20 @@
   // pops in with stars and confetti. Plays once a day when the goal is first reached.
   // The dance video is fetched ahead of time, once today's goal is in sight, and played from
   // memory so it never stops to buffer.
-  let rewardUrl = null;
-  let rewardLoading = false;
-  function preloadReward() {
-    if (rewardUrl || rewardLoading) return;
-    rewardLoading = true;
+  // Two rewards: the dance at 100%, and the Thriller dance halfway there (50%).
+  const REWARD_CLIPS = { full: 'meowie-reward', half: 'meowie-half' };
+  const REWARD_V = { full: 2, half: 1 };
+  const rewardUrl = {};
+  const rewardLoading = {};
+  function preloadReward(kind = 'full') {
+    if (rewardUrl[kind] || rewardLoading[kind]) return;
+    rewardLoading[kind] = true;
     const mp4 = document.createElement('video').canPlayType('video/mp4; codecs="avc1.42E01E"');
-    fetch(mp4 ? 'meowie-reward.mp4?v=2' : 'meowie-reward.webm?v=2')
+    fetch(`${REWARD_CLIPS[kind]}.${mp4 ? 'mp4' : 'webm'}?v=${REWARD_V[kind]}`)
       .then((r) => (r.ok ? r.blob() : Promise.reject()))
-      .then((b) => { rewardUrl = URL.createObjectURL(b); })
+      .then((b) => { rewardUrl[kind] = URL.createObjectURL(b); })
       .catch(() => {})
-      .finally(() => { rewardLoading = false; });
+      .finally(() => { rewardLoading[kind] = false; });
   }
   // Light rays drawn once into a small canvas; the screen only turns it (cheap on phones).
   function raysCanvas() {
@@ -2417,8 +2426,11 @@
     return c;
   }
 
-  function showReward(newScene) {
+  function showReward(newScene, kind = 'full') {
     if (document.querySelector('.reward')) return;
+    const half = kind === 'half';
+    const clip = REWARD_CLIPS[kind], cv = REWARD_V[kind], url = rewardUrl[kind];
+    const title = half ? t('halfTitle') : t('rewardTitle');
     const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const wantSound = !window.MASound || MASound.sfx;
     const stars = Array.from({ length: 14 }, (_, i) => {
@@ -2430,19 +2442,20 @@
     el.className = 'reward';
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-modal', 'true');
-    el.setAttribute('aria-label', t('rewardTitle'));
+    el.setAttribute('aria-label', title);
+    if (half) { el.classList.add('rw-half'); el.style.setProperty('--ring-to', '50'); }
     el.innerHTML = `<div class="rw-stars" aria-hidden="true">${stars}</div>
       <div class="rw-body">
         <div class="rw-badge">
           <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="rw-track"/><circle cx="60" cy="60" r="52" class="rw-ring" pathLength="100"/></svg>
           <b><span id="rwNum">0</span><small>%</small></b>
         </div>
-        <h2 class="rw-title">${t('rewardTitle')}</h2>
-        <div class="rw-film"><video playsinline preload="auto" disablepictureinpicture ${rewardUrl ? `src="${rewardUrl}"` : ''}>${rewardUrl ? '' : '<source src="meowie-reward.mp4?v=2" type="video/mp4"><source src="meowie-reward.webm?v=2" type="video/webm">'}</video>
+        <h2 class="rw-title">${title}</h2>
+        <div class="rw-film"><video playsinline preload="auto" disablepictureinpicture ${url ? `src="${url}"` : ''}>${url ? '' : `<source src="${clip}.mp4?v=${cv}" type="video/mp4"><source src="${clip}.webm?v=${cv}" type="video/webm">`}</video>
           <button class="rw-snd" type="button" hidden aria-label="${t('sndSfxLong')}">🔇</button></div>
-        <p class="rw-sub">${t('rewardSub', { name: esc(state.profile.name || 'Kawan') })}</p>
+        <p class="rw-sub">${t(half ? 'halfSub' : 'rewardSub', { name: esc(state.profile.name || 'Kawan') })}</p>
         ${newScene ? `<div class="rw-unlock"><img src="bg-${newScene}-s.webp" alt=""><span>${t('sceneNew', { name: t('scenes')[newScene] })}</span></div>` : ''}
-        <button class="cta rw-go" type="button">${newScene ? t('sceneTry') : t('rewardBtn')}</button>
+        <button class="cta rw-go" type="button">${newScene ? t('sceneTry') : half ? t('halfBtn') : t('rewardBtn')}</button>
       </div>`;
     el.insertBefore(raysCanvas(), el.firstChild);
     // The dance video fills the screen behind everything, so it sits outside the content column.
@@ -2454,7 +2467,7 @@
     let closed = false;
     if (window.MASound) MASound.hush(true);
     requestAnimationFrame(() => el.classList.add('on'));
-    animateNumber($('#rwNum', el), 0, 100, calm ? 10 : 1200);
+    animateNumber($('#rwNum', el), 0, half ? 50 : 100, calm ? 10 : 1200);
     if (navigator.vibrate) navigator.vibrate([30, 60, 30, 60, 80]);
     // Confetti bursts as the ring fills and again when the dance ends, never during the video,
     // so the phone can give the video its full attention.
@@ -2723,6 +2736,10 @@
   // Holding a picture or text doesn't open the browser's menu (save image, search…), except in
   // typing boxes.
   document.addEventListener('contextmenu', (e) => { if (!e.target.closest('input, textarea, select, [contenteditable="true"]')) e.preventDefault(); });
+
+  // No zooming: iPhone Safari ignores the page's "no zoom" setting, so pinches are stopped here too.
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach((ev) => document.addEventListener(ev, (e) => e.preventDefault(), { passive: false }));
+  document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
   // ---------- boot ----------
   // When you first used the app, and when you last had it open (for the install card and for

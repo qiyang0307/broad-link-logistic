@@ -895,7 +895,7 @@ html, body { overscroll-behavior: none; }
 .rw-badge .rw-ring { fill: none; stroke: #ffd43b; stroke-width: 9; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100;
   filter: drop-shadow(0 0 6px #ffd43b); }
 .reward.on .rw-ring { animation: rwRing 1.2s cubic-bezier(.3,.7,.3,1) .25s forwards; }
-@keyframes rwRing { to { stroke-dashoffset: 0; } }
+@keyframes rwRing { to { stroke-dashoffset: calc(100 - var(--ring-to, 100)); } }
 .rw-badge b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; white-space: nowrap; font: 800 32px/1 'Baloo 2', system-ui, sans-serif; text-shadow: 0 2px 10px #0006; }
 .rw-badge b small { font-size: 18px; margin-left: 1px; }
 .rw-title { margin: 0; font: 800 clamp(26px, 8vw, 34px)/1.1 'Baloo 2', system-ui, sans-serif; letter-spacing: .3px;
@@ -1162,3 +1162,10 @@ input, textarea, select, [contenteditable="true"] { -webkit-user-select: text; u
 .reward .rw-sub { margin-top: auto; text-shadow: 0 2px 8px rgba(0, 0, 0, .6); color: #fff; }
 .reward .rw-unlock { background: rgba(4, 30, 60, .55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .reward .rw-snd { position: fixed; bottom: auto; top: calc(18px + env(safe-area-inset-top)); right: 16px; z-index: 4; }
+
+/* Halfway reward: the ring stops at 50%, in water blue. */
+.reward.rw-half .rw-ring { stroke: #5cc4ff; filter: drop-shadow(0 0 6px #5cc4ff); }
+
+/* No pinch or double-tap zoom anywhere in the app: it should feel like an app, not a web page. */
+html, body { touch-action: pan-x pan-y; }
+button, a, input, select, label, .cta { touch-action: manipulation; }
