@@ -1,0 +1,216 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Baloo+2:wght@800&display=block" rel="stylesheet">
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+</head><body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+// Meowie ad, 1920 x 1080, 25 s. Cinematic product-film language: hard cuts on the beat, minimal
+// white type, a before/after slider, motion trails, a UI demo with a cursor, a mirrored line-up.
+const W = 1920, H = 1080, FPS = 24;
+const C = document.getElementById('c'); let X = C.getContext('2d');
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const ease = (k) => 1 - Math.pow(1 - clamp(k), 3);
+const easeInOut = (k) => { k = clamp(k); return k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; };
+const easeBack = (k) => { k = clamp(k); const c = 1.6; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
+
+// ---------- footage ----------
+const CLIPS = { open: 97, pet: 56, before: 92, after: 106, swim: 82, dance: 96 };
+const cache = {};
+async function frameImg(clip, i) {
+  i = Math.max(1, Math.min(CLIPS[clip], i));
+  const src = `clips/${clip}/${String(i).padStart(3, '0')}.jpg`;
+  if (!cache[src]) { const im = new Image(); im.src = src; await im.decode(); cache[src] = im; }
+  return cache[src];
+}
+// Draw clip time `ct` (s) covering the box, blending neighbouring frames so 24 fps footage moves at 60.
+async function clip(name, ct, x, y, w, h, o = {}) {
+  const p = Math.max(0, ct * FPS), i = Math.floor(p), f = p - i;
+  const a = await frameImg(name, i + 1), b = await frameImg(name, i + 2);
+  const s = Math.max(w / a.naturalWidth, h / a.naturalHeight) * (o.zoom || 1);
+  const dw = a.naturalWidth * s, dh = a.naturalHeight * s, dx = x + (w - dw) / 2 + (o.panX || 0), dy = y + (h - dh) / 2 + (o.panY || 0);
+  X.save(); X.beginPath(); X.rect(x, y, w, h); X.clip();
+  if (o.filter) X.filter = o.filter;
+  X.drawImage(a, dx, dy, dw, dh);
+  if (f > .02 && i + 2 <= CLIPS[name]) { X.globalAlpha *= f; X.drawImage(b, dx, dy, dw, dh); }
+  X.restore();
+  return { dx, dy, dw, dh, i };
+}
+
+// ---------- type ----------
+// Minimal centred white type that fades and sharpens in, like a product film.
+function title(text, t, t0, t1, o = {}) {
+  if (t < t0 || t > t1) return;
+  const a = Math.min(clamp((t - t0) / .35), clamp((t1 - t) / .25));
+  const blur = (1 - ease((t - t0) / .45)) * 14;
+  X.save(); X.globalAlpha = a; X.filter = blur > .3 ? `blur(${blur.toFixed(1)}px)` : 'none';
+  X.font = `${o.weight || 600} ${o.size || 84}px Inter`; X.letterSpacing = `${o.track ?? -1.5}px`;
+  X.textAlign = 'center'; X.textBaseline = 'middle'; X.fillStyle = o.color || '#fff';
+  X.shadowColor = 'rgba(0,0,0,.45)'; X.shadowBlur = 30;
+  const y = (o.y ?? H / 2) + (1 - ease((t - t0) / .6)) * 18;
+  X.fillText(text, o.x ?? W / 2, y);
+  X.restore();
+}
+// Small dark pill label (e.g. BEFORE / AFTER).
+function chip(text, x, y, t, t0, o = {}) {
+  if (t < t0) return;
+  const a = clamp((t - t0) / .25) * (o.t1 ? clamp((o.t1 - t) / .2) : 1);
+  X.save(); X.globalAlpha = a; X.font = '600 26px Inter'; X.letterSpacing = '2px';
+  const w = X.measureText(text).width + 44;
+  const px = o.align === 'right' ? x - w : x;
+  X.fillStyle = o.bg || 'rgba(12,16,24,.62)'; X.beginPath(); X.roundRect(px, y, w, 52, 26); X.fill();
+  if (o.dot) { X.fillStyle = o.dot; X.beginPath(); X.arc(px + 24, y + 26, 7, 0, Math.PI * 2); X.fill(); }
+  X.fillStyle = '#fff'; X.textBaseline = 'middle'; X.textAlign = 'left'; X.fillText(text, px + (o.dot ? 40 : 22), y + 27);
+  X.restore();
+}
+const ICON = new Image(); ICON.src = 'clips/icon-512.png';
+function wordmark(t) {
+  X.save(); X.globalAlpha = .85;
+  X.save(); X.beginPath(); X.roundRect(W - 268, H - 82, 38, 38, 10); X.clip(); X.drawImage(ICON, W - 268, H - 82, 38, 38); X.restore();
+  X.font = '600 26px Inter'; X.letterSpacing = '-.3px'; X.fillStyle = '#fff'; X.textBaseline = 'middle'; X.shadowColor = 'rgba(0,0,0,.4)'; X.shadowBlur = 10;
+  X.fillText('minum air', W - 218, H - 62);
+  X.restore();
+}
+
+// ---------- drink colours (the app's own tint, using its liquid mask) ----------
+const MASK = { w: 240, h: 157, cols: 8, n: 124, fps: 24, from: 18 };
+const MASKIMG = new Image(); MASKIMG.src = 'clips/meowie-drink-mask.webp';
+const tc = document.createElement('canvas').getContext('2d'); tc.canvas.width = MASK.w; tc.canvas.height = MASK.h;
+function tint(color, frameIdx, r) {
+  const i = Math.min(MASK.n - 1, MASK.from + frameIdx);
+  tc.globalCompositeOperation = 'source-over'; tc.clearRect(0, 0, MASK.w, MASK.h);
+  tc.drawImage(MASKIMG, (i % MASK.cols) * MASK.w, Math.floor(i / MASK.cols) * MASK.h, MASK.w, MASK.h, 0, 0, MASK.w, MASK.h);
+  tc.globalCompositeOperation = 'source-in'; tc.fillStyle = color; tc.fillRect(0, 0, MASK.w, MASK.h);
+  X.save(); X.beginPath(); X.rect(0, 0, W, H); X.clip();
+  X.globalCompositeOperation = 'color'; X.drawImage(tc.canvas, r.dx, r.dy, r.dw, r.dh);
+  X.globalCompositeOperation = 'source-over'; X.globalAlpha = .78; X.drawImage(tc.canvas, r.dx, r.dy, r.dw, r.dh);
+  X.restore();
+}
+const DRINKS = [['Plain Water', null], ['Teh Tarik', '#c98b4e'], ['Kopi O', '#4a2c1a'], ['Iced Milo', '#7a4a2a'], ['Sirap Bandung', '#f39bb7'], ['Lime Juice', '#d9ef7a']];
+
+// ---------- scenes ----------
+async function sOpen(t) {   // 0 - 3.5: the leap
+  await clip('open', t * 1.12, 0, 0, W, H, { zoom: 1.02 + .03 * t / 3.5 });
+  title('Meet Meowie.', t, 1.75, 3.45, { size: 104 });
+}
+async function sPet(t) {    // 3.5 - 5.5
+  const lt = t - 3.5;
+  await clip('pet', lt * 1.1, 0, 0, W, H, { zoom: 1.04 - .03 * lt / 2 });
+  title('Your little water buddy.', t, 3.75, 5.45);
+}
+async function sSplit(t) {  // 5.5 - 9.0: without / with
+  const lt = t - 5.5;
+  // The divider slides in from the right, like a before/after slider.
+  const div = W / 2 + 330 * (1 - easeInOut((lt - .15) / .8)) + Math.sin(lt * 1.6) * 8 * clamp(lt - 1);
+  X.fillStyle = '#000'; X.fillRect(0, 0, W, H);
+  X.save(); X.beginPath(); X.rect(0, 0, div, H); X.clip(); await clip('before', lt * .55, 0, 0, W / 2 + 330, H, { filter: 'grayscale(.85) brightness(.82) contrast(1.05)' }); X.restore();
+  if (div < W - 1) await clip('after', lt * 1.0, div, 0, W - div, H);
+  X.fillStyle = 'rgba(255,255,255,.95)'; X.fillRect(div - 2, 0, 4, H);
+  X.save(); X.translate(div, H / 2); X.fillStyle = '#fff'; X.shadowColor = 'rgba(0,0,0,.35)'; X.shadowBlur = 16; X.beginPath(); X.arc(0, 0, 30, 0, Math.PI * 2); X.fill(); X.shadowBlur = 0;
+  X.fillStyle = '#1a2230'; X.beginPath(); X.moveTo(-14, 0); X.lineTo(-5, -9); X.lineTo(-5, 9); X.closePath(); X.fill(); X.beginPath(); X.moveTo(14, 0); X.lineTo(5, -9); X.lineTo(5, 9); X.closePath(); X.fill(); X.restore();
+  chip('WITHOUT MEOWIE', 40, 40, t, 5.6, { dot: '#ff6b6b' });
+  chip('WITH MEOWIE', W - 40, 40, t, 6.3, { align: 'right', dot: '#4cd28a' });
+  title('Every sip counts.', t, 6.6, 8.95, { y: H - 150 });
+}
+async function sDrinks(t) { // 9.0 - 12.0: six cuts on the beat
+  const lt = t - 9, k = Math.min(5, Math.floor(lt / .5)), cutT = lt - k * .5;
+  const ct = .25 + k * .3 + cutT;
+  const r = await clip('after', ct, 0, 0, W, H, { zoom: 1.0 + .03 * (k % 2) + cutT * .04, panY: 40 });
+  if (DRINKS[k][1]) tint(DRINKS[k][1], r.i, r);
+  if (cutT < .06) { X.fillStyle = `rgba(255,255,255,${(1 - cutT / .06) * .35})`; X.fillRect(0, 0, W, H); }
+  title('Any drink.', t, 9.05, 11.95, { size: 120, weight: 700 });
+  chip(DRINKS[k][0].toUpperCase(), 40, H - 92, t, 9 + k * .5, { dot: DRINKS[k][1] || '#9fdcff', t1: 9 + k * .5 + .5 });
+}
+async function sSwim(t) {   // 12.0 - 15.0: motion trails
+  const lt = t - 12, ct = .1 + lt * .95;
+  // Ghost copies trail behind: earlier frames, fainter, then the present frame.
+  await clip('swim', ct, 0, 0, W, H, { zoom: 1.0 });
+  for (let k = 3; k >= 1; k--) { X.save(); X.globalAlpha = .07 + .03 * (3 - k); X.globalCompositeOperation = 'lighten'; await clip('swim', Math.max(0, ct - k * .05), 0, 0, W, H); X.restore(); }
+  title('Hit 50%.', t, 12.25, 14.95, { size: 104, y: H / 2 - 50 });
+  title('He swims.', t, 12.9, 14.95, { size: 104, y: H / 2 + 60, weight: 400 });
+}
+// The reminder settings, drawn as a clean product UI with a cursor.
+function sUI(t) {           // 15.0 - 18.0
+  const lt = t - 15;
+  const g = X.createRadialGradient(W / 2, H * .45, 50, W / 2, H * .45, W * .7);
+  g.addColorStop(0, '#16263f'); g.addColorStop(1, '#05080e'); X.fillStyle = g; X.fillRect(0, 0, W, H);
+  const pin = easeBack(lt / .5);
+  X.save(); X.translate(W / 2 - 360, 260); X.scale(.9 + .1 * pin, .9 + .1 * pin); X.globalAlpha = clamp(lt / .3);
+  X.fillStyle = 'rgba(255,255,255,.06)'; X.strokeStyle = 'rgba(255,255,255,.12)'; X.lineWidth = 2; X.beginPath(); X.roundRect(0, 0, 720, 440, 28); X.fill(); X.stroke();
+  X.font = '600 30px Inter'; X.fillStyle = '#fff'; X.textBaseline = 'middle'; X.letterSpacing = '0px'; X.fillText('Reminder settings', 40, 52);
+  X.font = '400 22px Inter'; X.fillStyle = 'rgba(255,255,255,.55)'; X.fillText('Only when you fall behind your pace', 40, 92);
+  const opts = [['Gentle', 'Up to 4 a day'], ['Balanced', 'Up to 6 a day'], ['Keen', 'Up to 8 a day']];
+  const picked = lt > 1.25 ? 1 : 0;
+  opts.forEach(([n, d], i) => {
+    const y = 140 + i * 92, on = i === picked;
+    X.fillStyle = on ? 'rgba(80,170,255,.22)' : 'rgba(255,255,255,.05)'; X.beginPath(); X.roundRect(30, y, 660, 76, 18); X.fill();
+    if (on) { X.strokeStyle = '#59b4ff'; X.lineWidth = 2.5; X.stroke(); }
+    X.fillStyle = '#fff'; X.font = '600 28px Inter'; X.fillText(n, 62, y + 38);
+    X.fillStyle = 'rgba(255,255,255,.55)'; X.font = '400 22px Inter'; X.textAlign = 'right'; X.fillText(d, 600, y + 38); X.textAlign = 'left';
+    X.beginPath(); X.arc(648, y + 38, 13, 0, Math.PI * 2); X.strokeStyle = on ? '#59b4ff' : 'rgba(255,255,255,.35)'; X.lineWidth = 3; X.stroke();
+    if (on) { X.fillStyle = '#59b4ff'; X.beginPath(); X.arc(648, y + 38, 7, 0, Math.PI * 2); X.fill(); }
+  });
+  X.restore();
+  // Cursor glides to "Balanced" and clicks.
+  const cx0 = 1500, cy0 = 900, cx1 = W / 2 - 360 + 300 * 1, cy1 = 260 + 140 + 92 + 38;
+  const m = easeInOut((lt - .35) / .8), cx = cx0 + (cx1 - cx0) * m, cy = cy0 + (cy1 - cy0) * m;
+  const press = lt > 1.15 && lt < 1.35 ? .85 : 1;
+  if (lt > 1.2 && lt < 1.8) { const r = (lt - 1.2) / .6; X.save(); X.globalAlpha = 1 - r; X.strokeStyle = '#59b4ff'; X.lineWidth = 3; X.beginPath(); X.arc(cx, cy, 10 + r * 50, 0, Math.PI * 2); X.stroke(); X.restore(); }
+  X.save(); X.translate(cx, cy); X.scale(press, press); X.fillStyle = '#fff'; X.strokeStyle = '#000'; X.lineWidth = 2;
+  X.beginPath(); X.moveTo(0, 0); X.lineTo(0, 34); X.lineTo(9, 26); X.lineTo(16, 40); X.lineTo(22, 37); X.lineTo(15, 23); X.lineTo(27, 23); X.closePath(); X.fill(); X.stroke(); X.restore();
+  // Then the notification drops in.
+  if (lt > 1.7) {
+    const k = easeBack((lt - 1.7) / .55), y = -140 + 200 * k;
+    X.save(); X.translate(W / 2 + 300, y); X.shadowColor = 'rgba(0,0,0,.5)'; X.shadowBlur = 40;
+    X.fillStyle = 'rgba(245,247,250,.96)'; X.beginPath(); X.roundRect(-20, 0, 600, 128, 30); X.fill(); X.shadowBlur = 0;
+    X.save(); X.beginPath(); X.roundRect(6, 24, 80, 80, 18); X.clip(); X.drawImage(ICON, 6, 24, 80, 80); X.restore();
+    X.fillStyle = '#111'; X.font = '600 24px Inter'; X.textBaseline = 'middle'; X.fillText('Meowie 🦈', 106, 42);
+    X.fillStyle = '#777'; X.font = '400 20px Inter'; X.textAlign = 'right'; X.fillText('now', 560, 42); X.textAlign = 'left';
+    X.fillStyle = '#222'; X.font = '400 22px Inter'; X.fillText("Oi Aisyah, 700 ml gets you back on track! 💧", 106, 80);
+    X.restore();
+  }
+  title('Reminders that know your pace.', t, 15.35, 17.95, { y: H - 150, size: 64, weight: 500 });
+}
+async function sDance(t) {  // 18.0 - 21.5: the line-up
+  const lt = t - 18;
+  X.fillStyle = '#000'; X.fillRect(0, 0, W, H);
+  const xs = [W / 2 - 912, W / 2 - 304, W / 2 + 304];
+  for (let k = 0; k < 3; k++) {
+    const show = clamp((lt - [.25, 0, .25][k]) / .2); if (show <= 0) continue;
+    X.save(); X.globalAlpha = show * (k === 1 ? 1 : .8);
+    await clip('dance', Math.max(0, lt - [.18, 0, .36][k]), xs[k], 0, 608, H, { zoom: 1.0 });
+    X.restore();
+  }
+  title('Hit 100%.', t, 18.6, 21.45, { size: 112, y: H - 230, weight: 700 });
+  title('Party time.', t, 19.2, 21.45, { size: 64, y: H - 130, weight: 400 });
+}
+function sEnd(t) {          // 21.5 - 25.0
+  const lt = t - 21.5;
+  const g = X.createRadialGradient(W / 2, H * .42, 40, W / 2, H * .42, W * .6);
+  g.addColorStop(0, '#0f2c4f'); g.addColorStop(1, '#03060b'); X.fillStyle = g; X.fillRect(0, 0, W, H);
+  const k = easeBack(lt / .6);
+  if (lt > 0) { X.save(); X.translate(W / 2, 360); X.scale(k, k); X.shadowColor = 'rgba(70,170,255,.5)'; X.shadowBlur = 60; X.beginPath(); X.roundRect(-110, -110, 220, 220, 50); X.fillStyle = '#000'; X.fill(); X.clip(); X.shadowBlur = 0; X.drawImage(ICON, -110, -110, 220, 220); X.restore(); }
+  title('Minum Air', t, 21.85, 25.1, { size: 124, y: 600, weight: 700, track: -3 });
+  title('Drink water with Meowie.', t, 22.35, 25.1, { size: 46, y: 700, weight: 400, color: 'rgba(255,255,255,.75)', track: 0 });
+  if (lt > 1.4) chip('COMING SOON ON GOOGLE PLAY', W / 2 - 220, 790, t, 22.9, { bg: 'rgba(255,255,255,.12)' });
+}
+
+const SCENES = [[0, 3.5, sOpen], [3.5, 5.5, sPet], [5.5, 9, sSplit], [9, 12, sDrinks], [12, 15, sSwim], [15, 18, sUI], [18, 21.5, sDance], [21.5, 99, sEnd]];
+async function render(t) {
+  X = C.getContext('2d'); X.setTransform(1, 0, 0, 1, 0, 0); X.globalAlpha = 1; X.filter = 'none'; X.globalCompositeOperation = 'source-over';
+  X.fillStyle = '#000'; X.fillRect(0, 0, W, H);
+  const s = SCENES.find(([a, b]) => t >= a && t < b);
+  await s[2](t);
+  if (t < 21.5) wordmark(t);
+  // Fade in from black at the start and out at the very end.
+  const fade = Math.max(clamp(1 - t / .25), clamp((t - 24.6) / .4));
+  if (fade > 0) { X.fillStyle = `rgba(0,0,0,${fade})`; X.fillRect(0, 0, W, H); }
+}
+window.ready = (async () => {
+  await document.fonts.load('600 80px Inter'); await document.fonts.load('400 40px Inter'); await document.fonts.load('700 80px Inter'); await document.fonts.load('500 40px Inter');
+  await Promise.all([ICON, MASKIMG].map((i) => i.decode().catch(() => {})));
+  return true;
+})();
+window.render = render;
+</script>
+</body></html>
