@@ -881,7 +881,7 @@
         if (!d.rewarded) { d.rewarded = true; save(); setTimeout(() => showReward(fresh[0]), 1100); }
       }
       else if (milestone === .5 && !d.halfRewarded) {
-        // Halfway there for the first time today: Meowie's Thriller dance.
+        // Halfway there for the first time today: Meowie's spooky street dance.
         d.halfRewarded = true; save();
         confetti(36); setTimeout(() => showReward(null, 'half'), 900);
       }
@@ -2390,9 +2390,9 @@
   // pops in with stars and confetti. Plays once a day when the goal is first reached.
   // The dance video is fetched ahead of time, once today's goal is in sight, and played from
   // memory so it never stops to buffer.
-  // Two rewards: the dance at 100%, and the Thriller dance halfway there (50%).
+  // Two rewards: the dance at 100%, and the spooky street dance halfway there (50%).
   const REWARD_CLIPS = { full: 'meowie-reward', half: 'meowie-half' };
-  const REWARD_V = { full: 2, half: 1 };
+  const REWARD_V = { full: 2, half: 2 };
   const rewardUrl = {};
   const rewardLoading = {};
   function preloadReward(kind = 'full') {
