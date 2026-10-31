@@ -1,0 +1,322 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@800;900&display=block" rel="stylesheet">
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+</head><body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+// "Meet Meowie": a 15 s pastel torn-paper intro, drawn frame by frame. render(t) draws time t (s).
+const W = 1080, H = 1920;
+const C = document.getElementById('c'); let X = C.getContext('2d');
+const INK = '#3a3550', BLUE = '#7cc0f2', SKY = '#c8e6fc', PINK = '#f7b6c9', YEL = '#fde79c', LAV = '#d4caf5', CREAM = '#fdf8ee', WATER = '#69b8f0';
+
+// ---------- helpers ----------
+function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const ease = (k) => 1 - Math.pow(1 - clamp(k), 3);
+const easeIn = (k) => Math.pow(clamp(k), 3);
+const easeInOut = (k) => { k = clamp(k); return k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; };
+const easeBack = (k) => { k = clamp(k); const c = 1.7; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
+// Gentle float so paper never sits dead still.
+function bob(t, seed, amt = 1) { const r = rng(seed), a = r() * 6.3, b = r() * 6.3, c = r() * 6.3; return { x: Math.sin(t * 1.3 + a) * 3 * amt, y: Math.sin(t * 1.1 + b) * 4 * amt, r: Math.sin(t * .9 + c) * .012 * amt }; }
+// Pop in: scale with a springy overshoot.
+const pop = (t, t0, d = .5) => (t < t0 ? 0 : easeBack((t - t0) / d));
+// Visible between t0 and t1 (fades out over .3 s).
+const live = (t, t0, t1 = 99) => t >= t0 && t < t1;
+const fadeOut = (t, t1) => clamp((t1 - t) / .3);
+function img(src) { const i = new Image(); i.src = src; return i; }
+const P = {}; ['blue', 'sky', 'pink', 'yellow', 'lavender', 'cream'].forEach((n) => { P[n] = img(`assets/p-${n}.jpg`); });
+const BG = img('assets/bg-cream.jpg'), ICON = img('assets/icon-512.png');
+const CAT = {}; [6, 14, 22, 30, 36, 38, 40, 46].forEach((k) => { CAT[k] = img(`assets/cat-${k}.png`); });
+
+// A torn-edged outline around a w x h box centred on 0,0 (cached).
+const polys = {};
+function torn(w, h, seed, amp = 7, step = 15) {
+  const key = [w, h, seed, amp].join(); if (polys[key]) return polys[key];
+  const r = rng(seed), pts = [];
+  const edge = (x0, y0, x1, y1) => { const len = Math.hypot(x1 - x0, y1 - y0), n = Math.max(2, Math.round(len / step)), nx = -(y1 - y0) / len, ny = (x1 - x0) / len; let off = 0; for (let i = 0; i < n; i++) { const u = i / n; off = off * .55 + (r() - .5) * amp * 1.6; const j = (r() - .5) * amp * .6; pts.push([x0 + (x1 - x0) * u + nx * (off + j), y0 + (y1 - y0) * u + ny * (off + j)]); } };
+  edge(-w / 2, -h / 2, w / 2, -h / 2); edge(w / 2, -h / 2, w / 2, h / 2); edge(w / 2, h / 2, -w / 2, h / 2); edge(-w / 2, h / 2, -w / 2, -h / 2);
+  const p = new Path2D(); pts.forEach(([x, y], i) => (i ? p.lineTo(x, y) : p.moveTo(x, y))); p.closePath(); return (polys[key] = p);
+}
+// Fill a path with a paper texture (tiled image), centred on the current origin.
+function paperFill(path, name, size = 700) {
+  X.save(); X.clip(path); const im = P[name]; const s = Math.max(size, 700);
+  for (let y = -s; y < s; y += 700) for (let x = -s; x < s; x += 700) X.drawImage(im, x, y, 700, 700);
+  X.restore();
+}
+// A torn piece of coloured paper: white torn core peeking at the edge, soft shadow, texture.
+function piece(o, t) {
+  const k = o.k ?? 1; if (k <= 0) return;
+  const b = bob(t, o.seed, o.bob ?? .6);
+  X.save(); X.globalAlpha = o.a ?? 1;
+  X.translate(o.x + b.x, o.y + b.y); X.rotate((o.rot || 0) * Math.PI / 180 + b.r); X.scale(k, k);
+  X.shadowColor = 'rgba(80,60,90,.22)'; X.shadowBlur = 22; X.shadowOffsetY = 10;
+  X.fillStyle = '#fffdf8'; X.fill(torn(o.w + 14, o.h + 14, o.seed + 9, o.amp ?? 9));
+  X.shadowColor = 'transparent';
+  paperFill(torn(o.w, o.h, o.seed, o.amp ?? 8), o.paper, Math.max(o.w, o.h));
+  X.restore();
+}
+// A torn paper label with text.
+function label(o, t) {
+  if (!live(t, o.t0, o.t1)) return;
+  const k = pop(t, o.t0, .55), a = clamp((t - o.t0) / .15) * (o.t1 ? fadeOut(t, o.t1) : 1);
+  const b = bob(t, o.seed, .5);
+  X.save(); X.globalAlpha = a;
+  X.translate(o.x + b.x, o.y + b.y - (o.t1 && t > o.t1 - .3 ? (1 - fadeOut(t, o.t1)) * 30 : 0)); X.rotate((o.rot || 0) * Math.PI / 180 + b.r);
+  X.scale(.6 + .4 * k, .6 + .4 * k);
+  X.font = o.font; const lines = o.text.split('\n');
+  const w = o.w || Math.max(...lines.map((l) => X.measureText(l).width)) + 80, h = o.h || lines.length * o.lh + 50;
+  X.shadowColor = 'rgba(80,60,90,.22)'; X.shadowBlur = 20; X.shadowOffsetY = 9;
+  X.fillStyle = '#fffdf8'; X.fill(torn(w + 14, h + 14, o.seed + 5, 8)); X.shadowColor = 'transparent';
+  paperFill(torn(w, h, o.seed, 7), o.paper, Math.max(w, h));
+  X.fillStyle = o.color || INK; X.textAlign = 'center'; X.textBaseline = 'middle';
+  lines.forEach((l, i) => X.fillText(l, 0, (i - (lines.length - 1) / 2) * o.lh + 4));
+  X.restore();
+}
+// Little paper shapes: star, flower, heart, sparkle.
+function starPath(r) { const p = new Path2D(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, R = i % 2 ? r * .45 : r; i ? p.lineTo(Math.cos(a) * R, Math.sin(a) * R) : p.moveTo(Math.cos(a) * R, Math.sin(a) * R); } p.closePath(); return p; }
+function heartPath(r) { const p = new Path2D(); p.moveTo(0, r * .9); p.bezierCurveTo(-r * 1.3, 0, -r * .9, -r * 1.1, 0, -r * .35); p.bezierCurveTo(r * .9, -r * 1.1, r * 1.3, 0, 0, r * .9); p.closePath(); return p; }
+function flowerPath(r) { const p = new Path2D(); for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; p.ellipse(Math.cos(a) * r * .55, Math.sin(a) * r * .55, r * .5, r * .38, a, 0, Math.PI * 2); } return p; }
+function deco(kind, x, y, r, paper, t, t0, seed, t1 = 99) {
+  if (!live(t, t0, t1)) return;
+  const k = pop(t, t0, .5) * fadeOut(t, t1), b = bob(t, seed, 1.2);
+  X.save(); X.translate(x + b.x, y + b.y); X.rotate(b.r * 6 + (kind === 'star' ? Math.sin(t * 1.5 + seed) * .15 : 0)); X.scale(k, k);
+  const path = kind === 'star' ? starPath(r) : kind === 'heart' ? heartPath(r) : flowerPath(r);
+  X.shadowColor = 'rgba(80,60,90,.2)'; X.shadowBlur = 10; X.shadowOffsetY = 5;
+  X.lineWidth = 9; X.lineJoin = 'round'; X.strokeStyle = '#fffdf8'; X.stroke(path); X.fillStyle = '#fffdf8'; X.fill(path); X.shadowColor = 'transparent';
+  paperFill(path, paper, r * 2);
+  if (kind === 'flower') { X.beginPath(); X.arc(0, 0, r * .3, 0, Math.PI * 2); X.fillStyle = '#fde08a'; X.fill(); }
+  X.restore();
+}
+function sparkle(x, y, r, t, t0, t1 = 99) {
+  if (!live(t, t0, t1)) return;
+  const k = Math.sin(clamp((t - t0) / .9) * Math.PI);
+  X.save(); X.translate(x, y); X.rotate((t - t0) * 2); X.scale(k, k);
+  X.fillStyle = '#ffffff'; X.shadowColor = 'rgba(255,220,120,.9)'; X.shadowBlur = 16;
+  X.beginPath(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, R = i % 2 ? r * .25 : r; i ? X.lineTo(Math.cos(a) * R, Math.sin(a) * R) : X.moveTo(Math.cos(a) * R, Math.sin(a) * R); } X.closePath(); X.fill();
+  X.restore();
+}
+// A water drop.
+function dropPath(r) { const p = new Path2D(); p.moveTo(0, -r * 1.35); p.bezierCurveTo(r * .55, -r * .55, r, -r * .1, r, r * .3); p.arc(0, r * .3, r, 0, Math.PI); p.bezierCurveTo(-r, -r * .1, -r * .55, -r * .55, 0, -r * 1.35); p.closePath(); return p; }
+function drop(x, y, r, t, seed, a = 1) {
+  X.save(); X.globalAlpha *= a; X.translate(x, y);
+  const p = dropPath(r);
+  X.shadowColor = 'rgba(60,120,180,.25)'; X.shadowBlur = 8; X.shadowOffsetY = 4;
+  X.lineWidth = 7; X.strokeStyle = '#fffdf8'; X.lineJoin = 'round'; X.stroke(p); X.shadowColor = 'transparent';
+  paperFill(p, 'blue', r * 3);
+  X.fillStyle = 'rgba(255,255,255,.75)'; X.beginPath(); X.ellipse(-r * .35, r * .1, r * .18, r * .32, -.3, 0, Math.PI * 2); X.fill();
+  X.restore();
+}
+// Meowie: the same sticker every scene; frames swap like stop motion (8 per second).
+const IDLE = [6, 14, 22, 30], HAPPY = [36, 38, 40, 38];
+function cat(x, y, s, t, o = {}) {
+  const seq = o.happy ? HAPPY : IDLE, f = seq[Math.floor(t * 8) % seq.length], im = CAT[f];
+  if (!im.naturalWidth) return;
+  const b = bob(t, 999, .4);
+  X.save(); X.globalAlpha *= o.a ?? 1; X.translate(x + b.x, y + b.y); X.rotate((o.rot || 0) * Math.PI / 180); X.scale(s * (o.sx || 1), s * (o.sy || 1));
+  if (o.flip) X.scale(-1, 1);
+  X.shadowColor = 'rgba(80,60,90,.25)'; X.shadowBlur = 26; X.shadowOffsetY = 12;
+  X.drawImage(im, -im.naturalWidth / 2, -im.naturalHeight);   // origin at his feet
+  X.restore();
+}
+// A paper glass of water (origin at its base).
+function glass(x, y, s, t, fill = .62, seed = 5) {
+  const b = bob(t, seed, .5);
+  X.save(); X.translate(x + b.x, y + b.y); X.rotate(b.r); X.scale(s, s);
+  const g = new Path2D(); g.moveTo(-120, -300); g.lineTo(120, -300); g.lineTo(92, 0); g.quadraticCurveTo(0, 14, -92, 0); g.closePath();
+  X.shadowColor = 'rgba(80,60,90,.22)'; X.shadowBlur = 24; X.shadowOffsetY = 12;
+  X.lineWidth = 16; X.lineJoin = 'round'; X.strokeStyle = '#fffdf8'; X.stroke(g); X.shadowColor = 'transparent';
+  X.save(); X.globalAlpha = .55; paperFill(g, 'sky', 700); X.restore();
+  // Water with a little wave on top.
+  const top = -300 * fill, wv = Math.sin(t * 3 + seed) * 6;
+  X.save(); X.clip(g); const w = new Path2D(); w.moveTo(-140, top); for (let i = 0; i <= 14; i++) w.lineTo(-140 + i * 20, top + Math.sin(i * .9 + t * 4) * 6 + wv * (i / 14 - .5)); w.lineTo(140, 20); w.lineTo(-140, 20); w.closePath();
+  paperFill(w, 'blue', 700); X.restore();
+  // Shine.
+  X.fillStyle = 'rgba(255,255,255,.8)'; X.beginPath(); X.moveTo(-88, -270); X.lineTo(-62, -270); X.lineTo(-52, -40); X.lineTo(-70, -40); X.closePath(); X.fill();
+  X.restore();
+}
+// A paper water bottle (origin at its base) that fills to `fill`.
+function bottle(x, y, s, t, fill) {
+  const b = bob(t, 77, .5);
+  X.save(); X.translate(x + b.x, y + b.y); X.rotate(b.r); X.scale(s, s);
+  const body = new Path2D(); body.roundRect(-115, -400, 230, 400, 46);
+  const neck = new Path2D(); neck.roundRect(-55, -470, 110, 90, 20);
+  X.shadowColor = 'rgba(80,60,90,.22)'; X.shadowBlur = 24; X.shadowOffsetY = 12;
+  X.lineWidth = 16; X.strokeStyle = '#fffdf8'; X.stroke(body); X.stroke(neck); X.shadowColor = 'transparent';
+  X.save(); X.globalAlpha = .6; paperFill(body, 'sky', 700); paperFill(neck, 'sky', 700); X.restore();
+  const level = -12 - 376 * clamp(fill);
+  X.save(); X.clip(body); const w = new Path2D(); w.moveTo(-140, level); for (let i = 0; i <= 14; i++) w.lineTo(-140 + i * 20, level + Math.sin(i * .9 + t * 4) * 7); w.lineTo(140, 20); w.lineTo(-140, 20); w.closePath(); paperFill(w, 'blue', 700); X.restore();
+  // Cap and a little paper label with a heart.
+  const cap = new Path2D(); cap.roundRect(-70, -530, 140, 70, 18);
+  X.lineWidth = 12; X.strokeStyle = '#fffdf8'; X.stroke(cap); paperFill(cap, 'pink', 700);
+  X.save(); X.translate(0, -200); X.rotate(-.05); piece({ x: 0, y: 0, w: 170, h: 90, paper: 'cream', seed: 701, bob: 0 }, t);
+  X.translate(0, 2); X.fillStyle = PINK; X.fill(heartPath(24)); X.restore();
+  X.fillStyle = 'rgba(255,255,255,.75)'; X.beginPath(); X.roundRect(-92, -370, 22, 300, 11); X.fill();
+  X.restore();
+}
+
+// ---------- scenes ----------
+// Pastel torn pieces framing the page; they slide in at the start and stay, drifting.
+const FRAME = [
+  { x: 120, y: 260, w: 520, h: 300, rot: -14, paper: 'sky', seed: 11, from: [-600, -300], t0: .1 },
+  { x: 980, y: 420, w: 420, h: 260, rot: 18, paper: 'pink', seed: 12, from: [700, -200], t0: .25 },
+  { x: 90, y: 1650, w: 460, h: 280, rot: 12, paper: 'lavender', seed: 13, from: [-600, 300], t0: .35 },
+  { x: 990, y: 1760, w: 520, h: 320, rot: -10, paper: 'yellow', seed: 14, from: [700, 300], t0: .2 },
+];
+function frame(t) {
+  FRAME.forEach((p) => { const k = ease((t - p.t0) / .8); if (k <= 0) return; piece({ ...p, x: p.x + p.from[0] * (1 - k), y: p.y + p.from[1] * (1 - k) }, t); });
+}
+function background(t) {
+  X.drawImage(BG, 0, 0, W, H);
+  // A soft lavender-to-sky wash so the cream isn't flat.
+  const g = X.createRadialGradient(W / 2, H * .42, 100, W / 2, H * .42, H * .7);
+  g.addColorStop(0, 'rgba(255,255,255,.35)'); g.addColorStop(1, 'rgba(212,202,245,.18)'); X.fillStyle = g; X.fillRect(0, 0, W, H);
+}
+
+// Scene 1 (0 - 3 s): Meet Meowie.
+function scene1(t) {
+  // The cat peeks out from behind a torn sky-blue sheet, then rises up.
+  const rise = easeBack((t - .9) / .8);
+  X.save(); const clip = new Path2D(); clip.rect(0, 0, W, 1330); X.clip(clip);
+  cat(540, 1330 + 420 * (1 - rise), 1.05, t, { happy: t > 1.7 && t < 2.4 });
+  X.restore();
+  piece({ x: 540, y: 1470, w: 1180, h: 340, rot: -2, paper: 'blue', seed: 31, amp: 12, bob: .4 }, t);
+  deco('star', 230, 650, 46, 'yellow', t, 1.1, 41); deco('flower', 860, 760, 50, 'pink', t, 1.25, 42); deco('heart', 820, 1180, 36, 'pink', t, 1.4, 43);
+  deco('star', 300, 1120, 30, 'lavender', t, 1.5, 44); deco('flower', 200, 900, 34, 'yellow', t, 1.6, 45);
+  label({ text: 'Meet Meowie!', font: '800 120px "Baloo 2"', lh: 120, x: 540, y: 470, rot: -4, paper: 'yellow', t0: 1.6, seed: 51 }, t);
+}
+// Scene 2 (3 - 6 s): the glass of water.
+function scene2(t) {
+  const g = pop(t, 3.3, .6);
+  if (g > 0) glass(720, 1340, .95 * g, t);
+  // Droplets bounce around the glass.
+  [[560, 900, 0], [900, 960, .25], [960, 1180, .5], [520, 1150, .75]].forEach(([x, y, d], i) => {
+    if (t < 3.7 + d) return; const k = pop(t, 3.7 + d, .45), jump = Math.abs(Math.sin((t - 3.7 - d) * 3.2 + i)) * 40;
+    X.save(); X.translate(x, y - jump); X.scale(k, k); drop(0, 0, 26, t, i); X.restore();
+  });
+  // Meowie notices it and leans in excitedly, with little "!" marks.
+  const lean = ease((t - 3.9) / .4);
+  cat(330, 1420, .78, t, { happy: t > 3.9, rot: 6 * lean });
+  if (t > 4.0) { const k = pop(t, 4.0, .4); X.save(); X.translate(470, 980); X.rotate(.25); X.scale(k, k); X.strokeStyle = INK; X.lineWidth = 9; X.lineCap = 'round'; [[-30, 0], [0, -14], [30, 0]].forEach(([dx, dy], i) => { X.save(); X.rotate((i - 1) * .45); X.beginPath(); X.moveTo(0, -40); X.lineTo(0, -80); X.stroke(); X.restore(); }); X.restore(); }
+  // A dashed paper-cut arrow from him to the glass.
+  if (t > 4.2) { const k = ease((t - 4.2) / .45); X.save(); X.strokeStyle = '#9ec9ee'; X.lineWidth = 10; X.lineCap = 'round'; X.setLineDash([22, 18]); X.beginPath(); const p0 = [460, 1080], p1 = [600, 1040]; X.moveTo(p0[0], p0[1]); X.quadraticCurveTo(530, 980, p0[0] + (p1[0] - p0[0]) * k, p0[1] + (p1[1] - p0[1]) * k); X.stroke(); X.restore(); }
+  label({ text: 'A little reminder to\ndrink more water.', font: '800 76px "Baloo 2"', lh: 84, x: 540, y: 470, rot: 3, paper: 'cream', t0: 3.5, seed: 61 }, t);
+  deco('heart', 200, 760, 32, 'pink', t, 3.6, 62); deco('star', 900, 760, 38, 'yellow', t, 3.75, 63);
+}
+// Scene 3 (6 - 10 s): the hydration journey.
+function scene3(t) {
+  const fill = ease((t - 6.6) / 2.4);
+  bottle(540, 1170, pop(t, 6.2, .6), t, fill * .92);
+  // Droplets fly in an arc into the bottle, one after another.
+  for (let i = 0; i < 8; i++) {
+    const t0 = 6.6 + i * .3, k = (t - t0) / .55; if (k < 0 || k > 1) continue;
+    const sx = i % 2 ? 1000 : 80, sy = 700 + (i % 3) * 120, ex = 540, ey = 680;
+    const x = sx + (ex - sx) * ease(k), y = sy + (ey - sy) * k - Math.sin(k * Math.PI) * 220;
+    drop(x, y, 24, t, i, k < .9 ? 1 : (1 - k) * 10);
+  }
+  // The tracker: eight drop slots on a paper strip fill one by one.
+  piece({ x: 540, y: 1330, w: 860, h: 150, rot: -1.5, paper: 'lavender', seed: 81, amp: 8, bob: .3, k: ease((t - 6.3) / .5) }, t);
+  for (let i = 0; i < 8; i++) {
+    const x = 540 + (i - 3.5) * 98, y = 1332, on = t > 6.6 + i * .3 + .55;
+    X.save(); X.globalAlpha = ease((t - 6.4) / .4);
+    X.translate(x, y); X.fillStyle = 'rgba(255,255,255,.7)'; X.fill(dropPath(26)); X.restore();
+    if (on) { const k = pop(t, 6.6 + i * .3 + .55, .4); X.save(); X.translate(x, y); X.scale(k, k); drop(0, 0, 26, t, i); X.restore(); }
+  }
+  // Meowie celebrates with a jump when it's full.
+  const jt = (t - 9.0) / .7, hop = jt > 0 && jt < 1 ? Math.sin(jt * Math.PI) * 170 : 0;
+  const squash = jt > 0 && jt < .12 ? .9 : jt > .9 && jt < 1.05 ? .92 : 1;
+  cat(800, 1840 - hop, .58, t, { happy: t > 8.9, sy: squash, sx: 2 - squash });
+  if (t > 9.2) { deco('star', 560, 1560, 34, 'yellow', t, 9.2, 91); deco('heart', 1010, 1500, 28, 'pink', t, 9.3, 92); }
+  label({ text: 'Track your hydration,\none sip at a time.', font: '800 76px "Baloo 2"', lh: 84, x: 540, y: 470, rot: -3, paper: 'sky', t0: 6.4, seed: 71 }, t);
+}
+// Scene 4 (10 - 13 s): the reminder.
+function scene4(t) {
+  // He nudges the glass towards you: it slides forward and grows.
+  const n = easeInOut((t - 11.4) / .9);
+  cat(330 + 40 * n, 1520, .85, t, { happy: t > 11.2, rot: -4 * n });
+  glass(760 - 120 * n, 1560 + 140 * n, .8 + .45 * n, t, .62, 9);
+  // The notification bubble.
+  if (t > 10.4) {
+    const k = pop(t, 10.4, .55), b = bob(t, 401, .5);
+    X.save(); X.translate(560 + b.x, 700 + b.y); X.rotate(-.04 + b.r); X.scale(k, k);
+    const bub = new Path2D(); bub.roundRect(-380, -110, 760, 220, 60); bub.moveTo(-170, 100); bub.lineTo(-230, 190); bub.lineTo(-90, 108); bub.closePath();
+    X.shadowColor = 'rgba(80,60,90,.25)'; X.shadowBlur = 26; X.shadowOffsetY = 12;
+    X.lineWidth = 18; X.lineJoin = 'round'; X.strokeStyle = '#fffdf8'; X.stroke(bub); X.shadowColor = 'transparent'; paperFill(bub, 'cream', 800);
+    if (ICON.naturalWidth) { X.save(); const ip = new Path2D(); ip.roundRect(-340, -70, 140, 140, 34); X.clip(ip); X.drawImage(ICON, -340, -70, 140, 140); X.restore(); }
+    X.fillStyle = INK; X.textAlign = 'left'; X.textBaseline = 'middle';
+    X.font = '900 30px Nunito'; X.globalAlpha = .55; X.fillText('MEOWIE  ·  now', -170, -42); X.globalAlpha = 1;
+    X.font = '800 74px "Baloo 2"'; X.fillText('Time for a sip!', -170, 22);
+    X.restore();
+  }
+  // Hearts and sparkles.
+  [[200, 1050, 11.6], [880, 1130, 11.8], [700, 980, 12.0], [300, 1250, 12.2]].forEach(([x, y, t0], i) => deco('heart', x, y - (t - t0) * 40, 30 + i * 4, i % 2 ? 'pink' : 'lavender', t, t0, 410 + i));
+  [[460, 1100, 11.5], [940, 1400, 11.9], [150, 1400, 12.1], [800, 1700, 12.3], [520, 1300, 12.5]].forEach(([x, y, t0]) => sparkle(x, y, 34, t, t0, t0 + .9));
+}
+// Scene 5 (13 - 15 s): the brand reveal.
+function scene5(t) {
+  // Pastel chips holding each letter of the logo.
+  const letters = 'Meowie'.split(''), papers = ['sky', 'pink', 'yellow', 'lavender', 'blue', 'pink'];
+  piece({ x: 540, y: 690, w: 860, h: 300, rot: -2, paper: 'cream', seed: 501, amp: 11, k: ease((t - 13.05) / .45) }, t);
+  letters.forEach((ch, i) => {
+    const t0 = 13.15 + i * .07; if (t < t0) return;
+    const k = pop(t, t0, .45), x = 540 + (i - 2.5) * 128, y = 690 + (i % 2 ? 10 : -10), rot = (i % 2 ? 5 : -6);
+    X.save(); X.translate(x, y); X.rotate(rot * Math.PI / 180); X.scale(k, k);
+    piece({ x: 0, y: 0, w: 118, h: 150, paper: papers[i], seed: 520 + i, amp: 6, bob: .3 }, t);
+    X.fillStyle = INK; X.font = '800 130px "Baloo 2"'; X.textAlign = 'center'; X.textBaseline = 'middle'; X.fillText(ch, 0, 12);
+    X.restore();
+  });
+  // The app icon, taped above the name.
+  if (t > 13.1 && ICON.naturalWidth) {
+    const k = pop(t, 13.1, .5), b = bob(t, 551, .4);
+    X.save(); X.translate(540 + b.x, 400 + b.y); X.rotate(-.05 + b.r); X.scale(k, k);
+    X.shadowColor = 'rgba(80,60,90,.25)'; X.shadowBlur = 24; X.shadowOffsetY = 12;
+    X.fillStyle = '#fffdf8'; X.fill(torn(250, 250, 552, 7)); X.shadowColor = 'transparent';
+    const ip = new Path2D(); ip.roundRect(-105, -105, 210, 210, 48); X.save(); X.clip(ip); X.drawImage(ICON, -105, -105, 210, 210); X.restore();
+    X.rotate(.6); X.globalAlpha = .8; piece({ x: 0, y: -150, w: 170, h: 52, paper: 'pink', seed: 553, amp: 4, bob: 0 }, t);
+    X.restore();
+  }
+  deco('heart', 960, 560, 36, 'pink', t, 13.6, 531); deco('star', 120, 590, 40, 'yellow', t, 13.65, 532); deco('flower', 940, 860, 34, 'lavender', t, 13.7, 533);
+  // Meowie sitting beside his glass.
+  const k = ease((t - 13.25) / .5);
+  cat(420, 1480 + 200 * (1 - k), .82, t, { a: k, happy: t > 14.2 && t < 14.7 });
+  glass(770, 1490 + 200 * (1 - k), .72 * (k > 0 ? 1 : 0), t, .62, 11);
+  label({ text: 'Stay hydrated with Meowie ♡', font: '800 68px "Baloo 2"', lh: 70, x: 540, y: 1640, rot: -2, paper: 'pink', t0: 13.75, seed: 541 }, t);
+  label({ text: 'Your little hydration companion.', font: '800 48px Nunito', lh: 54, x: 540, y: 1770, rot: 2, paper: 'cream', t0: 14.0, seed: 542 }, t);
+}
+
+// ---------- transitions: a big torn sheet of paper sweeps across ----------
+const SWEEPS = [{ t: 3.0, paper: 'lavender', dir: 1 }, { t: 6.0, paper: 'sky', dir: -1 }, { t: 10.0, paper: 'pink', dir: 1 }, { t: 13.0, paper: 'yellow', dir: -1 }];
+const SW = .7;   // duration
+function sweep(t) {
+  for (const s of SWEEPS) {
+    const k = (t - (s.t - SW / 2)) / SW; if (k <= 0 || k >= 1) continue;
+    const x = W / 2 + s.dir * (1 - 2 * easeInOut(k)) * (W + 260);
+    piece({ x, y: H / 2, w: W + 360, h: H + 400, rot: s.dir * 6, paper: s.paper, seed: 900 + Math.round(s.t), amp: 16, bob: 0 }, t);
+  }
+}
+
+// ---------- frame ----------
+const SCENES = [[0, 3, scene1], [3, 6, scene2], [6, 10, scene3], [10, 13, scene4], [13, 15.1, scene5]];
+async function render(t) {
+  X = C.getContext('2d'); X.setTransform(1, 0, 0, 1, 0, 0); X.globalAlpha = 1;
+  background(t);
+  // Gentle camera: each scene slowly pushes in.
+  const sc = SCENES.find(([a, b]) => t >= a && t < b) || SCENES[4];
+  const z = 1 + .035 * easeInOut((t - sc[0]) / (sc[1] - sc[0]));
+  X.save(); X.translate(W / 2, H / 2); X.scale(z, z); X.translate(-W / 2, -H / 2);
+  frame(t);
+  sc[2](t);
+  X.restore();
+  sweep(t);
+  // Soft paper grain and a light vignette.
+  const v = X.createRadialGradient(W / 2, H / 2, H * .4, W / 2, H / 2, H * .8);
+  v.addColorStop(0, 'rgba(120,100,140,0)'); v.addColorStop(1, 'rgba(120,100,140,.16)'); X.fillStyle = v; X.fillRect(0, 0, W, H);
+}
+window.ready = (async () => {
+  await document.fonts.load('800 100px "Baloo 2"'); await document.fonts.load('800 40px Nunito'); await document.fonts.load('900 30px Nunito');
+  await Promise.all([BG, ICON, ...Object.values(P), ...Object.values(CAT)].map((i) => i.decode().catch(() => {})));
+  return true;
+})();
+window.render = render;
+</script>
+</body></html>
